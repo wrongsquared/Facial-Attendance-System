@@ -1,2 +1,4 @@
-# SAS
-Student Attendance System
+# FYPJ
+
+Automatic Student Attendance System
+
