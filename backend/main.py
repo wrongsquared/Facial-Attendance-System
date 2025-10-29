@@ -4,7 +4,10 @@ from pydantic import BaseModel
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 
+#Install all required libraries from the requirements.txt file
+#pip install -r /path/to/requirements.txt
 #create a .venv, start a .venv using
+
 # .\.venv\Scripts\Activate.ps1
 #docker compose up --build
 # fastapi dev main.py
@@ -16,7 +19,7 @@ from sqlalchemy.orm import sessionmaker, Session
 #To deactivate the virtual environment, just use
 #deactivate
 
-#docker compose down -v (Nukes the entire database!11!1)
+#docker compose down -v (Nukes the entire database!)
 # Format: postgresql+psycopg2://user:password@host:port/dbname
 
 
