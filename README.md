@@ -10,11 +10,6 @@ Automatic Student Attendance System
 
 
 
-
-=============================================
-                    Backend
-=============================================
-
 1. To set up the Backend:
 1A. Requirements:
 Github Desktop
