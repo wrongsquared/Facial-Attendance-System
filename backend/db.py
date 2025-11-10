@@ -59,7 +59,7 @@ class Student(User):
     __tablename__ = "Students"
     __mapper_args__ = {"polymorphic_identity": "student"}
     studentID: Mapped[int] = mapped_column(ForeignKey("Users.userID"),  primary_key = True)
-    course: Mapped[str] = mapped_column(String[50])
+    courseID: Mapped[int] = mapped_column(ForeignKey("Courses.courseID"))
     attendanceMinimum: Mapped[float]
 
 class StudentFace(Base):
@@ -67,15 +67,21 @@ class StudentFace(Base):
     StudentID: Mapped[int] = mapped_column(ForeignKey("Students.studentID"), primary_key = True)
     #photo: havednt figure out what datatype it is
 
-class Attendance(Base):
-    __tablename__ = "Attendance"
-    attendanceID: Mapped[int]= mapped_column(primary_key=True)
+class EntLeave(Base):
+    __tablename__ = "EntLeave"
+    entLeaveID: Mapped[int]= mapped_column(primary_key=True)
     lessonID: Mapped[int] = mapped_column(ForeignKey("Lessons.lessonID"))
     studentID: Mapped[int] = mapped_column(ForeignKey("Students.studentID"))
-    attendance_check: Mapped[bool]
     enter: Mapped[datetime.datetime]
     leave: Mapped[datetime.datetime]
 
+class AttdCheck(Base):
+    __tablename__ = "AttdCheck"
+    AttdCheckID: Mapped[int]= mapped_column(primary_key=True)
+    lessonID: Mapped[int] = mapped_column(ForeignKey("Lessons.lessonID"))
+    studentID: Mapped[int] = mapped_column(ForeignKey("Students.studentID"))
+    attendance_check: Mapped[bool]
+    
 class Module(Base):
     __tablename__ = "Modules"
     moduleID: Mapped[int] = mapped_column(primary_key=True)
@@ -86,9 +92,7 @@ class Module(Base):
 class Lesson(Base):
     __tablename__ = "Lessons"
     lessonID: Mapped[int] = mapped_column(primary_key=True)
-
     lecModID: Mapped[int] = mapped_column(ForeignKey("LecMods.lecModID"))
-    studentsID: Mapped[int] = mapped_column(ForeignKey("Students.studentID"))
     lessontype: Mapped[str] = mapped_column(String[10])
     startDateTime: Mapped[datetime.datetime]
     endDateTime: Mapped[datetime.datetime]
@@ -110,3 +114,8 @@ class StudentLesson(Base):
 
     studentID: Mapped[int] = mapped_column(ForeignKey("Students.studentID"))
     lecturerID: Mapped[int] = mapped_column(ForeignKey("Lecturers.lecturerID"))
+
+class Courses(Base):
+    __tablename__ = "Courses"
+    courseID: Mapped[int] = mapped_column(primary_key= True)
+    courseCode: Mapped[str] = mapped_column(String[10])
