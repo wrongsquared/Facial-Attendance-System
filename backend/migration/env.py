@@ -6,6 +6,8 @@ from sqlalchemy import pool
 from alembic import context
 from db import Base
 
+import os 
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -15,8 +17,13 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-#Do not change this unless required
-db_url = "postgresql+psycopg2://user:password@localhost:5433/FYP_PG_Container"
+db_user = os.getenv("PGDB_USER")
+db_pass = os.getenv("PGDB_PASSWORD")
+db_host = os.getenv("PGDB_HOST")
+db_port = os.getenv("PGDB_PORT", "5432") # Use 5432 as a default port if not set
+db_name = os.getenv("PGDB_NAME")
+#Do not change unless required
+db_url = "postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
 config.set_main_option('sqlalchemy.url', db_url)
 
 # add your model's MetaData object here
