@@ -36,10 +36,7 @@ docker compose up --build
 Name it whatever you want,
 Under Connection,
 Host Name: localhost
-Port: 5433
 Maintenance Database = Same name as your Database
-username: user
-password: password
 
 7. Activate FastAPI
 fastapi dev main.py
