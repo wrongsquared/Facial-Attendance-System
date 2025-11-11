@@ -2,17 +2,17 @@ name: FYP_PG_Container
 
 services:
   postgres:
-    container_name: fyp_db_container
+    container_name: ${DC_NAME}
     image: postgres:16-alpine
     restart: always
     environment:
-      POSTGRES_DB: "FYP_PG_Container"
-      POSTGRES_USER: "user"
-      POSTGRES_PASSWORD: "password"
+      POSTGRES_DB: ${PGDB_NAME}
+      POSTGRES_USER: ${PGDB_USER}
+      POSTGRES_PASSWORD: ${PGDB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "${PGDB_PORT}:5432"
 
 volumes:
   postgres_data:
