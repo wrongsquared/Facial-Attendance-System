@@ -1,3 +1,16 @@
+# Prerequisites:
+- Must have Git installed
+
+# Steps to opening website:
+1. Open Github Desktop
+2. Current repository: Facial-Attendance-System
+3. Current branch: main
+4. Open in Visual Studio Code
+5. Inside VSC, open terminal
+6. Type "cd frontend"
+7. Type "npm install" (This creates node_modules which you need to run the code)
+8. Type "npm start"
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
