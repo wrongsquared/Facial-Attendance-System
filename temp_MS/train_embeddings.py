@@ -15,6 +15,8 @@ def main():
         if not os.path.isdir(student_dir):
             continue
 
+        print(f"📂 Processing folder: {student}")
+
         for img_name in os.listdir(student_dir):
             if img_name.lower().endswith((".jpg", ".jpeg", ".png")):
                 img_path = os.path.join(student_dir, img_name)
@@ -25,6 +27,9 @@ def main():
                     embeddings.append(encodings[0])
                     names.append(student)
                     print(f"Encoded: {student}/{img_name}")
+                else:
+                    print(f"⚠️ No face found in {student}/{img_name}")
+
 
     data = {"names": names, "embeddings": np.array(embeddings)}
     with open(EMBEDDINGS_FILE, "wb") as f:
