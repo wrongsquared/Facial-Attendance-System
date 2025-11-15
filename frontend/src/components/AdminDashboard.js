@@ -1,7 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './Dashboard.css';
+import LogoutDialog from './LogoutDialog';
 
 function AdminDashboard({ onLogout }) {
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
+  const handleLogoutClick = () => {
+    setShowLogoutDialog(true);
+  };
+
+  const handleLogoutConfirm = () => {
+    setShowLogoutDialog(false);
+    onLogout();
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutDialog(false);
+  };
+
   return (
     <div className="dashboard container">
       <div className="header">
@@ -14,7 +30,7 @@ function AdminDashboard({ onLogout }) {
             <p>Admin User</p>
             <p>Admin ID: A78901</p>
           </div>
-          <button className="logout-btn" onClick={onLogout}>
+          <button className="logout-btn" onClick={handleLogoutClick}>
             <i className="fas fa-sign-out-alt"></i> Logout
           </button>
         </div>
@@ -153,6 +169,13 @@ function AdminDashboard({ onLogout }) {
           </div>
         </div>
       </div>
+
+      {/* Logout Dialog */}
+      <LogoutDialog
+        isOpen={showLogoutDialog}
+        onClose={handleLogoutCancel}
+        onConfirm={handleLogoutConfirm}
+      />
     </div>
   );
 }
