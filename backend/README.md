@@ -1,54 +1,66 @@
 # FYPJ
 
-Automatic Student Attendance System
+# Automatic Student Attendance System
 
-1. To set up the Backend:
-1A. Requirements:
-Github Desktop
-Docker Desktop
-Postman
-PostgreSQL & PGadmin
+1. ## To set up the Backend:
+    ### Requirements:
+        Github Desktop
+        Docker Desktop
+        Postman
+        PostgreSQL & PGadmin
 
-1B. Make sure you're in the backend folder
-cd backend
+    ### Make sure you're in the backend folder
+        cd backend
 
-2. To create a .venv, 
-python -m  venv .venv
+2. ## To create a python virtual environment 
+        python -m  venv .venv
 
-3. To start a .venv using, using either the .ps1 file or .bat file 
-(Make sure your ExecutionPolicy is set to RemoteSigned)
-To check ExecutionPolicy type in "Get-ExecutionPolicy" into powershell/ Terminal
-To set ExecutionPolicy, open Windows Powershell or Terminal on Administrator Mode and type in "Set-ExecutionPolicy RemoteSigned"
-.\.venv\Scripts\Activate.ps1
-.\.venv\Scripts\Activate.bat   
+3. ## To start a python virtual environment 
+    ### Make sure your ExecutionPolicy is set to RemoteSigned
+    To check ExecutionPolicy type the following into powershell/ Terminal
+    
+        "Get-ExecutionPolicy"
+        
+    To set ExecutionPolicy, open Windows Powershell or Terminal on Administrator Mode and type in 
+    
+        "Set-ExecutionPolicy RemoteSigned"
 
-4. Install all required libraries from the requirements.txt file
-4A. Upgrade pip first
-python -m pip install --upgrade pip
-4B. Install all requirements in the file.
-pip install -r requirements.txt
+    ### Use Either
+    
+        .\.venv\Scripts\Activate.ps1
+    ### OR
+    
+        .\.venv\Scripts\Activate.bat   
+
+4. ## Install all required libraries from the requirements.txt file
+    ### Upgrade pip first
+        python -m pip install --upgrade pip
+    ### Install all requirements in the file.
+        pip install -r requirements.txt
 
 
-5. Start up/ Compose the Docker Instance
-docker compose up --build
+5. ## Start up/ Compose the Docker Instance
+        docker compose up --build
 
-6. Create the Database in PostgresSQL through Pgadmin
-Name it whatever you want,
-Under Connection,
-Host Name: localhost
-Maintenance Database = Same name as your Database
+6. ## Create the Database in PostgresSQL through Pgadmin
+    Name it whatever you want, But in the connection settings, set these,
 
-7. Activate FastAPI
-fastapi dev main.py
+        Host Name: localhost
+        Maintenance Database = Same name as your Database
 
-8. To create a new alembic revision, you don't have to do this if you're not making any changes to the database table
-alembic revision --autogenerate -m "revision name"
+7. ## Activate FastAPI
+        fastapi dev main.py
 
-9. To upgrade to the latest revision
-alembic upgrade head
+8. ## To create a new alembic revision
+    You do not have to do this if you're not making any changes to the database table
+        
+        alembic revision --autogenerate -m "revision name"
 
-10. To deactivate the virtual environment, just use
-deactivate
+9. ## To upgrade to the latest revision
+        alembic upgrade head
 
-11. If the Docker Instance needs to be nuked,
-docker compose down -v
+10. ## To deactivate the virtual environment, just use
+        deactivate
+
+11. ## If the Docker Instance needs to be nuked,
+        docker compose down -v

@@ -1,7 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './Dashboard.css';
+import LogoutDialog from './LogoutDialog';
 
 function LecturerDashboard({ onLogout }) {
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
+  const handleLogoutClick = () => {
+    setShowLogoutDialog(true);
+  };
+
+  const handleLogoutConfirm = () => {
+    setShowLogoutDialog(false);
+    onLogout();
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutDialog(false);
+  };
+
   return (
     <div className="dashboard container">
       <div className="header">
@@ -14,7 +30,7 @@ function LecturerDashboard({ onLogout }) {
             <p>Dr. Smith</p>
             <p>Lecturer ID: L12345</p>
           </div>
-          <button className="logout-btn" onClick={onLogout}>
+          <button className="logout-btn" onClick={handleLogoutClick}>
             <i className="fas fa-sign-out-alt"></i> Logout
           </button>
         </div>
@@ -138,6 +154,13 @@ function LecturerDashboard({ onLogout }) {
       <div className="footer">
         <p>© 2023 University of Wollongong</p>
       </div>
+
+      {/* Logout Dialog */}
+      <LogoutDialog
+        isOpen={showLogoutDialog}
+        onClose={handleLogoutCancel}
+        onConfirm={handleLogoutConfirm}
+      />
     </div>
   );
 }
