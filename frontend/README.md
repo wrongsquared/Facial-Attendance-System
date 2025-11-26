@@ -5,5 +5,6 @@
 
   ## Running the code
 
+  Run `cd frontend`
   Run `npm run dev` to start the development server.
   
