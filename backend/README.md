@@ -51,7 +51,9 @@
     Name it whatever you want, But in the connection settings, set these,
 
         Host Name: localhost
-        Maintenance Database = Same name as your Database
+        Username: Same as the PGDB_PASSWORD .env file
+        Password: Same as the PGDB_NAME .env file 
+        Maintenance Database = Same name as the PGDB_Name in the .env file
 
 8. ## Activate FastAPI
         fastapi dev main.py
