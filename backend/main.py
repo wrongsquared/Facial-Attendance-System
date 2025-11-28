@@ -1,4 +1,4 @@
-import os
+import os 
 from typing import Union
 from fastapi import FastAPI, Depends
 from pydantic import BaseModel
@@ -28,7 +28,7 @@ db_host = os.getenv("PGDB_HOST")
 db_port = os.getenv("PGDB_PORT", "5432") # Use 5432 as a default port if not set
 db_name = os.getenv("PGDB_NAME")
 
-DATABASE_URL = "postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+DATABASE_URL = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
