@@ -220,3 +220,8 @@ node_modules/
 
 #images
 samples/
+
+
+#Test tables
+database/fakerdatetime
+test.py
