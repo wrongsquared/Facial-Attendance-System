@@ -1,46 +1,17 @@
 import os 
+from supabase import create_client, Client
 from typing import Union
 from fastapi import FastAPI, Depends
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
-
-#Install all required libraries from the requirements.txt file
-#pip install -r /path/to/requirements.txt
-#create a .venv, start a .venv using
-
-# .\.venv\Scripts\Activate.ps1
-#docker compose up --build
-# fastapi dev main.py
-
-#To update the schema use alembic
-#alembic revision --autogenerate -m "save name"
-#alembic upgrade head
-
-#To deactivate the virtual environment, just use
-#deactivate
-
-#docker compose down -v (Nukes the entire database!)
-# Format: postgresql+psycopg2://user:password@host:port/dbname
-db_user = os.getenv("PGDB_USER")
-db_pass = os.getenv("PGDB_PASSWORD")
-db_host = os.getenv("PGDB_HOST")
-db_port = os.getenv("PGDB_PORT", "5432") # Use 5432 as a default port if not set
-db_name = os.getenv("PGDB_NAME")
-
-DATABASE_URL = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-def get_db():
-    db: Session = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+from database.db_config import get_db
 
 app = FastAPI()
+sp_url: str = os.getenv("SPBASE_URL")
+sp_key: str = os.getenv("SPBASE_KEY")
 
+supabase: Client = create_client(sp_url, sp_key)
 
 class Item(BaseModel):
     name: str
@@ -50,9 +21,8 @@ class Item(BaseModel):
 
 @app.get("/")
 def read_root(db: Session= Depends(get_db)):
-    with engine.connect() as connection:
-        result = connection.execute(text("SELECT 1"))
-    return {"Message": "Hello World"}
+    response = (supabase.table("test").select("*").execute())
+    return {"Message": response}
 
 
 @app.get("/items/{item_id}")

@@ -4,10 +4,8 @@
 
 1. ## To set up the Backend:
     ### Requirements:
-        Github Desktop
-        Docker Desktop
-        Postman
-        PostgreSQL & PGadmin
+        GitHub or GitHub Desktop
+        A Supabase Account (Free Tier)
 
     ### Make sure you're in the backend folder
         cd backend
@@ -39,35 +37,41 @@
     ### Install all requirements in the file.
         pip install -r requirements.txt
 
-5. ## Create an .env file similar to the one given .env.example
+5. ## Create a Supabase Account 
+    ### Create a Supabase Organization and Project, using the free tier.
+        Supabase will provide the means for a storage, a PGSQL Database.
 
-    You may just rename the file to .env for your purposes.
+6. ## Create an .env file similar to the one given .env.example
+    You may rename the file to .env for your purposes.
 
-6. ## Start up/ Compose the Docker Instance
-    Open a separate terminal for your Docker Container, leaving the terminal with the virtual environment for fastAPI.
-        docker compose up --build
+    From the Supabase Dashboard you may retrieve the following required keys.
+    ### SPDB_URL
+    In your individual project's navbar, you will see a button labeled "Connect" at the top left.
+    Select it and set the Connection Method to Session Pooler, this will ensure that it is connecting in IPV4
+    Replace the initial postgres in the first part of the line with 
+        
+        postgresql+psycopg2
+    
+    So the start of the Connection String will look like:
 
-7. ## Create the Database in PostgresSQL through Pgadmin
-    Name it whatever you want, But in the connection settings, set these,
+        postgresql+psycopg2://postgres(rest of the Connection string to follow)
+    ### SPBASE_URL & SPBASE_KEY
+    This contains the field of your Project's URL.
 
-        Host Name: localhost
-        Username: Same as the PGDB_PASSWORD .env file
-        Password: Same as the PGDB_NAME .env file 
-        Maintenance Database = Same name as the PGDB_Name in the .env file
+    In your Supabase project's main Project Overview page, scroll down to "Connecting to your new project", on the right, under Project API you will find the Project's URL and API Key.
 
-8. ## Activate FastAPI
+    Replace the SPBASE_URL with the URL retrieved from Supabase and the SPBASE_KEY with the key retrieved from Supabase.
+
+7. ## Activate FastAPI
         fastapi dev main.py
 
-9. ## To create a new alembic revision
+8. ## To create a new alembic revision
     You do not have to do this if you're not making any changes to the database table
         
         alembic revision --autogenerate -m "revision name"
 
-10. ## To upgrade to the latest revision
+9. ## To upgrade to the latest revision
         alembic upgrade head
 
-11. ## To deactivate the virtual environment, just use
+10. ## To deactivate the virtual environment, just use
         deactivate
-
-12. ## If the Docker Instance needs to be nuked,
-        docker compose down -v

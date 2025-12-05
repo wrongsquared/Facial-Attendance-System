@@ -5,6 +5,8 @@
 
   ## Running the code
 
+  Run `cd frontend` to navigate to the frontend directory.
+
   Run `npm i` to install the dependencies.
 
   Run `npm run dev` to start the development server.
