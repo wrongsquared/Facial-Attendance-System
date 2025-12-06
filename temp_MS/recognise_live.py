@@ -2,29 +2,32 @@ import cv2
 import pickle
 import numpy as np
 import face_recognition
-from scipy.spatial.distance import cosine
+from antispoof import is_real_face
 
-EMBEDDINGS_FILE = "encodings.pkl"
-RECOGNITION_THRESHOLD = 0.45  # lower = more strict
+EMB_FILE = "encodings.pkl"
+CLS_FILE = "classifier.pkl"
+LBL_FILE = "labels.pkl"
 
-def load_embeddings():
-    with open(EMBEDDINGS_FILE, "rb") as f:
-        data = pickle.load(f)
-    return data["names"], data["embeddings"]
+PROBA_THRESHOLD = 0.55     # stricter = fewer false positives
+ANTI_SPOOF_ENFORCED = True
 
-def find_best_match(query_emb, known_embs, known_names):
-    best_dist = 1.0
-    best_name = "Unknown"
-    for name, emb in zip(known_names, known_embs):
-        d = cosine(query_emb, emb)
-        if d < best_dist:
-            best_dist = d
-            best_name = name
-    return best_name, best_dist
+def load_models():
+    print("Loading face embeddings (for consistency)...")
+    with open(EMB_FILE, "rb") as f:
+        emb_data = pickle.load(f)
+
+    print("Loading classifier...")
+    with open(CLS_FILE, "rb") as f:
+        classifier = pickle.load(f)
+
+    print("Loading label encoder...")
+    with open(LBL_FILE, "rb") as f:
+        label_encoder = pickle.load(f)
+
+    return classifier, label_encoder
 
 def main():
-    known_names, known_embs = load_embeddings()
-
+    classifier, encoder = load_models()
     cap = cv2.VideoCapture(0)
 
     while True:
@@ -32,24 +35,41 @@ def main():
         if not ret:
             break
 
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        face_locations = face_recognition.face_locations(rgb)
-        face_encodings = face_recognition.face_encodings(rgb, face_locations)
+        rgb = frame[:, :, ::-1]
+        face_locs = face_recognition.face_locations(rgb)
+        face_encs = face_recognition.face_encodings(rgb, face_locs)
 
-        for (top, right, bottom, left), enc in zip(face_locations, face_encodings):
-            name, dist = find_best_match(enc, known_embs, known_names)
+        for (top, right, bottom, left), face_emb in zip(face_locs, face_encs):
 
-            if dist < RECOGNITION_THRESHOLD:
-                label = f"{name} ({dist:.2f})"
-            else:
+            # Anti-Spoof Check
+            crop = frame[top:bottom, left:right]
+            is_real, score = is_real_face(crop)
+
+            if ANTI_SPOOF_ENFORCED and not is_real:
+                cv2.rectangle(frame, (left, top), (right, bottom), (0,0,255), 2)
+                cv2.putText(frame, f"SPOOF ({score:.2f})",
+                            (left, top - 10), 0, 0.6, (0,0,255), 2)
+                continue
+
+            # Classification
+            proba = classifier.predict_proba([face_emb])[0]
+            max_p = np.max(proba)
+            label_idx = np.argmax(proba)
+
+            if max_p < PROBA_THRESHOLD:
                 label = "Unknown"
+                color = (0, 165, 255)
+            else:
+                label = encoder.inverse_transform([label_idx])[0]
+                color = (0, 255, 0)
 
-            cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
-            cv2.putText(frame, label, (left, top - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0),2)
+            # Draw result
+            cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
+            cv2.putText(frame, f"{label} ({max_p:.2f})",
+                        (left, top - 10), 0, 0.6, color, 2)
 
-        cv2.imshow("Face Recognition", frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        cv2.imshow("Live Recognition + Classifier + AntiSpoof", frame)
+        if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
     cap.release()
