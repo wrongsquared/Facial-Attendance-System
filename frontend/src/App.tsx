@@ -9,11 +9,13 @@ import { LecturerTimetable } from './components/LecturerTimetable';
 import { LecturerAttendanceRecords } from './components/LecturerAttendanceRecords';
 import { ManageUserAccounts } from './components/ManageUserAccounts';
 import { StudentAttendanceHistory } from './components/StudentAttendanceHistory';
+import { CreateUser } from './components/CreateUser';
+import { UpdateUser } from './components/UpdateUser';
 import { Footer } from './components/Footer';
 
 type UserType = 'student' | 'lecturer' | 'admin' | null;
 type LecturerView = 'dashboard' | 'reports' | 'profile' | 'timetable' | 'records';
-type AdminView = 'dashboard' | 'manageUsers';
+type AdminView = 'dashboard' | 'manageUsers' | 'createUser' | 'updateUser';
 type StudentView = 'dashboard' | 'attendanceHistory';
 
 export default function App() {
@@ -21,6 +23,12 @@ export default function App() {
   const [lecturerView, setLecturerView] = useState<LecturerView>('dashboard');
   const [adminView, setAdminView] = useState<AdminView>('dashboard');
   const [studentView, setStudentView] = useState<StudentView>('dashboard');
+  const [selectedUserData, setSelectedUserData] = useState<{
+    userId: string;
+    name: string;
+    role: string;
+    status: string;
+  } | null>(null);
 
   const handleLogin = (userType: UserType) => {
     setCurrentUser(userType);
@@ -62,6 +70,24 @@ export default function App() {
 
   const handleBackToAdminDashboard = () => {
     setAdminView('dashboard');
+  };
+
+  const handleNavigateToCreateUser = () => {
+    setAdminView('createUser');
+  };
+
+  const handleBackToManageUsers = () => {
+    setAdminView('manageUsers');
+  };
+
+  const handleNavigateToUpdateUser = (userData: {
+    userId: string;
+    name: string;
+    role: string;
+    status: string;
+  }) => {
+    setSelectedUserData(userData);
+    setAdminView('updateUser');
   };
 
   const handleNavigateToAttendanceHistory = () => {
@@ -143,6 +169,23 @@ export default function App() {
         <ManageUserAccounts 
           onLogout={handleLogout} 
           onBack={handleBackToAdminDashboard}
+          onCreateUser={handleNavigateToCreateUser}
+          onUpdateUser={handleNavigateToUpdateUser}
+        />
+      )}
+      {currentUser === 'admin' && adminView === 'createUser' && (
+        <CreateUser 
+          onLogout={handleLogout} 
+          onBack={handleBackToManageUsers}
+          onCreateSuccess={handleBackToManageUsers}
+        />
+      )}
+      {currentUser === 'admin' && adminView === 'updateUser' && selectedUserData && (
+        <UpdateUser 
+          onLogout={handleLogout} 
+          onBack={handleBackToManageUsers}
+          onUpdateSuccess={handleBackToManageUsers}
+          userData={selectedUserData}
         />
       )}
       <Footer />

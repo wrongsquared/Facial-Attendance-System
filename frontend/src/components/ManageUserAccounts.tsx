@@ -49,6 +49,13 @@ import {
 interface ManageUserAccountsProps {
   onLogout: () => void;
   onBack: () => void;
+  onCreateUser: () => void;
+  onUpdateUser: (userData: {
+    userId: string;
+    name: string;
+    role: string;
+    status: string;
+  }) => void;
 }
 
 // Mock data for user accounts
@@ -118,6 +125,8 @@ const userAccounts = [
 export function ManageUserAccounts({
   onLogout,
   onBack,
+  onCreateUser,
+  onUpdateUser,
 }: ManageUserAccountsProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
@@ -281,7 +290,7 @@ export function ManageUserAccounts({
               </Select>
 
               {/* Create New User Button */}
-              <Button className="w-full md:w-auto">
+              <Button className="w-full md:w-auto" onClick={onCreateUser}>
                 <UserPlus className="h-4 w-4 mr-2" />
                 Create New User
               </Button>
@@ -317,7 +326,11 @@ export function ManageUserAccounts({
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button variant="outline" size="sm">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onUpdateUser(user)}
+                            >
                               Update
                             </Button>
                             <AlertDialog>
