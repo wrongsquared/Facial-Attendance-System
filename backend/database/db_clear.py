@@ -1,9 +1,9 @@
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from supabase import Client
 
 
-
-def clear_db(db: Session):
+def clear_db(db: Session, spbse: Client):
     print("Clearing the database....\n")
     db.execute(text("SET session_replication_role = 'replica';"))  # Disable foreign key constraints
 
@@ -11,6 +11,13 @@ def clear_db(db: Session):
     for table in table_names:  # Truncate all tables
         if table not in ["alembic_version"]:
             db.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE;"))
+    # this code clears the auth tables, y to clear auth.user
+    yn = input(f"Clear Auth.user Tables? Input (Y or y) to confirm \n")
+    if yn.lower() == "y":
+        try:
+            db.execute(text("TRUNCATE TABLE auth.users CASCADE;"))
+        except Exception as e:
+            print(f"  - Warning: Could not clear auth.users: {e}")
 
     db.execute(text("SET session_replication_role = 'origin';"))  # Re-enable foreign key constraints
     db.commit()

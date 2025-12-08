@@ -1,6 +1,8 @@
-from __future__ import annotations
+from __future__ import annotations # Must always be at the top.
+import uuid
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship
 from enum import Enum
+from sqlalchemy.dialects.postgresql import UUID 
 from sqlalchemy import (
     Enum as SQLAlchemyEnum,
     ForeignKey,
@@ -31,27 +33,26 @@ class User(Base):
     __mapper_args__ = {"polymorphic_identity": "user", "polymorphic_on": "type"} 
     type: Mapped[str]
 
-    userID: Mapped[int] = mapped_column(primary_key=True)
+    userID: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
 
     profileTypeID: Mapped[int] = mapped_column(ForeignKey("userprofiles.profileTypeID"))
     profileType: Mapped[UserProfile] = relationship(back_populates="users")
 
     name: Mapped[str] = mapped_column(String(50))
     email: Mapped[str] = mapped_column(String(40))
-    #This might change if the password will be stored as Alphanum
-    password: Mapped[str] = mapped_column(String(25))
-    photo: Mapped[str | None]
+    # Password is not required as it is stored as hash in the hidden supabase password table
+    photo: Mapped[str | None] #Allows for None, as we figure out how we want to store the photo.
 
 class Admin(User):
     __tablename__ = "admins"
     __mapper_args__ = {"polymorphic_identity": "admin"}
-    adminID: Mapped[int] = mapped_column(ForeignKey("users.userID"), primary_key = True)
+    adminID: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.userID"), primary_key = True)
     
 
 class Lecturer(User):
     __tablename__ = "lecturers"
     __mapper_args__ = {"polymorphic_identity": "lecturer"}
-    lecturerID: Mapped[int] = mapped_column(ForeignKey("users.userID"), primary_key = True)
+    lecturerID: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.userID"), primary_key = True)
 
     lecMod: Mapped[list[LecMod]] = relationship(back_populates="lecturers")
 
@@ -59,7 +60,7 @@ class Lecturer(User):
 class Student(User):
     __tablename__ = "students"
     __mapper_args__ = {"polymorphic_identity": "student"}
-    studentID: Mapped[int] = mapped_column(ForeignKey("users.userID"),  primary_key = True)
+    studentID: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.userID"),  primary_key = True)
 
     courseID: Mapped[int] = mapped_column(ForeignKey("courses.courseID"))
     course: Mapped[Courses] = relationship(back_populates="students")
@@ -78,7 +79,7 @@ class EntLeave(Base):
     lessonID: Mapped[int] = mapped_column(ForeignKey("lessons.lessonID"))
     lesson: Mapped[Lesson] = relationship(back_populates="entLeaves")
 
-    studentID: Mapped[int] = mapped_column(ForeignKey("students.studentID"))
+    studentID: Mapped[uuid.UUID] = mapped_column(ForeignKey("students.studentID"))
     student: Mapped[Student] = relationship(back_populates="EntLeaves")
 
     enter: Mapped[datetime.datetime]
@@ -87,9 +88,9 @@ class EntLeave(Base):
 class AttdCheck(Base):
     __tablename__ = "attdcheck"
     AttdCheckID: Mapped[int]= mapped_column(primary_key=True)
-    lessonID: Mapped[int] = mapped_column(ForeignKey("lessons.lessonID"))
+    lessonID: Mapped[uuid.UUID] = mapped_column(ForeignKey("lessons.lessonID"))
     lesson: Mapped[Lesson] = relationship(back_populates="attdcheck")
-    studentID: Mapped[int] = mapped_column(ForeignKey("students.studentID"))
+    studentID: Mapped[uuid.UUID] = mapped_column(ForeignKey("students.studentID"))
     student: Mapped[Student] = relationship(back_populates="attdcheck")
     
 class Module(Base):
@@ -121,7 +122,7 @@ class LecMod(Base):
     __tablename__ = "lecmods"
     lecModID: Mapped[int] = mapped_column(primary_key= True)
 
-    lecturerID: Mapped[int] = mapped_column(ForeignKey("lecturers.lecturerID"))
+    lecturerID: Mapped[uuid.UUID] = mapped_column(ForeignKey("lecturers.lecturerID"))
     lecturers: Mapped[Lecturer] = relationship(back_populates="lecMod")
 
     lessons: Mapped[list[Lesson]] = relationship(back_populates="lecMod")
@@ -135,7 +136,7 @@ class StudentModules(Base):
     __tablename__ = "studentmodules"
     studentModulesID: Mapped[int] = mapped_column(primary_key= True)
 
-    studentID: Mapped[int] = mapped_column(ForeignKey("students.studentID"))
+    studentID: Mapped[uuid.UUID] = mapped_column(ForeignKey("students.studentID"))
     student: Mapped[Student] = relationship(back_populates="studentmodules")
 
     modulesID: Mapped[int] = mapped_column(ForeignKey("modules.moduleID"))

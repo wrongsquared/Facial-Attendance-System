@@ -1,8 +1,8 @@
-"""firstgeneration-spbase
+"""firstgeneration_spbase
 
-Revision ID: 8d1daf435920
+Revision ID: e1ffdf6c5694
 Revises: 
-Create Date: 2025-12-04 15:33:15.147399
+Create Date: 2025-12-07 17:36:13.718734
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '8d1daf435920'
+revision: str = 'e1ffdf6c5694'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -39,7 +39,7 @@ def upgrade() -> None:
     )
     op.create_table('users',
     sa.Column('type', sa.String(), nullable=False),
-    sa.Column('userID', sa.Integer(), nullable=False),
+    sa.Column('userID', sa.UUID(), nullable=False),
     sa.Column('profileTypeID', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=50), nullable=False),
     sa.Column('email', sa.String(length=40), nullable=False),
@@ -49,17 +49,17 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('userID')
     )
     op.create_table('admins',
-    sa.Column('adminID', sa.Integer(), nullable=False),
+    sa.Column('adminID', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['adminID'], ['users.userID'], ),
     sa.PrimaryKeyConstraint('adminID')
     )
     op.create_table('lecturers',
-    sa.Column('lecturerID', sa.Integer(), nullable=False),
+    sa.Column('lecturerID', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['lecturerID'], ['users.userID'], ),
     sa.PrimaryKeyConstraint('lecturerID')
     )
     op.create_table('students',
-    sa.Column('studentID', sa.Integer(), nullable=False),
+    sa.Column('studentID', sa.UUID(), nullable=False),
     sa.Column('courseID', sa.Integer(), nullable=False),
     sa.Column('attendanceMinimum', sa.Float(), nullable=False),
     sa.ForeignKeyConstraint(['courseID'], ['courses.courseID'], ),
@@ -68,7 +68,7 @@ def upgrade() -> None:
     )
     op.create_table('lecmods',
     sa.Column('lecModID', sa.Integer(), nullable=False),
-    sa.Column('lecturerID', sa.Integer(), nullable=False),
+    sa.Column('lecturerID', sa.UUID(), nullable=False),
     sa.Column('moduleID', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['lecturerID'], ['lecturers.lecturerID'], ),
     sa.ForeignKeyConstraint(['moduleID'], ['modules.moduleID'], ),
@@ -76,7 +76,7 @@ def upgrade() -> None:
     )
     op.create_table('studentmodules',
     sa.Column('studentModulesID', sa.Integer(), nullable=False),
-    sa.Column('studentID', sa.Integer(), nullable=False),
+    sa.Column('studentID', sa.UUID(), nullable=False),
     sa.Column('modulesID', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['modulesID'], ['modules.moduleID'], ),
     sa.ForeignKeyConstraint(['studentID'], ['students.studentID'], ),
@@ -94,7 +94,7 @@ def upgrade() -> None:
     op.create_table('attdcheck',
     sa.Column('AttdCheckID', sa.Integer(), nullable=False),
     sa.Column('lessonID', sa.Integer(), nullable=False),
-    sa.Column('studentID', sa.Integer(), nullable=False),
+    sa.Column('studentID', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['lessonID'], ['lessons.lessonID'], ),
     sa.ForeignKeyConstraint(['studentID'], ['students.studentID'], ),
     sa.PrimaryKeyConstraint('AttdCheckID')
@@ -102,7 +102,7 @@ def upgrade() -> None:
     op.create_table('entleave',
     sa.Column('entLeaveID', sa.Integer(), nullable=False),
     sa.Column('lessonID', sa.Integer(), nullable=False),
-    sa.Column('studentID', sa.Integer(), nullable=False),
+    sa.Column('studentID', sa.UUID(), nullable=False),
     sa.Column('enter', sa.DateTime(), nullable=False),
     sa.Column('leave', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['lessonID'], ['lessons.lessonID'], ),

@@ -8,8 +8,29 @@ from datetime import timedelta
 from collections import defaultdict
 import shutil
 import os
+from dotenv import load_dotenv
+import uuid
+from supabase import create_client, Client
 
-def seedCoursesOSS(dbSessionLocalInstance: Session): #done
+load_dotenv()
+
+
+def createAccountgetuuid(email: str , password: str, email_confirmed: bool):
+    try:
+        user_payload = {
+            "email": email,
+            "password": password,
+            "email_confirm": email_confirmed
+        }
+        auth_response = spbse.auth.admin.create_user(user_payload)
+        user_uuid = auth_response.user.id
+    except Exception:
+        users = spbse.auth.admin.list_users()
+        user_uuid = next((u.id for u in users if u.email == email), None)
+
+    return user_uuid
+
+def seedCoursesOSS(dbSessionLocalInstance: Session, spbase: Client): #done
     #No Primary Keys
     print(f"Seeding Courses: \n")
     courseCodeHeader = ['ISIT', 'CSIT']
@@ -34,7 +55,7 @@ def seedCoursesOSS(dbSessionLocalInstance: Session): #done
 
     dbSessionLocalInstance.commit()
     return None
-def userProfileSeeder(dbSessionLocalInstance: Session): #done
+def userProfileSeeder(dbSessionLocalInstance: Session, spbase: Client): #done
     #No Primary Keys
     print(f"Seeding User Profiles: \n")
     #User Profile Types - Are Fixed
@@ -43,7 +64,7 @@ def userProfileSeeder(dbSessionLocalInstance: Session): #done
         dbSessionLocalInstance.add(UserProfile(profileTypeName = i))
     dbSessionLocalInstance.commit()
     return None
-def studentSeed(dbSessionLocalInstance: Session): #done
+def studentSeed(dbSessionLocalInstance: Session, spbase: Client): #done
     print(f"Seeding Students: \n")
     studentProfile = dbSessionLocalInstance.query(UserProfile).filter_by(profileTypeName='Student').first()
     specialNames = []
@@ -68,10 +89,15 @@ def studentSeed(dbSessionLocalInstance: Session): #done
     #Courses
     courseobjs = dbSessionLocalInstance.query(Courses).all()
     rCourse = random.choice(courseobjs)
-    dbSessionLocalInstance.add(Student(profileType = studentProfile,
-                                       email = "al123@outlook.com",
-                                       name="Allison Lang",
-                                       password = 'al123',
+    #student@uow.edu.au
+    #Valid123
+    baseemail = "student@uow.edu.au"
+    basepass = "Valid123"
+    user_uuid = createAccountgetuuid(baseemail, basepass, True)
+    dbSessionLocalInstance.add(Student(userID = user_uuid,
+                                       profileType = studentProfile,
+                                       email = baseemail,
+                                       name= "Allison Lang",
                                        attendanceMinimum = 75.0,
                                        course = rCourse,
                                         photo = None))
@@ -79,31 +105,39 @@ def studentSeed(dbSessionLocalInstance: Session): #done
         name = specialNames.pop()
         username = userNames.pop()
         rCourse = random.choice(courseobjs)
-        dbSessionLocalInstance.add(Student(profileType = studentProfile,
-                                           email = username + "@outlook.com",
-                                           name = name,
-                                           password = username,
-                                           attendanceMinimum = 75.0,
-                                           course = rCourse,
+        email = username + "@uow.edu.au"
+        #For Simplicity sake, username is the password!
+        user_uuid = createAccountgetuuid(email, username, True)
+        # Ghost Users that can not be logged in to
+        dbSessionLocalInstance.add(Student(
+                                        userID = user_uuid,
+                                        profileType = studentProfile,
+                                        email = email,
+                                        name = name,
+                                        attendanceMinimum = 75.0,
+                                        course = rCourse,
                                         photo = None))
                                         #EntLeave
                                         #StudentModules
     dbSessionLocalInstance.commit()
 
     return None
-def adminSeed(dbSessionLocalInstance: Session): # done
+def adminSeed(dbSessionLocalInstance: Session, spbase: Client): # done
     #No Primary Keys
     print(f"Seeding Admins: \n")
     AdminProfile = dbSessionLocalInstance.query(UserProfile).filter_by(profileTypeName='Admin').first()
 
     #Base Admin
-    #Username: ab01
-    #Password: 123
-    dbSessionLocalInstance.add(Admin(profileType = AdminProfile, 
-                                     name = "James Looker",
-                                     email = "JL123@outlook.com",
-                                     password = '123',
-                                        photo = None))
+    #email:Admin@uow.edu.au
+    #Password: Valid123
+    baseemail = "Admin@uow.edu.au"
+    basepass = "Valid123"
+    user_uuid = createAccountgetuuid(baseemail, basepass, True)
+    dbSessionLocalInstance.add(Admin(userID = user_uuid,
+                                    profileType = AdminProfile, 
+                                    name = "James Looker",
+                                    email = baseemail,
+                                    photo = None))
 
 
     userNames = []
@@ -127,26 +161,35 @@ def adminSeed(dbSessionLocalInstance: Session): # done
     while len(specialNames) > 0:
         name = specialNames.pop()
         username = userNames.pop()
-        dbSessionLocalInstance.add(Admin(profileType = AdminProfile,
-                                         email = username + "@outlook.com",
-                                         name = name, 
-                                         password = username,
+        email = username + "@uow.edu.au"
+        # For simplicity's sake username is the password.
+        user_uuid = createAccountgetuuid(email, username, True)
+        # Ghost Users that can not be logged in to
+        dbSessionLocalInstance.add(Admin(userID = user_uuid,
+                                        profileType = AdminProfile,
+                                        email = email,
+                                        name = name, 
                                         photo = None))
 
     dbSessionLocalInstance.commit()
 
     return None
-def lecturerSeed(dbSessionLocalInstance: Session): # done
+def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client): # done
     #No Primary Keys
     print(f"Seeding Lecturers: \n")
     LecturerProfile = dbSessionLocalInstance.query(UserProfile).filter_by(profileTypeName='Lecturer').first()
     #Base Lecturer
-    #Username: al01
-    #Password: 123
-    dbSessionLocalInstance.add(Lecturer(profileType = LecturerProfile, 
+    #lecturer@uow.edu.au
+    #Valid123
+    baseemail = "lecturer@uow.edu.au"
+    basepass = "Valid123"
+
+    user_uuid = createAccountgetuuid(baseemail, basepass, True)
+
+    dbSessionLocalInstance.add(Lecturer(userID = user_uuid,
+                                        profileType = LecturerProfile, 
                                         name = "Agnes Lam", 
-                                        email = "al01@outlook.com", 
-                                        password = '123',
+                                        email = baseemail, 
                                         photo = None))
     
     userNames = []
@@ -166,19 +209,22 @@ def lecturerSeed(dbSessionLocalInstance: Session): # done
             userNames.append(userName)
             specialNames.append(fakeName)
             i+=1
-    i = 0
-    while len(specialNames) > 0:
-        name = specialNames.pop()
-        username = userNames.pop()
-        dbSessionLocalInstance.add(Lecturer(profileType = LecturerProfile, 
-                                            name = name, 
-                                            email = username + "@outlook.com",
-                                            password = username,
-                                            photo = None))
+    # Ghost Users that can not be logged in to
+        while len(specialNames) > 0:
+            name = specialNames.pop()
+            username = userNames.pop()
+            email = username + "@uow.edu.au"
+            #For simplicity, Username is the password!
+            user_uuid = createAccountgetuuid(email, username, True)
+            dbSessionLocalInstance.add(Lecturer(userID = user_uuid,
+                                                profileType = LecturerProfile, 
+                                                name = name, 
+                                                email = email,
+                                                photo = None))
     dbSessionLocalInstance.commit()
 
     return None
-def modulesSeed(dbSessionLocalInstance: Session): # done
+def modulesSeed(dbSessionLocalInstance: Session, spbase: Client): # done
     #No Primary Keys
     print(f"Seeding Modules: \n")
     modNames = ["Big Data Mismanagement", "Web Development", "Advanced Programming"]
@@ -188,7 +234,7 @@ def modulesSeed(dbSessionLocalInstance: Session): # done
         dbSessionLocalInstance.add(Module(moduleName =modNames[i], 
                                             moduleCode = modCodes[i]))
     return None
-def lecModSeed(dbSessionLocalInstance: Session): #done
+def lecModSeed(dbSessionLocalInstance: Session, spbase: Client): #done
     #No Primary Keys
     print(f"Seeding LecMods: \n")
     lecturerobjs = dbSessionLocalInstance.query(Lecturer).all()
@@ -202,7 +248,7 @@ def lecModSeed(dbSessionLocalInstance: Session): #done
     
     dbSessionLocalInstance.commit()
     return None
-def studentModulesSeed(dbSessionLocalInstance: Session): #done
+def studentModulesSeed(dbSessionLocalInstance: Session, spbase: Client): #done
     #No Primary Keys
     print(f"Seeding studentModules: \n")
     studentobjs = dbSessionLocalInstance.query(Student).all()
@@ -216,7 +262,7 @@ def studentModulesSeed(dbSessionLocalInstance: Session): #done
     
     dbSessionLocalInstance.commit()
     return None
-def lessonsSeed(dbSessionLocalInstance: Session): #done
+def lessonsSeed(dbSessionLocalInstance: Session, spbase: Client): #done
     #No Primary Keys
     lecModobjs = dbSessionLocalInstance.query(LecMod).all()
     fake = Faker()
@@ -237,7 +283,7 @@ def lessonsSeed(dbSessionLocalInstance: Session): #done
                                                   endDateTime = end_dt))
     dbSessionLocalInstance.commit()
     return None
-def entLeaveSeed(dbSessionLocalInstance: Session): #done
+def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client): #done
     #No Primary Keys
     print(f"Seeding EntLeave: \n")
     lessonobjs = dbSessionLocalInstance.query(Lesson).all()
@@ -268,7 +314,7 @@ def entLeaveSeed(dbSessionLocalInstance: Session): #done
                                                 ))
     dbSessionLocalInstance.commit()
     return None
-def attdCheckSeed(dbSessionLocalInstance: Session):
+def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
     #No Primary Keys
     print(f"Seeding attdCheck: \n")
     lessonobjs = dbSessionLocalInstance.query(Lesson).all()
@@ -301,19 +347,20 @@ if __name__ == "__main__":
     db_session: Session = SessionLocal()
 
     try:
+        spbse: Client = create_client(os.getenv("SPBASE_URL"), os.getenv("SPBASE_SKEY"))
         faker = Faker()
-        clear_db(db_session)
-        seedCoursesOSS(db_session)
-        userProfileSeeder(db_session)
-        modulesSeed(db_session)
-        lecturerSeed(db_session)
-        adminSeed(db_session)
-        lecModSeed(db_session)
-        studentSeed(db_session)
-        studentModulesSeed(db_session)
-        lessonsSeed(db_session)
-        entLeaveSeed(db_session)
-        attdCheckSeed(db_session)
+        clear_db(db_session, spbse)
+        seedCoursesOSS(db_session, spbse)
+        userProfileSeeder(db_session, spbse)
+        modulesSeed(db_session, spbse)
+        lecturerSeed(db_session, spbse)
+        adminSeed(db_session, spbse)
+        lecModSeed(db_session, spbse)
+        studentSeed(db_session, spbse)
+        studentModulesSeed(db_session, spbse)
+        lessonsSeed(db_session, spbse)
+        entLeaveSeed(db_session, spbse)
+        attdCheckSeed(db_session, spbse)
 
         # Initialize defaults
         print("Finished seeding the database defaults!")

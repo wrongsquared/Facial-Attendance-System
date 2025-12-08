@@ -55,12 +55,15 @@
     So the start of the Connection String will look like:
 
         postgresql+psycopg2://postgres(rest of the Connection string to follow)
-    ### SPBASE_URL & SPBASE_KEY
+    ### SPBASE_URL, SPBASE_KEY, SPBASE_SKEY
     This contains the field of your Project's URL.
 
     In your Supabase project's main Project Overview page, scroll down to "Connecting to your new project", on the right, under Project API you will find the Project's URL and API Key.
 
     Replace the SPBASE_URL with the URL retrieved from Supabase and the SPBASE_KEY with the key retrieved from Supabase.
+
+    SPBASE_SKEY can be retrieved from Project Settings --> API Keys --> Legacy anon, service_role API keys.
+    It is required for the seeding of data and for routing.
 
 7. ## Activate FastAPI
         fastapi dev main.py
