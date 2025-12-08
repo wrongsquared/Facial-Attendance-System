@@ -214,3 +214,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+#node modules
+node_modules/
+
+#images
+samples/
