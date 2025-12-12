@@ -14,9 +14,8 @@ load_dotenv()
 # DATABASE_URL = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
 #Cloud Platform
 DATABASE_URL = os.getenv("SPDB_URL")
-engine = create_engine(DATABASE_URL, echo = True)
+engine = create_engine(DATABASE_URL, echo = True, pool_size = 3, max_overflow = 10, pool_timeout = 30, pool_pre_ping = True, pool_recycle = 600)
 connection = engine.connect()
-
 
 #Locally
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

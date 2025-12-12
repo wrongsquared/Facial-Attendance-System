@@ -27,7 +27,6 @@ class UserProfile(Base):
     profileTypeID: Mapped[int] = mapped_column(primary_key=True)
     profileTypeName: Mapped[str] = mapped_column(String(500))
     users: Mapped[list["User"]] = relationship(back_populates="profileType")
-
 class User(Base):
     __tablename__ = "users"
     __mapper_args__ = {"polymorphic_identity": "user", "polymorphic_on": "type"} 
@@ -42,37 +41,36 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(40))
     # Password is not required as it is stored as hash in the hidden supabase password table
     photo: Mapped[str | None] #Allows for None, as we figure out how we want to store the photo.
-
 class Admin(User):
     __tablename__ = "admins"
     __mapper_args__ = {"polymorphic_identity": "admin"}
-    adminID: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.userID"), primary_key = True)
     
-
+    adminID: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.userID"), primary_key = True)
+    role: Mapped[str]
 class Lecturer(User):
     __tablename__ = "lecturers"
     __mapper_args__ = {"polymorphic_identity": "lecturer"}
     lecturerID: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.userID"), primary_key = True)
-
+    specialistIn: Mapped[str]
     lecMod: Mapped[list[LecMod]] = relationship(back_populates="lecturers")
-
-
 class Student(User):
     __tablename__ = "students"
     __mapper_args__ = {"polymorphic_identity": "student"}
     studentID: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.userID"),  primary_key = True)
+    studentNum: Mapped[str] = mapped_column(String(6))
 
     courseID: Mapped[int] = mapped_column(ForeignKey("courses.courseID"))
     course: Mapped[Courses] = relationship(back_populates="students")
 
     EntLeaves: Mapped[list[EntLeave]] = relationship(back_populates="student")
+
     attendanceMinimum: Mapped[float]
 
     attdcheck: Mapped[list[AttdCheck]] = relationship(back_populates="student")
 
     studentmodules: Mapped[list[StudentModules]] = relationship(back_populates="student")
 
-
+    angles: Mapped[list[studentAngles]] = relationship(back_populates="student")
 class EntLeave(Base):
     __tablename__ = "entleave"
     entLeaveID: Mapped[int]= mapped_column(primary_key=True)
@@ -84,7 +82,6 @@ class EntLeave(Base):
 
     enter: Mapped[datetime.datetime]
     leave: Mapped[datetime.datetime | None]
-
 class AttdCheck(Base):
     __tablename__ = "attdcheck"
     AttdCheckID: Mapped[int]= mapped_column(primary_key=True)
@@ -92,7 +89,6 @@ class AttdCheck(Base):
     lesson: Mapped[Lesson] = relationship(back_populates="attdcheck")
     studentID: Mapped[uuid.UUID] = mapped_column(ForeignKey("students.studentID"))
     student: Mapped[Student] = relationship(back_populates="attdcheck")
-    
 class Module(Base):
     __tablename__ = "modules"
     moduleID: Mapped[int] = mapped_column(primary_key=True)
@@ -100,7 +96,6 @@ class Module(Base):
     moduleCode: Mapped[str] = mapped_column(String(8))
     lecMod: Mapped[list[LecMod]] = relationship(back_populates="modules")
     studentModules: Mapped[list[StudentModules]] = relationship(back_populates="modules")
-
 class Lesson(Base):
     __tablename__ = "lessons"
     lessonID: Mapped[int] = mapped_column(primary_key=True)
@@ -115,9 +110,6 @@ class Lesson(Base):
     lessontype: Mapped[str] = mapped_column(String(10))
     startDateTime: Mapped[datetime.datetime]
     endDateTime: Mapped[datetime.datetime]
-
-
-
 class LecMod(Base):
     __tablename__ = "lecmods"
     lecModID: Mapped[int] = mapped_column(primary_key= True)
@@ -127,11 +119,8 @@ class LecMod(Base):
 
     lessons: Mapped[list[Lesson]] = relationship(back_populates="lecMod")
 
-    
-    
     moduleID: Mapped[int] = mapped_column(ForeignKey("modules.moduleID"))
     modules: Mapped[Module] = relationship(back_populates="lecMod")
-
 class StudentModules(Base):
     __tablename__ = "studentmodules"
     studentModulesID: Mapped[int] = mapped_column(primary_key= True)
@@ -141,10 +130,16 @@ class StudentModules(Base):
 
     modulesID: Mapped[int] = mapped_column(ForeignKey("modules.moduleID"))
     modules: Mapped[Module] = relationship(back_populates="studentModules")
-
 class Courses(Base):
     __tablename__ = "courses"
     courseID: Mapped[int] = mapped_column(primary_key= True)
     courseCode: Mapped[str] = mapped_column(String(10))
 
     students: Mapped[list[Student]] = relationship(back_populates="course")
+class studentAngles(Base):
+    __tablename__ = "studentangles"
+
+    studentID: Mapped[UUID] = mapped_column(ForeignKey("students.studentID"), primary_key= True)
+
+    photoAngle: Mapped[str] = mapped_column(String, primary_key=True)
+    student: Mapped[Student] = relationship(back_populates="angles")
