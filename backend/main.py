@@ -231,5 +231,5 @@ def read_my_student_profile(
     # We can safely query data specifically for this user
     student_data = db.query(Student).filter(Student.studentID == user_id).first()
     # lesson_data = db.query(Lesson).join()
-    attendance_data = db.query()
+    # attendance_data = db.query()
     return student_data
