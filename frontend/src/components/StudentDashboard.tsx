@@ -30,7 +30,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
+<<<<<<< Updated upstream
 import { NotificationAlerts } from "./NotificationAlerts";
+=======
+import { useAuth } from "../cont/AuthContext";
+import { useEffect, useState } from "react";
+import { getStudentProfile } from "../services/api";
+>>>>>>> Stashed changes
 
 interface StudentDashboardProps {
   onLogout: () => void;
@@ -39,7 +45,6 @@ interface StudentDashboardProps {
   onNavigateToProfile: () => void;
   onNavigateToProgress: () => void;
 }
-
 const upcomingClasses = [
   {
     id: 1,
@@ -137,6 +142,7 @@ export function StudentDashboard({
   onNavigateToProfile,
   onNavigateToProgress,
 }: StudentDashboardProps) {
+<<<<<<< Updated upstream
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   // Mock notification alerts - in a real app, this would come from an API
@@ -171,6 +177,35 @@ export function StudentDashboard({
     },
   ];
 
+=======
+  const { token, user } = useAuth(); // retrieves le JWT
+
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true); 
+
+  useEffect(()=>{
+    const fetchData = async () => {
+      if (!token) return;
+
+      try{
+        const data = await getStudentProfile(token);
+        setProfile(data);
+      }
+      catch (err){
+        console.error("Failed to load dashboard data", err);
+      }
+      finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [token]);
+
+  // 3. Render Loading State
+  
+  if (loading) return <div className="p-10">Loading Dashboard...</div>;
+  
+>>>>>>> Stashed changes
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
@@ -199,9 +234,9 @@ export function StudentDashboard({
                 <AvatarFallback>JS</AvatarFallback>
               </Avatar>
               <div className="hidden md:block">
-                <p>John Smith</p>
+                <p>{profile?.name ?? "Undefined Name"}</p>
                 <p className="text-sm text-gray-600">
-                  Student ID: 7654321
+                  Student ID: {profile?.studentNum ?? "------"}
                 </p>
               </div>
             </div>
@@ -242,6 +277,7 @@ export function StudentDashboard({
               </CardTitle>
               <CheckCircle2 className="h-4 w-4 text-green-600" />
             </CardHeader>
+<<<<<<< Updated upstream
             <CardContent className="flex-1 flex flex-col">
               <div className="flex-1">
                 <div className="text-6xl font-bold">89.5%</div>
@@ -259,6 +295,13 @@ export function StudentDashboard({
                   View Progress
                 </Button>
               </div>
+=======
+            <CardContent>
+              <div className="text-6xl font-bold">89.5%</div>
+              <p className="text-xs text-gray-600 mt-1">
+                34 out of 38 classes attended
+              </p>
+>>>>>>> Stashed changes
             </CardContent>
           </Card>
 
@@ -269,6 +312,7 @@ export function StudentDashboard({
               </CardTitle>
               <Calendar className="h-4 w-4 text-blue-600" />
             </CardHeader>
+<<<<<<< Updated upstream
             <CardContent className="flex-1 flex flex-col">
               <div className="flex-1">
                 <div className="space-y-2 max-h-32 overflow-y-auto">
@@ -292,6 +336,28 @@ export function StudentDashboard({
                           ),
                         )}
                       </div>
+=======
+            <CardContent>
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {weeklySchedule.map((schedule) => (
+                  <div
+                    key={schedule.day}
+                    className="flex items-start gap-2">
+                    <span className="text-xs font-medium min-w-[60px]">
+                      {schedule.day}:
+                    </span>
+                    <div className="flex flex-col gap-1">
+                      {schedule.classes.map(
+                        (classInfo, idx) => (
+                          <span
+                            key={idx}
+                            className="text-xs text-gray-600"
+                          >
+                            {classInfo}
+                          </span>
+                        ),
+                      )}
+>>>>>>> Stashed changes
                     </div>
                   ))}
                 </div>

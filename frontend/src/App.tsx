@@ -1,4 +1,9 @@
 import { useState } from 'react';
+// 1. Import Auth hooks and API types
+import { useAuth } from './cont/AuthContext'; 
+import { loginUser, LoginCredentials } from './services/api';
+
+// 2. Import your existing components
 import { LoginPage } from './components/LoginPage';
 import { StudentDashboard } from './components/StudentDashboard';
 import { LecturerDashboard } from './components/LecturerDashboard';
@@ -25,13 +30,17 @@ import { CreateUser } from './components/CreateUser';
 import { UpdateUser } from './components/UpdateUser';
 import { Footer } from './components/Footer';
 
-type UserType = 'student' | 'lecturer' | 'admin' | null;
+// View Types (Kept same as before)
 type LecturerView = 'dashboard' | 'reports' | 'profile' | 'timetable' | 'records';
 type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser';
 type StudentView = 'dashboard' | 'attendanceHistory' | 'timetable' | 'profile' | 'progress';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<UserType>(null);
+  // 3. REPLACE: Remove [currentUser, setCurrentUser]
+  //    USE: Global Context
+  const { user, login, logout, loading } = useAuth();
+
+  // Navigation State (Kept same as before)
   const [lecturerView, setLecturerView] = useState<LecturerView>('dashboard');
   const [adminView, setAdminView] = useState<AdminView>('dashboard');
   const [studentView, setStudentView] = useState<StudentView>('dashboard');
@@ -59,66 +68,62 @@ export default function App() {
     currentGoal: number | null;
   } | null>(null);
 
-  const handleLogin = (userType: UserType) => {
-    setCurrentUser(userType);
-    setLecturerView('dashboard');
-    setAdminView('dashboard');
-    setStudentView('dashboard');
+  // 4. NEW LOGIN LOGIC: Connects to Backend
+  const handleLogin = async (creds: LoginCredentials, selectedRole: string) => {
+    try {
+      // A. Call the API
+      const data = await loginUser(creds);
+
+      // B. Optional: Check Role Mismatch
+      // Ensure the backend role matches the tab the user selected
+      if (data.role_name.toLowerCase() !== selectedRole.toLowerCase()) {
+        throw new Error(`Account found, but you are a ${data.role_name}. Please select the ${data.role_name} tab.`);
+      }
+
+      // C. Save to Context (Redirects automatically)
+      login(data);
+
+      // D. Reset views to default
+      setLecturerView('dashboard');
+      setAdminView('dashboard');
+      setStudentView('dashboard');
+
+    } catch (error: any) {
+      console.error("Login Error:", error);
+      alert(error.message || "Login failed");
+    }
   };
 
+  // 5. NEW LOGOUT LOGIC
   const handleLogout = () => {
-    setCurrentUser(null);
+    console.log("Logging out...");
+    
+    // 1. Run the Context logic (Server call + Local cleanup)
+    logout(); 
+    
+    // 2. Reset your local view states (Clean slate for next user)
     setLecturerView('dashboard');
     setAdminView('dashboard');
     setStudentView('dashboard');
   };
 
-  const handleNavigateToReports = () => {
-    setLecturerView('reports');
-  };
-
-  const handleNavigateToProfile = () => {
-    setLecturerView('profile');
-  };
-
-  const handleNavigateToTimetable = () => {
-    setLecturerView('timetable');
-  };
-
-  const handleNavigateToRecords = () => {
-    setLecturerView('records');
-  };
-
-  const handleBackToDashboard = () => {
-    setLecturerView('dashboard');
-  };
-
-  const handleNavigateToManageUsers = () => {
-    setAdminView('manageUsers');
-  };
-
-  const handleBackToAdminDashboard = () => {
-    setAdminView('dashboard');
-  };
-
-  const handleNavigateToCreateUser = () => {
-    setAdminView('createUser');
-  };
-
-  const handleBackToManageUsers = () => {
-    setAdminView('manageUsers');
-  };
-
-  const handleNavigateToUpdateUser = (userData: {
-    userId: string;
-    name: string;
-    role: string;
-    status: string;
-  }) => {
+  // ... (Your existing navigation handlers remain exactly the same) ...
+  const handleNavigateToReports = () => setLecturerView('reports');
+  const handleNavigateToProfile = () => setLecturerView('profile');
+  const handleNavigateToTimetable = () => setLecturerView('timetable');
+  const handleNavigateToRecords = () => setLecturerView('records');
+  const handleBackToDashboard = () => setLecturerView('dashboard');
+  const handleNavigateToManageUsers = () => setAdminView('manageUsers');
+  const handleBackToAdminDashboard = () => setAdminView('dashboard');
+  const handleNavigateToCreateUser = () => setAdminView('createUser');
+  const handleBackToManageUsers = () => setAdminView('manageUsers');
+  
+  const handleNavigateToUpdateUser = (userData: any) => {
     setSelectedUserData(userData);
     setAdminView('updateUser');
   };
 
+<<<<<<< Updated upstream
   const handleNavigateToManageUserProfile = () => {
     setAdminView('manageUserProfile');
   };
@@ -197,11 +202,17 @@ export default function App() {
   const handleNavigateToAttendanceHistory = () => {
     setStudentView('attendanceHistory');
   };
+=======
+  const handleNavigateToAttendanceHistory = () => setStudentView('attendanceHistory');
+  const handleBackToStudentDashboard = () => setStudentView('dashboard');
+>>>>>>> Stashed changes
 
-  const handleBackToStudentDashboard = () => {
-    setStudentView('dashboard');
-  };
+  // 6. LOADING STATE (Prevent flashing login screen)
+  if (loading) {
+    return <div className="flex min-h-screen justify-center items-center">Loading...</div>;
+  }
 
+<<<<<<< Updated upstream
   const handleNavigateToStudentTimetable = () => {
     setStudentView('timetable');
   };
@@ -216,6 +227,10 @@ export default function App() {
 
   // Show login page if no user is logged in
   if (!currentUser) {
+=======
+  // 7. SHOW LOGIN IF NO USER
+  if (!user) {
+>>>>>>> Stashed changes
     return (
       <div className="flex flex-col min-h-screen">
         <LoginPage onLogin={handleLogin} />
@@ -223,11 +238,16 @@ export default function App() {
       </div>
     );
   }
+  
+  // 8. DETERMINE ROLE FOR RENDERING
+  // Normalize to lowercase to match your strict comparisons
+  const role = user.role_name.toLowerCase();
 
-  // Show appropriate dashboard based on user type
   return (
     <div className="flex flex-col min-h-screen">
-      {currentUser === 'student' && studentView === 'dashboard' && (
+      
+      {/* --- STUDENT VIEWS --- */}
+      {role === 'student' && studentView === 'dashboard' && (
         <StudentDashboard 
           onLogout={handleLogout}
           onNavigateToAttendanceHistory={handleNavigateToAttendanceHistory}
@@ -236,12 +256,13 @@ export default function App() {
           onNavigateToProgress={handleNavigateToStudentProgress}
         />
       )}
-      {currentUser === 'student' && studentView === 'attendanceHistory' && (
+      {role === 'student' && studentView === 'attendanceHistory' && (
         <StudentAttendanceHistory 
           onLogout={handleLogout}
           onBack={handleBackToStudentDashboard}
         />
       )}
+<<<<<<< Updated upstream
       {currentUser === 'student' && studentView === 'timetable' && (
         <StudentTimetable 
           onLogout={handleLogout}
@@ -263,6 +284,11 @@ export default function App() {
         />
       )}
       {currentUser === 'lecturer' && lecturerView === 'dashboard' && (
+=======
+
+      {/* --- LECTURER VIEWS --- */}
+      {role === 'lecturer' && lecturerView === 'dashboard' && (
+>>>>>>> Stashed changes
         <LecturerDashboard 
           onLogout={handleLogout} 
           onNavigateToReports={handleNavigateToReports}
@@ -271,34 +297,36 @@ export default function App() {
           onNavigateToRecords={handleNavigateToRecords}
         />
       )}
-      {currentUser === 'lecturer' && lecturerView === 'reports' && (
+      {role === 'lecturer' && lecturerView === 'reports' && (
         <AttendanceReports 
           onLogout={handleLogout} 
           onBack={handleBackToDashboard}
           onNavigateToProfile={handleNavigateToProfile}
         />
       )}
-      {currentUser === 'lecturer' && lecturerView === 'profile' && (
+      {role === 'lecturer' && lecturerView === 'profile' && (
         <UpdateProfile 
           onLogout={handleLogout} 
           onBack={handleBackToDashboard}
         />
       )}
-      {currentUser === 'lecturer' && lecturerView === 'timetable' && (
+      {role === 'lecturer' && lecturerView === 'timetable' && (
         <LecturerTimetable 
           onLogout={handleLogout} 
           onBack={handleBackToDashboard}
           onNavigateToProfile={handleNavigateToProfile}
         />
       )}
-      {currentUser === 'lecturer' && lecturerView === 'records' && (
+      {role === 'lecturer' && lecturerView === 'records' && (
         <LecturerAttendanceRecords 
           onLogout={handleLogout} 
           onBack={handleBackToDashboard}
           onNavigateToProfile={handleNavigateToProfile}
         />
       )}
-      {currentUser === 'admin' && adminView === 'dashboard' && (
+
+      {/* --- ADMIN VIEWS --- */}
+      {role === 'admin' && adminView === 'dashboard' && (
         <AdminDashboard 
           onLogout={handleLogout} 
           onNavigateToManageUsers={handleNavigateToManageUsers}
@@ -308,7 +336,7 @@ export default function App() {
           onNavigateToReports={handleNavigateToAdminReports}
         />
       )}
-      {currentUser === 'admin' && adminView === 'manageUsers' && (
+      {role === 'admin' && adminView === 'manageUsers' && (
         <ManageUserAccounts 
           onLogout={handleLogout} 
           onBack={handleBackToAdminDashboard}
@@ -316,14 +344,14 @@ export default function App() {
           onUpdateUser={handleNavigateToUpdateUser}
         />
       )}
-      {currentUser === 'admin' && adminView === 'createUser' && (
+      {role === 'admin' && adminView === 'createUser' && (
         <CreateUser 
           onLogout={handleLogout} 
           onBack={handleBackToManageUsers}
           onCreateSuccess={handleBackToManageUsers}
         />
       )}
-      {currentUser === 'admin' && adminView === 'updateUser' && selectedUserData && (
+      {role === 'admin' && adminView === 'updateUser' && selectedUserData && (
         <UpdateUser 
           onLogout={handleLogout} 
           onBack={handleBackToManageUsers}
