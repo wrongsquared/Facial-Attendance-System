@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -30,13 +30,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
-<<<<<<< Updated upstream
 import { NotificationAlerts } from "./NotificationAlerts";
-=======
-import { useAuth } from "../cont/AuthContext";
-import { useEffect, useState } from "react";
+import { useAuth } from "../cont/AuthContext"; 
 import { getStudentProfile } from "../services/api";
->>>>>>> Stashed changes
 
 interface StudentDashboardProps {
   onLogout: () => void;
@@ -45,6 +41,7 @@ interface StudentDashboardProps {
   onNavigateToProfile: () => void;
   onNavigateToProgress: () => void;
 }
+
 const upcomingClasses = [
   {
     id: 1,
@@ -52,7 +49,7 @@ const upcomingClasses = [
     time: "9:00 AM - 11:00 AM",
     location: "Building 3, Room 205",
     date: "Today",
-    status: "present", // ✅ first one present
+    status: "present", 
   },
   {
     id: 2,
@@ -142,11 +139,8 @@ export function StudentDashboard({
   onNavigateToProfile,
   onNavigateToProgress,
 }: StudentDashboardProps) {
-<<<<<<< Updated upstream
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
-  // Mock notification alerts - in a real app, this would come from an API
-  // The threshold value (85%) should be based on the student's custom goal
   const notificationAlerts = [
     {
       type: "not_recorded" as const,
@@ -159,7 +153,8 @@ export function StudentDashboard({
       attendanceMethod: "Facial Recognition",
       cameraLocation: "Building 3, Room 205",
       timestamp: "2025-12-09 09:15:30",
-      suggestedAction: "Please re-attempt check-in or contact the administrator if you are in class.",
+      suggestedAction:
+        "Please re-attempt check-in or contact the administrator if you are in class.",
     },
     {
       type: "below_threshold" as const,
@@ -169,43 +164,38 @@ export function StudentDashboard({
       date: "2025-12-09",
       attendanceStatus: "At Risk",
       currentAttendance: 77,
-      threshold: 85, // This should be the student's custom goal
+      threshold: 85,
       recentSessionsMissed: 3,
       totalRecentSessions: 13,
-      impact: "You are at risk of not meeting the minimum attendance requirement.",
+      impact:
+        "You are at risk of not meeting the minimum attendance requirement.",
       suggestedAction: "Attend upcoming classes.",
     },
   ];
 
-=======
-  const { token, user } = useAuth(); // retrieves le JWT
+  const { token, user } = useAuth();
 
   const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
 
-  useEffect(()=>{
+  useEffect(() => {
     const fetchData = async () => {
       if (!token) return;
 
-      try{
+      try {
         const data = await getStudentProfile(token);
         setProfile(data);
-      }
-      catch (err){
+      } catch (err) {
         console.error("Failed to load dashboard data", err);
-      }
-      finally {
+      } finally {
         setLoading(false);
       }
     };
     fetchData();
   }, [token]);
 
-  // 3. Render Loading State
-  
   if (loading) return <div className="p-10">Loading Dashboard...</div>;
-  
->>>>>>> Stashed changes
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
@@ -217,13 +207,15 @@ export function StudentDashboard({
             </div>
             <div>
               <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">
-                Student Portal
-              </p>
+              <p className="text-sm text-gray-600">Student Portal</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => setIsNotificationOpen(true)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsNotificationOpen(true)}
+            >
               <Bell className="h-5 w-5" />
             </Button>
             <div
@@ -250,14 +242,10 @@ export function StudentDashboard({
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
+                  <AlertDialogDescription>Are you sure ?</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
+                  <AlertDialogAction onClick={onLogout}>Log out</AlertDialogAction>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -270,14 +258,13 @@ export function StudentDashboard({
       <main className="container mx-auto px-4 py-8 flex-1">
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          
+          {/* Card 1: Overall Attendance */}
           <Card className="flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm">
-                Overall Attendance
-              </CardTitle>
+              <CardTitle className="text-sm">Overall Attendance</CardTitle>
               <CheckCircle2 className="h-4 w-4 text-green-600" />
             </CardHeader>
-<<<<<<< Updated upstream
             <CardContent className="flex-1 flex flex-col">
               <div className="flex-1">
                 <div className="text-6xl font-bold">89.5%</div>
@@ -295,69 +282,30 @@ export function StudentDashboard({
                   View Progress
                 </Button>
               </div>
-=======
-            <CardContent>
-              <div className="text-6xl font-bold">89.5%</div>
-              <p className="text-xs text-gray-600 mt-1">
-                34 out of 38 classes attended
-              </p>
->>>>>>> Stashed changes
             </CardContent>
           </Card>
 
+          {/* Card 2: Timetable */}
           <Card className="flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm">
-                Timetable
-              </CardTitle>
+              <CardTitle className="text-sm">Timetable</CardTitle>
               <Calendar className="h-4 w-4 text-blue-600" />
             </CardHeader>
-<<<<<<< Updated upstream
             <CardContent className="flex-1 flex flex-col">
               <div className="flex-1">
                 <div className="space-y-2 max-h-32 overflow-y-auto">
                   {weeklySchedule.map((schedule) => (
-                    <div
-                      key={schedule.day}
-                      className="flex items-start gap-2"
-                    >
+                    <div key={schedule.day} className="flex items-start gap-2">
                       <span className="text-xs font-medium min-w-[60px]">
                         {schedule.day}:
                       </span>
                       <div className="flex flex-col gap-1">
-                        {schedule.classes.map(
-                          (classInfo, idx) => (
-                            <span
-                              key={idx}
-                              className="text-xs text-gray-600"
-                            >
-                              {classInfo}
-                            </span>
-                          ),
-                        )}
-                      </div>
-=======
-            <CardContent>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
-                {weeklySchedule.map((schedule) => (
-                  <div
-                    key={schedule.day}
-                    className="flex items-start gap-2">
-                    <span className="text-xs font-medium min-w-[60px]">
-                      {schedule.day}:
-                    </span>
-                    <div className="flex flex-col gap-1">
-                      {schedule.classes.map(
-                        (classInfo, idx) => (
-                          <span
-                            key={idx}
-                            className="text-xs text-gray-600"
-                          >
+                        {schedule.classes.map((classInfo, idx) => (
+                          <span key={idx} className="text-xs text-gray-600">
                             {classInfo}
                           </span>
-                        ),
-                      )}
->>>>>>> Stashed changes
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -380,12 +328,8 @@ export function StudentDashboard({
           {/* Upcoming Classes */}
           <Card>
             <CardHeader>
-              <CardTitle>
-                Upcoming Classes Today (29 Nov 2025)
-              </CardTitle>
-              <CardDescription>
-                Your scheduled classes
-              </CardDescription>
+              <CardTitle>Upcoming Classes Today (29 Nov 2025)</CardTitle>
+              <CardDescription>Your scheduled classes</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -396,9 +340,7 @@ export function StudentDashboard({
                   >
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="font-medium">
-                          {classItem.subject}
-                        </p>
+                        <p className="font-medium">{classItem.subject}</p>
                         <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
                           <Clock className="h-3 w-3" />
                           <span>{classItem.time}</span>
@@ -408,16 +350,13 @@ export function StudentDashboard({
                         </p>
                       </div>
 
-                      {/* ✅ Status badge logic */}
                       {classItem.status === "present" ? (
                         <Badge className="bg-green-600 text-white">
                           Present
                         </Badge>
                       ) : (
                         classItem.date && (
-                          <Badge variant="secondary">
-                            {classItem.date}
-                          </Badge>
+                          <Badge variant="secondary">{classItem.date}</Badge>
                         )
                       )}
                     </div>
@@ -441,17 +380,11 @@ export function StudentDashboard({
                   <div key={stat.subject} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <p className="text-sm">{stat.subject}</p>
-                      <span className="text-sm">
-                        {stat.percentage}%
-                      </span>
+                      <span className="text-sm">{stat.percentage}%</span>
                     </div>
-                    <Progress
-                      value={stat.percentage}
-                      className="h-2"
-                    />
+                    <Progress value={stat.percentage} className="h-2" />
                     <p className="text-xs text-gray-600">
-                      {stat.attended} of {stat.total} classes
-                      attended
+                      {stat.attended} of {stat.total} classes attended
                     </p>
                   </div>
                 ))}
@@ -483,24 +416,15 @@ export function StudentDashboard({
                       )}
 
                       <div>
-                        <p className="font-medium">
-                          {record.subject}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {record.date}
-                        </p>
+                        <p className="font-medium">{record.subject}</p>
+                        <p className="text-sm text-gray-600">{record.date}</p>
                       </div>
                     </div>
 
-                    {/* ✅ Updated Present/Absent badge colors */}
                     {record.status === "present" ? (
-                      <Badge className="bg-green-600 text-white">
-                        Present
-                      </Badge>
+                      <Badge className="bg-green-600 text-white">Present</Badge>
                     ) : (
-                      <Badge className="bg-red-600 text-white">
-                        Absent
-                      </Badge>
+                      <Badge className="bg-red-600 text-white">Absent</Badge>
                     )}
                   </div>
                 ))}
@@ -521,7 +445,7 @@ export function StudentDashboard({
       </main>
 
       {/* Notification Alerts Dialog */}
-      <NotificationAlerts 
+      <NotificationAlerts
         isOpen={isNotificationOpen}
         onClose={() => setIsNotificationOpen(false)}
         alerts={notificationAlerts}
