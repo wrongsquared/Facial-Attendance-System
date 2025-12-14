@@ -1,8 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from database.db import Lesson, Courses, Module
-from datetime import datetime
 from typing import Literal
-import datetime
+from datetime import datetime
 
 class UserSignUp(BaseModel):
     email: EmailStr

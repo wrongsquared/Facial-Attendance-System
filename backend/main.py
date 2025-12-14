@@ -7,9 +7,30 @@ from pydantic import BaseModel
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from database.db_config import get_db #Gets the Initialized db session
-from database.db import UserProfile, User, Admin, Lecturer, Student, Lesson, EntLeave, Module, AttdCheck, StudentModules, studentAngles, Courses, LecMod
+from database.db import (UserProfile, #This was really long so I had to bracket it
+                         User, 
+                         Admin, 
+                         Lecturer, 
+                         Student, 
+                         Lesson, 
+                         EntLeave, 
+                         Module, 
+                         AttdCheck, 
+                         StudentModules, 
+                         studentAngles, 
+                         Courses, 
+                         LecMod)
 from uuid import UUID
-from pdantic.schemas import UserSignUp, UserLogin, TokenResponse, timetableEntry, AttendanceOverviewCard , RecentSessionsCardData, courseoverviewcard, ClassToday, RecentSessionRecord, LecturerDashboardSummary
+from pdantic.schemas import (UserSignUp, #This was really long so I had to bracket it
+                             UserLogin, 
+                             TokenResponse, 
+                             timetableEntry, 
+                             AttendanceOverviewCard, 
+                             RecentSessionsCardData, 
+                             courseoverviewcard, 
+                             ClassToday, 
+                             RecentSessionRecord, 
+                             LecturerDashboardSummary)
 from dependencies.deps import get_current_user_id
 from client import supabase, supabase_adm
 import datetime
