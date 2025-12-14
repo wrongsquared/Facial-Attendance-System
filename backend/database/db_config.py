@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.pool import NullPool
 
 load_dotenv()
 
@@ -14,7 +15,8 @@ load_dotenv()
 # DATABASE_URL = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
 #Cloud Platform
 DATABASE_URL = os.getenv("SPDB_URL")
-engine = create_engine(DATABASE_URL, echo = True, pool_size = 3, max_overflow = 10, pool_timeout = 30, pool_pre_ping = True, pool_recycle = 600)
+# engine = create_engine(DATABASE_URL, echo = True, pool_size = 3, max_overflow = 10, pool_timeout = 30, pool_pre_ping = True, pool_recycle = 600)
+engine = create_engine(DATABASE_URL, poolclass=NullPool)
 connection = engine.connect()
 
 #Locally

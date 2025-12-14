@@ -1,18 +1,24 @@
-from typing import Union
+from typing import Union, List
 from fastapi import FastAPI, Depends, HTTPException, status, APIRouter
+from sqlalchemy import func, distinct, case, literal
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials   
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from database.db_config import get_db #Gets the Initialized db session
-from database.db import UserProfile, User, Admin, Lecturer, Student, Lesson, EntLeave, Module, AttdCheck, StudentModules, studentAngles, Courses, LecMod 
+from database.db import UserProfile, User, Admin, Lecturer, Student, Lesson, EntLeave, Module, AttdCheck, StudentModules, studentAngles, Courses, LecMod
 from uuid import UUID
-from pdantic.schemas import UserSignUp, UserLogin, TokenResponse
+from pdantic.schemas import UserSignUp, UserLogin, TokenResponse, timetableEntry, AttendanceOverviewCard , RecentSessionsCardData
 from dependencies.deps import get_current_user_id
 from client import supabase, supabase_adm
-
+from datetime import timedelta
+from pdantic.schemas import LecturerDashboardSummary
+from sqlalchemy import func, case, and_
+import datetime
 
 app = FastAPI()
+security = HTTPBearer()
 
 origins = [
     "http://localhost:3000",  # React Create App
@@ -233,3 +239,184 @@ def read_my_student_profile(
     # lesson_data = db.query(Lesson).join()
     # attendance_data = db.query()
     return student_data
+
+#---------------------------#
+# LECTURER DASHBOARD ROUTES
+#---------------------------#
+
+# total module taught by me
+@app.get("/lecturer/dashboard/summary")
+def get_lecturer_dashboard_summary(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    mods_taught_by_me = db.query(LecMod).filter(LecMod.lecturerID == user_id).all()
+    return {"total_modules": len(mods_taught_by_me)}
+
+# # total number of Attendance Records and Report
+# @app.get("/lecturer/dashboard/recent-sessions-card", response_model=RecentSessionsCardData)
+# def get_recent_sessions_card(
+#     user_id: str = Depends(get_current_user_id),
+#     db: Session = Depends(get_db)
+# ):
+#     """
+#     Counts the total number of lessons that have been completed 
+#     by this lecturer.
+#     """
+    
+#     # 1. Get current time
+#     now = datetime.datetime.now()
+
+#     # 2. Query Logic:
+#     # - Join Lesson and LecMod
+#     # - Filter by the logged-in Lecturer (user_id)
+#     # - Filter for lessons that have already ended (endDateTime < now)
+#     recent_sessions_count = db.query(func.count(Lesson.lessonID))\
+#         .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
+#         .filter(
+#             LecMod.lecturerID == user_id,
+#             Lesson.endDateTime < now
+#         ).scalar() or 0
+
+#     # Optional: If you strictly mean "Recent" (e.g., last 7 days only), 
+#     # add this line to the filter above:
+#     # Lesson.endDateTime >= (now - datetime.timedelta(days=7))
+
+#     # 3. Return Data
+#     return RecentSessionsCardData(
+#         Recent_sessions_record=recent_sessions_count,
+#         label="Recent sessions recorded"
+#     )
+
+# Timetable for dashboard
+@app.get("/lecturer/dashboard/timetable", response_model=list[timetableEntry])
+def get_lecturer_timetable(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    now = datetime.datetime.now()
+    next_week = now + timedelta(days=7)
+
+    upcoming_lessons = db.query(Lesson, Module)\
+        .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
+        .join(Module, LecMod.moduleID == Module.moduleID)\
+        .filter(
+            LecMod.lecturerID == user_id,
+            Lesson.startDateTime >= now,
+            Lesson.startDateTime <= next_week
+        )\
+        .order_by(Lesson.startDateTime)\
+        .all()
+
+    results = []
+    for lesson, module in upcoming_lessons:
+        
+        # 1. Handle Location (Combine Building + Room)
+        bldg = lesson.building or ""
+        rm = lesson.room or ""
+        
+        if bldg and rm:
+            loc_str = f"{bldg}-{rm}"
+        else:
+            loc_str = bldg + rm 
+            
+        if not loc_str:
+            loc_str = "Online"
+
+        # 2. Create the Pydantic Object
+        entry = timetableEntry(
+            module_code=module.moduleCode,
+            day_of_week=lesson.startDateTime.strftime("%a"),
+            start_time=lesson.startDateTime.strftime("%I:%M %p").lstrip("0"),
+            end_time=lesson.endDateTime.strftime("%I:%M %p").lstrip("0"),
+            location=loc_str
+        )
+        results.append(entry)
+
+    return results
+
+# Average Attendance across all modules taught by me
+@app.get("/lecturer/dashboard/average-attendance", response_model=AttendanceOverviewCard)
+def get_lecturer_average_attendance_safe(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    lec_mods = db.query(LecMod).filter(LecMod.lecturerID == user_id).all()
+
+    total_capacity = 0
+    total_actual_checkins = 0
+
+    for lm in lec_mods:
+        # 1. Get Official Count
+        enrolled_count = db.query(StudentModules).filter(
+            StudentModules.modulesID == lm.moduleID
+        ).count()
+
+        # 2. Get Count of distinct people who have EVER attended this module
+        # (This catches students missing from the StudentModules table)
+        active_students = db.query(AttdCheck.studentID)\
+            .join(Lesson).filter(Lesson.lecModID == lm.lecModID)\
+            .distinct().count()
+
+        # 3. SAFETY CHECK: Use the higher number
+        # If DB says 1 student, but 4 people are attending, we use 4 to prevent >100%
+        real_student_count = max(enrolled_count, active_students)
+
+        # 4. Get Lessons
+        lesson_count = db.query(Lesson).filter(
+            Lesson.lecModID == lm.lecModID,
+            Lesson.endDateTime < datetime.datetime.now()
+        ).count()
+
+        # 5. Math
+        total_capacity += (real_student_count * lesson_count)
+
+        unique_checkins = db.query(AttdCheck.lessonID, AttdCheck.studentID)\
+            .join(Lesson).filter(
+                Lesson.lecModID == lm.lecModID,
+                Lesson.endDateTime < datetime.datetime.now()
+            )\
+            .distinct().count()
+            
+        total_actual_checkins += unique_checkins
+
+    # Result
+    if total_capacity == 0:
+        percentage = 0.0
+    else:
+        percentage = (total_actual_checkins / total_capacity) * 100.0
+
+    return AttendanceOverviewCard(
+        Average_attendance=round(percentage, 1), 
+        label="Across all courses"
+    )
+
+# Recent Sessions recorded
+@app.get("/lecturer/dashboard/recent-sessions-card", response_model=RecentSessionsCardData)
+def get_recent_sessions_card(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Counts the total number of unique lessons that have been completed 
+    by this lecturer in the last 7 days.
+    """
+    
+    # Define the time window (Last 7 Days)
+    now = datetime.datetime.now()
+    seven_days_ago = now - timedelta(days=7)
+
+    # Query Logic: Count the unique Lesson IDs
+    recent_sessions_count = db.query(func.count(Lesson.lessonID))\
+        .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
+        .filter(
+            LecMod.lecturerID == user_id,
+            Lesson.endDateTime < now,           # Class is finished
+            Lesson.endDateTime >= seven_days_ago # Finished recently
+        ).scalar() or 0
+
+    # Return Data
+    return RecentSessionsCardData(
+        Recent_sessions_record=recent_sessions_count, 
+        label="Recent sessions recorded"
+    )

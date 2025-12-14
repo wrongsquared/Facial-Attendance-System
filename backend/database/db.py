@@ -120,6 +120,9 @@ class Lesson(Base): # Lessons by Lecturers, belongs to Modules
     startDateTime: Mapped[datetime.datetime]
     endDateTime: Mapped[datetime.datetime]
 
+    building: Mapped[str | None] = mapped_column(String(50)) 
+    room: Mapped[str | None] = mapped_column(String(50)) 
+
 class LecMod(Base): #Lecture-Modules Connection
     __tablename__ = "lecmods"
     lecModID: Mapped[int] = mapped_column(primary_key= True)
@@ -156,3 +159,4 @@ class studentAngles(Base): #Student-Angles for AI Training?
 
     photoAngle: Mapped[str] = mapped_column(String, primary_key=True)
     student: Mapped[Student] = relationship(back_populates="angles")
+
