@@ -1,6 +1,8 @@
 from pydantic import BaseModel, EmailStr
 from database.db import Lesson, Courses, Module
 from datetime import datetime
+from typing import Literal
+import datetime
 
 class UserSignUp(BaseModel):
     email: EmailStr
@@ -72,3 +74,39 @@ class OverallLessonsResponse(BaseModel):
     total_lessons: int
     attended_lessons:int
     percentage: float
+
+class courseoverviewcard(BaseModel):
+   module_code: str
+   module_name: str
+   overall_attendance_rate: float
+   students_enrolled: int
+   class Config:
+        from_attributes = True
+    
+class ClassToday(BaseModel):
+    module_code: str
+    module_name: str
+    time_range: str
+    location: str
+    
+    # Status can be 'Completed', 'Pending', or 'Live'
+    status: Literal['Completed', 'Pending', 'Live'] 
+    
+    # Attendance fields only needed for 'Completed' or 'Live' status
+    present_count: int
+    total_enrolled: int
+    attendance_display: str # e.g., "42/45 present"
+    
+    class Config:
+        from_attributes = True
+
+class RecentSessionRecord(BaseModel):
+    subject: str        # e.g., "CSCI334 - Database Systems"
+    date: str           # e.g., "28 Oct 2025"
+    time: str           # e.g., "9:00 AM" (Start Time)
+    attended: int       # e.g., 42 (Count of check-ins)
+    total: int          # e.g., 45 (Count of enrolled students)
+    percentage: float   # e.g., 93.0
+    
+    class Config:
+        from_attributes = True
