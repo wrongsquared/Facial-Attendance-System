@@ -62,6 +62,41 @@ export const getAttendance = async (token: string) => {
   return await fetchProtected("/attendance/me-profile", token);
 };
 
+export interface lessonInfo {
+    lessonID: number;
+    lessonType: string;
+    start_time: string; 
+    end_time: string;
+}
+
+export const getStudentTimetable = async (token: string) => {
+    return await fetchProtected("/student/timetable", token);
+};
+
+export interface OverallLessonsStat {
+  total_lessons: number;
+  attended_lessons: number;
+  percentage: number;
+}
+
+export const getOverallLessons = async (token: string) => {
+  return await fetchProtected("/student/overrall", token);
+};
+
+export interface TodaysLessons{
+    lessonID: number;
+    ModuleCode: string;
+    ModuleName: string;
+    lessonType: string;
+    start_time: Date;
+    end_time: Date;
+    location: string;
+    }
+
+export const getTodaysLessons = async( token:string) => {
+  return await fetchProtected("/student/todayslesson", token);
+}
+
 // Logout Function
 export const logoutUser = async (token: string) => {
   // We don't really care about the response data, just the status

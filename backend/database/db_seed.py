@@ -1,15 +1,16 @@
+import shutil
+import os
+import uuid
+import random
+
 from faker import Faker
 from sqlalchemy.orm import Session
 from db_config import SessionLocal, DATABASE_URL
 from db_clear import clear_db
 from db import Courses, UserProfile, Admin, Lecturer, Student, EntLeave, AttdCheck, Module, Lesson, LecMod, StudentModules, Courses
-import random
 from datetime import timedelta
 from collections import defaultdict
-import shutil
-import os
 from dotenv import load_dotenv
-import uuid
 from supabase import create_client, Client
 
 load_dotenv()
@@ -55,6 +56,7 @@ def seedCoursesOSS(dbSessionLocalInstance: Session, spbase: Client): #done
 
     dbSessionLocalInstance.commit()
     return None
+
 def userProfileSeeder(dbSessionLocalInstance: Session, spbase: Client): #done
     #No Primary Keys
     print(f"Seeding User Profiles: \n")
@@ -111,7 +113,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client): #done
         rCourse = random.choice(courseobjs)
         email = username + "@uow.edu.au"
         #For Simplicity sake, username is the password!
-        user_uuid = createAccountgetuuid(email, username, True)
+        user_uuid = createAccountgetuuid(email, "Valid123", True)
         while True:
             studNumGen = random.randint(100001,999999)
             studNumGenstr = str(studNumGen)
@@ -134,6 +136,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client): #done
     dbSessionLocalInstance.commit()
 
     return None
+
 def adminSeed(dbSessionLocalInstance: Session, spbase: Client): # done
     #No Primary Keys
     print(f"Seeding Admins: \n")
@@ -176,7 +179,7 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client): # done
         username = userNames.pop()
         email = username + "@uow.edu.au"
         # For simplicity's sake username is the password.
-        user_uuid = createAccountgetuuid(email, username, True)
+        user_uuid = createAccountgetuuid(email, "Valid123", True)
         # Ghost Users that can not be logged in to
         dbSessionLocalInstance.add(Admin(userID = user_uuid,
                                         profileType = AdminProfile,
@@ -188,6 +191,7 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client): # done
     dbSessionLocalInstance.commit()
 
     return None
+
 def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client): # done
     #No Primary Keys
     print(f"Seeding Lecturers: \n")
@@ -231,7 +235,7 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client): # done
             email = username + "@uow.edu.au"
             spec = random.choice(['Computer Science', 'Business'])
             #For simplicity, Username is the password!
-            user_uuid = createAccountgetuuid(email, username, True)
+            user_uuid = createAccountgetuuid(email, "Valid123", True)
             dbSessionLocalInstance.add(Lecturer(userID = user_uuid,
                                                 profileType = LecturerProfile, 
                                                 name = name,
@@ -241,6 +245,7 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client): # done
     dbSessionLocalInstance.commit()
 
     return None
+
 def modulesSeed(dbSessionLocalInstance: Session, spbase: Client): # done
     #No Primary Keys
     print(f"Seeding Modules: \n")
@@ -251,6 +256,7 @@ def modulesSeed(dbSessionLocalInstance: Session, spbase: Client): # done
         dbSessionLocalInstance.add(Module(moduleName =modNames[i], 
                                             moduleCode = modCodes[i]))
     return None
+
 def lecModSeed(dbSessionLocalInstance: Session, spbase: Client): #done
     #No Primary Keys
     print(f"Seeding LecMods: \n")
@@ -265,6 +271,7 @@ def lecModSeed(dbSessionLocalInstance: Session, spbase: Client): #done
     
     dbSessionLocalInstance.commit()
     return None
+
 def studentModulesSeed(dbSessionLocalInstance: Session, spbase: Client): #done
     #No Primary Keys
     print(f"Seeding studentModules: \n")
@@ -279,6 +286,7 @@ def studentModulesSeed(dbSessionLocalInstance: Session, spbase: Client): #done
     
     dbSessionLocalInstance.commit()
     return None
+
 def lessonsSeed(dbSessionLocalInstance: Session, spbase: Client): #done
     #No Primary Keys
     lecModobjs = dbSessionLocalInstance.query(LecMod).all()
@@ -293,13 +301,18 @@ def lessonsSeed(dbSessionLocalInstance: Session, spbase: Client): #done
                 #Assume every lesson is 3 hours
                 duration = timedelta(hours=3)
                 end_dt  = start_dt + duration
+                building = random.randint(1,5)
+                room = random.randint(100, 600)
 
                 dbSessionLocalInstance.add(Lesson(lessontype = lessontype,
-                                                  lecMod = lecmod, 
+                                                  lecMod = lecmod,
+                                                  building = building,
+                                                  room = room,
                                                   startDateTime = start_dt,
                                                   endDateTime = end_dt))
     dbSessionLocalInstance.commit()
     return None
+
 def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client): #done
     #No Primary Keys
     print(f"Seeding EntLeave: \n")
@@ -331,30 +344,65 @@ def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client): #done
                                                 ))
     dbSessionLocalInstance.commit()
     return None
+
 def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
-    #No Primary Keys
     print(f"Seeding attdCheck: \n")
-    lessonobjs = dbSessionLocalInstance.query(Lesson).all()
-    EntLeaveobjs = dbSessionLocalInstance.query(EntLeave).all()
+    
+    # Get all Lessons and map ID -> Duration AND ID -> ModuleID
+    # We need to know which Module a lesson belongs to for the check.
+    lessonobjs = dbSessionLocalInstance.query(Lesson, LecMod.moduleID).\
+        join(LecMod, Lesson.lecModID == LecMod.lecModID).all()
+        
     lesson_durations = {}
-    for lesson in lessonobjs:
-        lesson_durations[lesson.lessonID] = lesson.endDateTime - lesson.startDateTime
+    lesson_module_map = {} # map: LessonID -> ModuleID
+    
+    for lesson, module_id in lessonobjs:
+        duration = lesson.endDateTime - lesson.startDateTime
+        lesson_durations[lesson.lessonID] = duration
+        lesson_module_map[lesson.lessonID] = module_id
+
+    # 2. Get all Valid Enrollments (Student -> Module)
+    # We store this in a Set for O(1) fast lookups
+    # Format: Set of (studentID, moduleID) tuples
+    valid_enrollments = set()
+    enrollment_objs = dbSessionLocalInstance.query(StudentModules).all()
+    for enroll in enrollment_objs:
+        valid_enrollments.add((enroll.studentID, enroll.modulesID))
+
+    # 3. Calculate time spent based on Ent/Leave logs
+    EntLeaveobjs = dbSessionLocalInstance.query(EntLeave).all()
     attendance_map = defaultdict(lambda: timedelta(0))
+    
     for entL in EntLeaveobjs:
         key = (entL.studentID, entL.lessonID)
         duration = entL.leave - entL.enter
         attendance_map[key] += duration
 
+    # 4. Generate Checks
     new_checks = []
+    
+    # Iterating through (Student, Lesson) pairs
     for (student_id, lesson_id), total_time in attendance_map.items():
-        lesson_length = lesson_durations.get(lesson.lessonID)
+        
+        lesson_length = lesson_durations.get(lesson_id)
+        
+        if not lesson_length:
+            continue
 
-        if lesson_length:
-            ratio = total_time/ lesson_length
+        # C. NEW: Check if Student is actually enrolled in this lesson's module, if not skip
+        module_id = lesson_module_map.get(lesson_id)
+        if (student_id, module_id) not in valid_enrollments:
+            print(f"Skipping: Student {student_id} was present but is not enrolled in Module {module_id}")
+            continue
 
+        # D. Calculate Ratio
+        ratio = total_time / lesson_length
         if ratio > 0.5:
             new_checks.append(AttdCheck(lessonID=lesson_id, studentID=student_id)) 
+
+    # 5. Commit
     if new_checks:
+        print(f"Adding {len(new_checks)} verified attendance checks.")
         dbSessionLocalInstance.add_all(new_checks)
         dbSessionLocalInstance.commit()
     

@@ -1,6 +1,6 @@
 from typing import Union, List
 from fastapi import FastAPI, Depends, HTTPException, status, APIRouter
-from sqlalchemy import func, distinct, case, literal
+from sqlalchemy import func, distinct, case, literal, and_
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials   
 from pydantic import BaseModel
@@ -9,16 +9,15 @@ from sqlalchemy.orm import sessionmaker, Session
 from database.db_config import get_db #Gets the Initialized db session
 from database.db import UserProfile, User, Admin, Lecturer, Student, Lesson, EntLeave, Module, AttdCheck, StudentModules, studentAngles, Courses, LecMod
 from uuid import UUID
-from pdantic.schemas import UserSignUp, UserLogin, TokenResponse, timetableEntry, AttendanceOverviewCard , RecentSessionsCardData
+from pdantic.schemas import UserSignUp, UserLogin, TokenResponse, timetableEntry, AttendanceOverviewCard , RecentSessionsCardData, LecturerDashboardSummary
 from dependencies.deps import get_current_user_id
 from client import supabase, supabase_adm
-from datetime import timedelta
-from pdantic.schemas import LecturerDashboardSummary
-from sqlalchemy import func, case, and_
 import datetime
+from routers import studentDashboardRouter
 
 app = FastAPI()
 security = HTTPBearer()
+
 
 origins = [
     "http://localhost:3000",  # React Create App
@@ -31,7 +30,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
-router = APIRouter()    
+
 
 @app.get("/")
 def read_root(db: Session= Depends(get_db)):
@@ -228,7 +227,7 @@ def logout():
     
 @app.get("/my-profile")
 def read_my_student_profile(
-    user_id: str = Depends(get_current_user_id), # <--- PROTECTED
+    user_id: str = Depends(get_current_user_id), 
     db: Session = Depends(get_db)
 ):
     # If the code reaches here, the token is valid.
@@ -295,7 +294,7 @@ def get_lecturer_timetable(
     db: Session = Depends(get_db)
 ):
     now = datetime.datetime.now()
-    next_week = now + timedelta(days=7)
+    next_week = now + datetime.timedelta(days=7)
 
     upcoming_lessons = db.query(Lesson, Module)\
         .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
@@ -404,7 +403,7 @@ def get_recent_sessions_card(
     
     # Define the time window (Last 7 Days)
     now = datetime.datetime.now()
-    seven_days_ago = now - timedelta(days=7)
+    seven_days_ago = now - datetime.timedelta(days=7)
 
     # Query Logic: Count the unique Lesson IDs
     recent_sessions_count = db.query(func.count(Lesson.lessonID))\
@@ -420,3 +419,5 @@ def get_recent_sessions_card(
         Recent_sessions_record=recent_sessions_count, 
         label="Recent sessions recorded"
     )
+
+app.include_router(studentDashboardRouter.router, tags=["Student"])

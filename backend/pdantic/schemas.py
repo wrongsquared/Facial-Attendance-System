@@ -1,4 +1,6 @@
 from pydantic import BaseModel, EmailStr
+from database.db import Lesson, Courses, Module
+from datetime import datetime
 
 class UserSignUp(BaseModel):
     email: EmailStr
@@ -29,6 +31,12 @@ class LecturerDashboardSummary(BaseModel):
     total_students: int
     overall_attendance_rate: float # 0.0 to 100.0
     students_at_risk_count: int
+
+class StudentLessons(BaseModel):
+    lessonID: int
+    lessonType: str        
+    start_time: datetime
+    end_time: datetime
     
     class Config:
         from_attributes = True
@@ -49,3 +57,18 @@ class timetableEntry(BaseModel):
     end_time: str    # "15:30"
     location: str
    
+class TodaysLessons(BaseModel):
+    lessonID:int
+    ModuleCode: str
+    ModuleName: str
+    lessonType: str
+    start_time: datetime
+    end_time: datetime
+    location: str #Building + Room stringed
+    class Config:
+        from_attributes = True
+
+class OverallLessonsResponse(BaseModel):
+    total_lessons: int
+    attended_lessons:int
+    percentage: float

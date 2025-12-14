@@ -32,7 +32,14 @@ import {
 } from "./ui/alert-dialog";
 import { NotificationAlerts } from "./NotificationAlerts";
 import { useAuth } from "../cont/AuthContext"; 
-import { getStudentProfile } from "../services/api";
+import { 
+  getStudentProfile, 
+  lessonInfo, 
+  getStudentTimetable, 
+  TodaysLessons, 
+  getTodaysLessons, 
+  getOverallLessons, 
+  OverallLessonsStat} from "../services/api";
 
 interface StudentDashboardProps {
   onLogout: () => void;
@@ -42,24 +49,7 @@ interface StudentDashboardProps {
   onNavigateToProgress: () => void;
 }
 
-const upcomingClasses = [
-  {
-    id: 1,
-    subject: "CSCI334 - Database Systems",
-    time: "9:00 AM - 11:00 AM",
-    location: "Building 3, Room 205",
-    date: "Today",
-    status: "present", 
-  },
-  {
-    id: 2,
-    subject: "CSCI251 - Software Engineering",
-    time: "2:00 PM - 4:00 PM",
-    location: "Building 1, Room 101",
-    date: "",
-    status: "upcoming",
-  },
-];
+
 
 const weeklySchedule = [
   {
@@ -139,6 +129,13 @@ export function StudentDashboard({
   onNavigateToProfile,
   onNavigateToProgress,
 }: StudentDashboardProps) {
+  const today = new Date();
+  const todaysdate = today.toLocaleDateString('en-GB',{
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   const notificationAlerts = [
@@ -177,24 +174,51 @@ export function StudentDashboard({
 
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [lessons, setLessons] = useState<lessonInfo[]>([])
+  const [todaysClasses, setTodaysClasses] = useState<TodaysLessons[]>([])
+  const [oAS, setOverallAttendanceStats] = useState<OverallLessonsStat>({
+    total_lessons: 0,
+    attended_lessons: 0,
+    percentage: 0
+  });
 
-  useEffect(() => {
-    const fetchData = async () => {
+
+useEffect(() => {
+    const fetchDashboardData = async () => {
       if (!token) return;
 
       try {
-        const data = await getStudentProfile(token);
-        setProfile(data);
+        // 1. Fire off all requests at the exact same time (Parallel)
+        // This is much faster than waiting for one, then the next.
+        const [
+          lessonData, 
+          profileData, 
+          todaysData, 
+          overallLessonsData
+        ] = await Promise.all([
+          getStudentTimetable(token),
+          getStudentProfile(token),
+          getTodaysLessons(token),
+          getOverallLessons(token)
+        ]);
+
+        // 2. Set all states at once
+        setLessons(lessonData);
+        setProfile(profileData);
+        setTodaysClasses(todaysData);
+        setOverallAttendanceStats(overallLessonsData);
+
       } catch (err) {
-        console.error("Failed to load dashboard data", err);
+        console.error("Failed to load dashboard:", err);
+        // Optional: setError(true) to show a "Retry" button
       } finally {
+        // 3. Stop loading only when EVERYTHING is finished (or failed)
         setLoading(false);
       }
     };
-    fetchData();
-  }, [token]);
 
-  if (loading) return <div className="p-10">Loading Dashboard...</div>;
+    fetchDashboardData();
+  }, [token]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -267,9 +291,9 @@ export function StudentDashboard({
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
               <div className="flex-1">
-                <div className="text-6xl font-bold">89.5%</div>
+                <div className="text-6xl font-bold">{oAS.percentage}%</div>
                 <p className="text-xs text-gray-600 mt-1">
-                  34 of 38 classes attended
+                  {oAS.attended_lessons} of {oAS.total_lessons} classes attended
                 </p>
               </div>
               <div className="mt-4">
@@ -328,40 +352,30 @@ export function StudentDashboard({
           {/* Upcoming Classes */}
           <Card>
             <CardHeader>
-              <CardTitle>Upcoming Classes Today (29 Nov 2025)</CardTitle>
+              <CardTitle>Upcoming Classes Today ({todaysdate})</CardTitle>
               <CardDescription>Your scheduled classes</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {upcomingClasses.map((classItem) => (
-                  <div
-                    key={classItem.id}
-                    className="flex flex-col gap-2 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium">{classItem.subject}</p>
-                        <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                          <Clock className="h-3 w-3" />
-                          <span>{classItem.time}</span>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {classItem.location}
-                        </p>
+                {todaysClasses.length === 0? (
+                  <p className="text-gray-500 text-center py-4">No classes today.</p>
+                ) : (
+                  todaysClasses.map((classItem) => (
+                    <div key={classItem.lessonID} className="flex flex-col gap-2 p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium">{classItem.ModuleCode} - {classItem.ModuleName}  {classItem.lessonType}</p>
+                      <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                         {new Date(classItem.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                         {" - "}
+                         {new Date(classItem.end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </div>
-
-                      {classItem.status === "present" ? (
-                        <Badge className="bg-green-600 text-white">
-                          Present
-                        </Badge>
-                      ) : (
-                        classItem.date && (
-                          <Badge variant="secondary">{classItem.date}</Badge>
-                        )
-                      )}
+                      <p className="text-sm text-gray-600 mt-1">{classItem.location}</p>
+                      </div>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>

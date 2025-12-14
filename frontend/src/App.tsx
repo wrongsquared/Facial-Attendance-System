@@ -92,7 +92,6 @@ export default function App() {
 
   // 5. NEW LOGOUT LOGIC
   const handleLogout = () => {
-    console.log("Logging out...");
     
     // 1. Run the Context logic (Server call + Local cleanup)
     logout(); 

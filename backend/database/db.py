@@ -116,6 +116,10 @@ class Lesson(Base): # Lessons by Lecturers, belongs to Modules
 
     entLeaves: Mapped[list[EntLeave]] = relationship(back_populates="lesson")
 
+    building: Mapped[str]= mapped_column(String(4))
+
+    room: Mapped[str]= mapped_column(String(4))
+
     lessontype: Mapped[str] = mapped_column(String(10))
     startDateTime: Mapped[datetime.datetime]
     endDateTime: Mapped[datetime.datetime]
