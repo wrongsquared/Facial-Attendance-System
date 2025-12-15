@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from database.db import Lesson, Courses, Module
-from typing import Literal
-from datetime import datetime
+from typing import Literal,List
+from datetime import date, datetime
 
 class UserSignUp(BaseModel):
     email: EmailStr
@@ -142,3 +142,13 @@ class UserProfileUpdate(BaseModel):
     emergencyContactName: str | None = None
     emergencyContactRelationship: str | None = None
     emergencyContactNumber: str | None = None
+    class Config:
+        from_attributes = True
+
+class ReportCriteria(BaseModel):
+    """Defines the input parameters for generating an attendance report."""
+    report_type: Literal['Daily', 'Monthly']
+    date_from: date
+    date_to: date
+    module_code: str 
+    attendance_status: Literal['All', 'Present', 'Absent']

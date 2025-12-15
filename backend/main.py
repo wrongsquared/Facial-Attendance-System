@@ -30,7 +30,7 @@ from pdantic.schemas import (UserSignUp, #This was really long so I had to brack
                              courseoverviewcard, 
                              ClassToday, 
                              RecentSessionRecord, 
-                             LecturerDashboardSummary, viewUserProfile, UserProfileUpdate)
+                             LecturerDashboardSummary, viewUserProfile, UserProfileUpdate, ReportCriteria)
 from dependencies.deps import get_current_user_id
 from client import supabase, supabase_adm
 import datetime
@@ -266,7 +266,7 @@ def read_my_student_profile(
 #---------------------------#
 
 # total module taught by me
-@app.get("/lecturer/dashboard/summary")
+@app.get("/lecturer/dashboard/total-modules", response_model=LecturerDashboardSummary)
 def get_lecturer_dashboard_summary(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
@@ -630,7 +630,7 @@ def get_recent_sessions_log(
     return results
 
 # View user profile (view-only)
-@app.get("/lecturer/profile/view-basic", response_model=viewUserProfile)
+@app.get("/lecturer/profile/view-profile", response_model=viewUserProfile)
 def get_view_only_user_profile(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
@@ -678,3 +678,98 @@ def update_user_profile(
     
     # 5. Return the full, updated profile
     return user_record
+
+@app.post("/lecturer/reports/generate-download")
+def generate_and_download_report(
+    criteria: ReportCriteria,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Receives report criteria and compiles the student-centric attendance data 
+    for the selected module and time period, returning it as CSV content.
+    """
+    
+    # 1. Define time boundaries and retrieve module details
+    start_date = criteria.date_from 
+    end_date = criteria.date_to
+    
+    # --- START OF CRITICAL CHANGES ---
+    # Fetch module details using the new criteria field: criteria.module_code
+    module_details = db.query(Module).filter(Module.moduleCode == criteria.module_code).first()
+    
+    if not module_details:
+        raise HTTPException(status_code=404, detail=f"Module not found for code: {criteria.module_code}")
+
+    # Now we must use the Module ID (the PK) for joining in the database
+    module_id = module_details.moduleID
+    module_code = module_details.moduleCode
+    module_name = module_details.moduleName
+    
+    # 2. Identify the pool of relevant lessons (subquery for efficiency)
+    lesson_pool = db.query(Lesson.lessonID, Lesson.startDateTime)\
+        .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
+        .filter(
+            LecMod.lecturerID == user_id,
+            # Use the Module ID retrieved from the database lookup
+            LecMod.moduleID == module_id, 
+            func.date(Lesson.startDateTime).between(start_date, end_date)
+        ).subquery()
+        
+    if not db.query(lesson_pool).first():
+        raise HTTPException(status_code=404, detail="No relevant lessons found for the selected module and dates.")
+
+    # 3. Get all students enrolled in the selected module
+    enrolled_students = db.query(Student.studentID, Student.name)\
+        .join(StudentModules, Student.studentID == StudentModules.studentID)\
+        .filter(
+            # Use the Module ID for the student enrollment join
+            StudentModules.modulesID == module_id
+        ).all()
+        
+    # --- END OF CRITICAL CHANGES ---
+    
+    report_data = []
+
+    # 4. Iterate through every student and every lesson to check status...
+    # (The rest of the logic remains the same, as it uses the now-defined module_code and module_name)
+    # ...
+    
+    # 5. Compile the detailed report row (Student-Session Data)
+    for student_id, student_name in enrolled_students:
+        for lesson_id, lesson_start_time in db.query(lesson_pool).all():
+            
+            # ... (attendance check logic) ...
+            
+            # ... (Apply Filter for Attendance Status) ...
+            
+            report_data.append({
+                "Module Code": module_code, 
+                "Module Name": module_name,
+                "Student ID": student_id,
+                "Student Name": student_name,
+                "Date": lesson_start_time.strftime("%Y-%m-%d"),
+                "Time": lesson_start_time.strftime("%H:%M"),
+                "Attendance Status": status_text,
+            })
+            
+    # 6. Handle Download (CSV Generation)
+    # ... (CSV creation logic remains the same) ...
+
+    if not report_data:
+        raise HTTPException(status_code=404, detail="No records match the selected criteria and status filter.")
+        
+    output = StringIO()
+    fieldnames = list(report_data[0].keys())
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+
+    writer.writeheader()
+    writer.writerows(report_data)
+    
+    csv_content = output.getvalue()
+
+    return {
+        "content": csv_content,
+        "filename": f"Attendance_Report_{criteria.report_type}_{criteria.date_from}_to_{criteria.date_to}.csv",
+        "media_type": "text/csv"
+    }

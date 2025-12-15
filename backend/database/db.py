@@ -40,12 +40,13 @@ class User(Base): #User
     profileTypeID: Mapped[int] = mapped_column(ForeignKey("userprofiles.profileTypeID"))
     profileType: Mapped[UserProfile] = relationship(back_populates="users")
 
+    #Basic Details
     name: Mapped[str] = mapped_column(String(50))
     email: Mapped[str] = mapped_column(String(40))
-
     contactNumber: Mapped[str | None] = mapped_column("phone", String(15), nullable=True) 
     address: Mapped[str | None] = mapped_column("fulladdress", String(100), nullable=True)
-
+    
+    #Emergency Contact Details
     emergencyContactName: Mapped[str | None] = mapped_column("eName", String(100), nullable=True)
     emergencyContactRelationship: Mapped[str | None] = mapped_column("eRole", String(50), nullable=True)
     emergencyContactNumber: Mapped[str | None] = mapped_column("ePhone", String(20), nullable=True)
