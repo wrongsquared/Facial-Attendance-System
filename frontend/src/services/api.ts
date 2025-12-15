@@ -67,6 +67,7 @@ export interface lessonInfo {
     lessonType: string;
     start_time: string; 
     end_time: string;
+    location: string;
 }
 
 export const getStudentTimetable = async (token: string) => {
@@ -97,6 +98,29 @@ export const getTodaysLessons = async( token:string) => {
   return await fetchProtected("/student/todayslesson", token);
 }
 
+export interface ModuleStat {
+  subject: string;
+  attended: number;
+  total: number;
+  percentage: number;
+}
+
+export const getStatsByModule = async (token: string) => {
+  return await fetchProtected("/student/stats/by-module", token);
+};
+
+export interface AttendanceRecord {
+  lessonID: number;
+  subject: string;
+  date: string; // ISO String from backend
+  status: "present" | "absent";
+}
+
+export const getRecentHistory = async (token: string) => {
+  return await fetchProtected("/student/history/recent", token);
+};
+
+
 // Logout Function
 export const logoutUser = async (token: string) => {
   // We don't really care about the response data, just the status
@@ -106,4 +130,18 @@ export const logoutUser = async (token: string) => {
       "Authorization": `Bearer ${token}`
     }
   });
+};
+
+export interface WeeklyLesson {
+  lessonID: number;
+  module_code: string;
+  module_name: string;
+  lesson_type: string;
+  start_time: string; // ISO String from backend
+  end_time: string;   // ISO String from backend
+  location: string; 
+}
+
+export const getWeeklyTimetable = async (token: string) => {
+  return await fetchProtected("/student/timetable/weekly", token);
 };

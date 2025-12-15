@@ -129,8 +129,6 @@ class viewUserProfile(BaseModel):
     class Config:
         from_attributes = True
 
-# File: pdantic/schemas.py (Add this new class)
-
 class UserProfileUpdate(BaseModel):
     # Personal Info Fields
     name: str | None = None
@@ -142,3 +140,27 @@ class UserProfileUpdate(BaseModel):
     emergencyContactName: str | None = None
     emergencyContactRelationship: str | None = None
     emergencyContactNumber: str | None = None
+class AttendancePerModule(BaseModel):
+    subject: str
+    attended: int
+    total: int
+    percentage: int
+
+class PreviousAttendances(BaseModel):
+    lessonID: int
+    subject: str      
+    date: datetime    
+    status: str 
+    class Config:
+        from_attributes = True
+
+class WeeklyLesson(BaseModel):
+    lessonID: int
+    module_code: str
+    module_name: str
+    lesson_type: str 
+    start_time: datetime
+    end_time: datetime
+    location: str
+    class Config:
+        from_attributes = True

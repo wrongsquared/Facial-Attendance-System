@@ -39,7 +39,13 @@ import {
   TodaysLessons, 
   getTodaysLessons, 
   getOverallLessons, 
-  OverallLessonsStat} from "../services/api";
+  OverallLessonsStat,
+  ModuleStat,
+  getStatsByModule,
+  AttendanceRecord,
+  getRecentHistory,
+  WeeklyLesson,
+  getWeeklyTimetable} from "../services/api";
 
 interface StudentDashboardProps {
   onLogout: () => void;
@@ -48,79 +54,6 @@ interface StudentDashboardProps {
   onNavigateToProfile: () => void;
   onNavigateToProgress: () => void;
 }
-
-
-
-const weeklySchedule = [
-  {
-    day: "MON",
-    classes: ["CSCI334 - 9:00 AM", "CSCI251 - 2:00 PM"],
-  },
-  {
-    day: "TUE",
-    classes: ["CSCI203 - 10:00 AM", "CSCI334 - 1:00 PM"],
-  },
-  { day: "WED", classes: ["CSCI251 - 9:00 AM"] },
-  {
-    day: "THU",
-    classes: ["CSCI203 - 10:00 AM", "CSCI334 - 3:00 PM"],
-  },
-  { day: "FRI", classes: ["CSCI251 - 2:00 PM"] },
-];
-
-const attendanceHistory = [
-  {
-    id: 1,
-    subject: "CSCI334 - Database Systems",
-    date: "28 Oct 2025",
-    status: "present",
-  },
-  {
-    id: 2,
-    subject: "CSCI251 - Software Engineering",
-    date: "28 Oct 2025",
-    status: "present",
-  },
-  {
-    id: 3,
-    subject: "CSCI203 - Algorithms",
-    date: "27 Oct 2025",
-    status: "present",
-  },
-  {
-    id: 4,
-    subject: "CSCI334 - Database Systems",
-    date: "26 Oct 2025",
-    status: "absent",
-  },
-  {
-    id: 5,
-    subject: "CSCI251 - Software Engineering",
-    date: "26 Oct 2025",
-    status: "present",
-  },
-];
-
-const subjectStats = [
-  {
-    subject: "CSCI334 - Database Systems",
-    attended: 11,
-    total: 12,
-    percentage: 92,
-  },
-  {
-    subject: "CSCI251 - Software Engineering",
-    attended: 13,
-    total: 13,
-    percentage: 100,
-  },
-  {
-    subject: "CSCI203 - Algorithms",
-    attended: 10,
-    total: 13,
-    percentage: 77,
-  },
-];
 
 export function StudentDashboard({
   onLogout,
@@ -181,7 +114,9 @@ export function StudentDashboard({
     attended_lessons: 0,
     percentage: 0
   });
-
+  const [subjectStats, setSubjectStats] = useState<ModuleStat[]>([]);
+  const [recentHistory, setRecentHistory] = useState<AttendanceRecord[]>([]);
+  const [weeklyLessons, setWeeklyLessons] = useState<WeeklyLesson[]>([]);
 
 useEffect(() => {
     const fetchDashboardData = async () => {
@@ -194,12 +129,18 @@ useEffect(() => {
           lessonData, 
           profileData, 
           todaysData, 
-          overallLessonsData
+          overallLessonsData,
+          moduleStatsData ,
+          historyData,
+          weeklyData
         ] = await Promise.all([
           getStudentTimetable(token),
           getStudentProfile(token),
           getTodaysLessons(token),
-          getOverallLessons(token)
+          getOverallLessons(token),
+          getStatsByModule(token),
+          getRecentHistory(token),
+          getWeeklyTimetable(token)
         ]);
 
         // 2. Set all states at once
@@ -207,6 +148,9 @@ useEffect(() => {
         setProfile(profileData);
         setTodaysClasses(todaysData);
         setOverallAttendanceStats(overallLessonsData);
+        setSubjectStats(moduleStatsData);
+        setRecentHistory(historyData);
+        setWeeklyLessons(weeklyData);
 
       } catch (err) {
         console.error("Failed to load dashboard:", err);
@@ -220,6 +164,30 @@ useEffect(() => {
     fetchDashboardData();
   }, [token]);
 
+  // --- HELPER: Group by Day ---
+  const groupWeeklySchedule = () => {
+    const grouped: Record<string, WeeklyLesson[]> = {
+      MON: [], TUE: [], WED: [], THU: [], FRI: [], SAT: [], SUN: [],
+    };
+
+    // The backend already filtered for "Next 7 Days", so just loop and group
+    weeklyLessons.forEach((lesson) => {
+      const date = new Date(lesson.start_time);
+      const dayName = date
+        .toLocaleDateString("en-GB", { weekday: "short" })
+        .toUpperCase();
+      
+      const key = dayName.substring(0, 3);
+
+      if (grouped[key]) {
+        grouped[key].push(lesson);
+      }
+    });
+
+    return grouped;
+  };
+  const dayOrder = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+  const weeklySchedule = groupWeeklySchedule();
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
@@ -309,7 +277,7 @@ useEffect(() => {
             </CardContent>
           </Card>
 
-          {/* Card 2: Timetable */}
+        {/* Card 2: Timetable */}
           <Card className="flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm">Timetable</CardTitle>
@@ -317,23 +285,70 @@ useEffect(() => {
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
               <div className="flex-1">
-                <div className="space-y-2 max-h-32 overflow-y-auto">
-                  {weeklySchedule.map((schedule) => (
-                    <div key={schedule.day} className="flex items-start gap-2">
-                      <span className="text-xs font-medium min-w-[60px]">
-                        {schedule.day}:
-                      </span>
-                      <div className="flex flex-col gap-1">
-                        {schedule.classes.map((classInfo, idx) => (
-                          <span key={idx} className="text-xs text-gray-600">
-                            {classInfo}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                <div className="space-y-3 max-h-32 overflow-y-auto pr-2">
+                  
+                  {/* 1. Check if the entire week is empty */}
+                  {Object.values(weeklySchedule).every((arr) => arr.length === 0) ? (
+                    <p className="text-xs text-gray-400 text-center mt-4">
+                      No classes upcoming this week.
+                    </p>
+                  ) : (
+                    /* 2. Map through MON, TUE, WED... */
+                    dayOrder.map((day) => {
+                      const lessonsForDay = weeklySchedule[day];
+
+                      // If no lessons on this day, don't render the row
+                      if (!lessonsForDay || lessonsForDay.length === 0) return null;
+
+                      return (
+                        <div key={day} className="flex items-baseline">
+                          {/* Left Column: Day Name (Fixed width for alignment) */}
+                          <div className="w-14 shrink-0">
+                            <span className="text-m font-bold text-gray-900">
+                              {day}:
+                            </span>
+                          </div>
+
+                          {/* Right Column: List of Classes */}
+                          <div className="flex flex-col gap-1 w-full">
+                            {lessonsForDay.map((lesson) => {
+                              // Format: 9:00 AM
+                              const timeString = new Date(lesson.start_time).toLocaleTimeString([], {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                              });
+                              const endString = new Date(lesson.end_time).toLocaleTimeString([], {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                              });
+
+                              return (
+                                <div key={lesson.lessonID} className="text-m text-gray-600 flex flex-wrap gap-1">
+                                  {/* Format: CSCI334 - 9:00 AM */}
+                                  <span className="text-gray-700 font-medium">{lesson.module_code}</span> 
+                                  <span className="text-gray-400"> • </span>
+                                  <span>
+                                    {timeString} - {endString}
+                                  </span>
+
+                                  <span className="text-gray-400"> • </span>
+
+                                  <span>
+                                    {lesson.location || "TBD"}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
+              
               <div className="mt-4">
                 <Button
                   variant="outline"
@@ -390,18 +405,24 @@ useEffect(() => {
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                {subjectStats.map((stat) => (
-                  <div key={stat.subject} className="space-y-2">
+                {subjectStats.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center">No past lessons recorded.</p>
+                  ) : (
+                  subjectStats.map((stat, index) =>(
+                  <div key={index} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <p className="text-sm">{stat.subject}</p>
                       <span className="text-sm">{stat.percentage}%</span>
                     </div>
+
                     <Progress value={stat.percentage} className="h-2" />
+
                     <p className="text-xs text-gray-600">
                       {stat.attended} of {stat.total} classes attended
                     </p>
                   </div>
-                ))}
+                ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -417,9 +438,12 @@ useEffect(() => {
 
             <CardContent>
               <div className="space-y-3">
-                {attendanceHistory.map((record) => (
+              {recentHistory.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">No recent history found.</p>
+                ) : (
+                recentHistory.map((record) => (
                   <div
-                    key={record.id}
+                    key={record.lessonID}
                     className="flex items-center justify-between p-3 border rounded-lg"
                   >
                     <div className="flex items-center gap-3">
@@ -431,7 +455,11 @@ useEffect(() => {
 
                       <div>
                         <p className="font-medium">{record.subject}</p>
-                        <p className="text-sm text-gray-600">{record.date}</p>
+                        {new Date(record.date).toLocaleDateString('en-GB', {
+                          day: 'numeric', 
+                          month: 'short', 
+                          year: 'numeric'
+                  })}
                       </div>
                     </div>
 
@@ -441,7 +469,8 @@ useEffect(() => {
                       <Badge className="bg-red-600 text-white">Absent</Badge>
                     )}
                   </div>
-                ))}
+                ))
+              )}
               </div>
 
               <div className="mt-4">
