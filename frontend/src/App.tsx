@@ -29,14 +29,12 @@ import { Footer } from './components/Footer';
 
 
 
-type UserType = 'student' | 'lecturer' | 'admin' | null;
 type LecturerView = 'dashboard' | 'reports' | 'profile' | 'timetable' | 'records';
 type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser';
 type StudentView = 'dashboard' | 'attendanceHistory' | 'timetable' | 'profile' | 'progress';
 
 export default function App() {
   const { user, login, logout, loading } = useAuth();
-  const [role, setCurrentUser] = useState<UserType>(null);
   const [lecturerView, setLecturerView] = useState<LecturerView>('dashboard');
   const [adminView, setAdminView] = useState<AdminView>('dashboard');
   const [studentView, setStudentView] = useState<StudentView>('dashboard');

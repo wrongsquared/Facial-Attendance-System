@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import and_, func
-from datetime import datetime
+from sqlalchemy import and_, func, case, desc
+from datetime import datetime, timedelta
 from database.db_config import get_db
 from dependencies.deps import get_current_user_id
-from pdantic.schemas import StudentLessons, TodaysLessons, OverallLessonsResponse
+from pdantic.schemas import StudentLessons, TodaysLessons, OverallLessonsResponse, AttendancePerModule, PreviousAttendances, WeeklyLesson
 from database.db import  Lesson, Module,  StudentModules, LecMod, AttdCheck
 
 
@@ -120,3 +120,172 @@ def get_total_lessons(
     if total_count > 0:
         percentage = round((attended_count/total_count)* 100 , 1)
     return {"total_lessons": total_count, "attended_lessons": attended_count, "percentage": percentage}
+
+@router.get("/student/stats/by-module", response_model=list[AttendancePerModule])
+def get_stats_by_module(
+    user_id: str = Depends(get_current_user_id), 
+    db: Session = Depends(get_db)
+):
+    """
+    Returns grouped statistics:
+    [
+      {"subject": "CSCI334 - Database Systems", "total": 12, "attended": 11, "percentage": 92},
+      ...
+    ]
+    """
+    # 1. Query Data
+    results = (
+        db.query(
+            Module.moduleCode,
+            Module.moduleName,
+            # Count TOTAL lessons for this module (that are in the past)
+            func.count(Lesson.lessonID).label("total_lessons"),
+            # Count ATTENDED lessons (where the student has a record in AttdCheck)
+            func.count(AttdCheck.AttdCheckID).label("attended_lessons")
+        )
+        .select_from(StudentModules)
+        # Join Chain: StudentModule -> Module -> LecMod -> Lesson
+        .join(Module, StudentModules.modulesID == Module.moduleID)
+        .join(LecMod, Module.moduleID == LecMod.moduleID)
+        .join(Lesson, LecMod.lecModID == Lesson.lecModID)
+        
+        # Left Join Attendance: Check if THIS student attended THIS lesson
+        .outerjoin(AttdCheck, (AttdCheck.lessonID == Lesson.lessonID) & (AttdCheck.studentID == user_id))
+        
+        # FILTERS
+        .filter(StudentModules.studentID == user_id)
+        .filter(Lesson.endDateTime < datetime.now()) #  Only count past lessons
+        
+        # Group by Module so we get one row per subject
+        .group_by(Module.moduleCode, Module.moduleName)
+        .all()
+    )
+
+    # 2. Process logic (Calculate Percentage)
+    output = []
+    for code, name, total, attended in results:
+        pct = 0
+        if total > 0:
+            pct = round((attended / total) * 100)
+            
+        output.append({
+            "subject": f"{code} - {name}", # Combine Code + Name
+            "attended": attended,
+            "total": total,
+            "percentage": pct
+        })
+
+    return output
+
+
+@router.get("/student/history/recent", response_model=list[PreviousAttendances])
+def get_recent_attendance_history(
+    limit: int = 5, # Default to showing top 5
+    user_id: str = Depends(get_current_user_id), 
+    db: Session = Depends(get_db)
+):
+    """
+    Fetches the most recent past lessons and their attendance status.
+    """
+    results = (
+        db.query(
+            Lesson,
+            Module.moduleCode,
+            Module.moduleName,
+            AttdCheck.AttdCheckID # If this is not None, they were present
+        )
+        # CRITICAL: Start from the Student's enrollment
+        .select_from(StudentModules)
+        
+        # Join Chain: Student -> Module -> Class -> Lesson
+        .join(Module, StudentModules.modulesID == Module.moduleID)
+        .join(LecMod, Module.moduleID == LecMod.moduleID)
+        .join(Lesson, LecMod.lecModID == Lesson.lecModID)
+        
+        # Left Join Attendance to see if they were there
+        .outerjoin(AttdCheck, (AttdCheck.lessonID == Lesson.lessonID) & (AttdCheck.studentID == user_id))
+        
+        # Filters
+        .filter(StudentModules.studentID == user_id)
+        .filter(Lesson.endDateTime < datetime.now()) # Only PAST lessons
+        
+        # Order: Newest first
+        .order_by(desc(Lesson.startDateTime))
+        .limit(limit)
+        .all()
+    )
+
+    output = []
+    for lesson, mod_code, mod_name, attd_id in results:
+        # Determine Status
+        status = "present" if attd_id else "absent"
+        
+        output.append({
+            "lessonID": lesson.lessonID,
+            "subject": f"{mod_code} - {mod_name}",
+            "date": lesson.startDateTime,
+            "status": status
+        })
+
+    return output
+
+
+
+@router.get("/student/timetable/weekly", response_model=list[WeeklyLesson])
+def get_weekly_timetable(
+    user_id: str = Depends(get_current_user_id), 
+    db: Session = Depends(get_db)
+):
+    """
+    Fetches lessons for the NEXT 7 DAYS only.
+    Includes status (upcoming/present/absent).
+    """
+    # 1. Define the Window (Today -> Next 7 Days)
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    next_week = today + timedelta(days=7)
+
+    results = (
+        db.query(
+            Lesson,
+            Module.moduleCode,
+            Module.moduleName,
+            AttdCheck.AttdCheckID
+        )
+        # 2. Establish Base: Student's Enrolled Modules
+        .select_from(StudentModules)
+        .join(Module, StudentModules.modulesID == Module.moduleID)
+        .join(LecMod, Module.moduleID == LecMod.moduleID)
+        .join(Lesson, LecMod.lecModID == Lesson.lecModID)
+        
+        # 3. CRITICAL: Outer Join Attendance
+        # We want to see the lesson even if the student hasn't attended yet
+        .outerjoin(AttdCheck, (AttdCheck.lessonID == Lesson.lessonID) & (AttdCheck.studentID == user_id))
+        
+        # 4. Filters
+        .filter(StudentModules.studentID == user_id)
+        .filter(Lesson.startDateTime >= today)     # Starts Today or later
+        .filter(Lesson.startDateTime < next_week)  # Ends within 7 days
+        
+        # 5. Sort by Date (Earliest first)
+        .order_by(Lesson.startDateTime.asc())
+        .all()
+    )
+
+    output = []
+    current_time = datetime.now()
+
+    for lesson, mod_code, mod_name, attd_id in results:
+        # Determine Status
+        loc_string = f"Building {lesson.building}, Room {lesson.room}"
+
+        output.append({
+            "lessonID": lesson.lessonID,
+            "module_code": mod_code,
+            "module_name": mod_name,
+            "lesson_type": lesson.lessontype,
+            "start_time": lesson.startDateTime,
+            "end_time": lesson.endDateTime,
+            "location": loc_string, # Replace with lesson.location if you have it
+        })
+
+    return output

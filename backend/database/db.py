@@ -54,6 +54,9 @@ class User(Base): #User
     # Password is not required as it is stored as hash in the hidden supabase password table
     photo: Mapped[str | None] #Allows for None, as we figure out how we want to store the photo.
 
+
+
+
 class Admin(User): #Admin, Child of User
     __tablename__ = "admins"
     __mapper_args__ = {"polymorphic_identity": "admin"}

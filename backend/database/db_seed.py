@@ -249,7 +249,7 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client): # done
 def modulesSeed(dbSessionLocalInstance: Session, spbase: Client): # done
     #No Primary Keys
     print(f"Seeding Modules: \n")
-    modNames = ["Big Data Mismanagement", "Web Development", "Advanced Programming"]
+    modNames = ["Big Data Management", "Web Development", "Advanced Programming"]
     modCodes = ["CSIT100", "ISIT100", "CSIT420"]
 
     for i in range(len(modNames)):
