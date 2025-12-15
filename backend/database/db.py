@@ -31,6 +31,7 @@ class UserProfile(Base): #User Profiles, Student, Lecturer, Admins
 class User(Base): #User
 
     __tablename__ = "users"
+    __table_args__ = {'extend_existing': True}
     __mapper_args__ = {"polymorphic_identity": "user", "polymorphic_on": "type"} 
     type: Mapped[str]
 
@@ -41,6 +42,14 @@ class User(Base): #User
 
     name: Mapped[str] = mapped_column(String(50))
     email: Mapped[str] = mapped_column(String(40))
+
+    contactNumber: Mapped[str | None] = mapped_column("phone", String(15), nullable=True) 
+    address: Mapped[str | None] = mapped_column("fulladdress", String(100), nullable=True)
+
+    emergencyContactName: Mapped[str | None] = mapped_column("eName", String(100), nullable=True)
+    emergencyContactRelationship: Mapped[str | None] = mapped_column("eRole", String(50), nullable=True)
+    emergencyContactNumber: Mapped[str | None] = mapped_column("ePhone", String(20), nullable=True)
+
     # Password is not required as it is stored as hash in the hidden supabase password table
     photo: Mapped[str | None] #Allows for None, as we figure out how we want to store the photo.
 
@@ -160,7 +169,7 @@ class studentAngles(Base): #Student-Angles for AI Training?
     __tablename__ = "studentangles"
 
     studentID: Mapped[UUID] = mapped_column(ForeignKey("students.studentID"), primary_key= True)
-
+    
     photoAngle: Mapped[str] = mapped_column(String, primary_key=True)
     student: Mapped[Student] = relationship(back_populates="angles")
 

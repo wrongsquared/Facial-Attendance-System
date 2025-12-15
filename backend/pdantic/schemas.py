@@ -109,3 +109,36 @@ class RecentSessionRecord(BaseModel):
     
     class Config:
         from_attributes = True
+
+class EmergencyContactSchema(BaseModel):
+    contactName: str
+    relationship_type: str
+    contactNumber: str
+    
+    class Config:
+        from_attributes = True
+class viewUserProfile(BaseModel):
+    name: str
+    email: EmailStr
+    contactNumber: str | None
+    address: str | None
+    
+    emergencyContactName: str | None
+    emergencyContactRelationship: str | None
+    emergencyContactNumber: str | None
+    class Config:
+        from_attributes = True
+
+# File: pdantic/schemas.py (Add this new class)
+
+class UserProfileUpdate(BaseModel):
+    # Personal Info Fields
+    name: str | None = None
+    email: EmailStr | None = None
+    contactNumber: str | None = None
+    address: str | None = None
+    
+    # Emergency Contact Fields
+    emergencyContactName: str | None = None
+    emergencyContactRelationship: str | None = None
+    emergencyContactNumber: str | None = None

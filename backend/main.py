@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials   
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, joinedload
 from database.db_config import get_db #Gets the Initialized db session
 from database.db import (UserProfile, #This was really long so I had to bracket it
                          User, 
@@ -30,7 +30,7 @@ from pdantic.schemas import (UserSignUp, #This was really long so I had to brack
                              courseoverviewcard, 
                              ClassToday, 
                              RecentSessionRecord, 
-                             LecturerDashboardSummary)
+                             LecturerDashboardSummary, viewUserProfile, UserProfileUpdate)
 from dependencies.deps import get_current_user_id
 from client import supabase, supabase_adm
 import datetime
@@ -628,3 +628,53 @@ def get_recent_sessions_log(
         ))
 
     return results
+
+# View user profile (view-only)
+@app.get("/lecturer/profile/view-basic", response_model=viewUserProfile)
+def get_view_only_user_profile(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Fetches all profile data from the merged 'users' table.
+    """
+    # The query is simple SELECT * FROM users
+    user_record = db.query(User).filter(User.userID == user_id).first()
+    
+    if not user_record:
+        raise HTTPException(status_code=404, detail="User profile not found in database.")
+
+    # Pydantic maps the ORM attributes directly.
+    return user_record
+
+@app.put("/lecturer/profile/update", response_model=viewUserProfile)
+def update_user_profile(
+    updates: UserProfileUpdate, # The data sent from the frontend
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Updates the user's personal information and emergency contact in a single transaction.
+    """
+    
+    # 1. Find the User Record
+    user_record = db.query(User).filter(User.userID == user_id).first()
+    
+    if not user_record:
+        raise HTTPException(status_code=404, detail="User profile not found.")
+
+    # 2. Get the non-None values from the Pydantic input model
+    # We use .model_dump(exclude_none=True) to only get fields the user submitted
+    update_data = updates.model_dump(exclude_unset=True)
+
+    # 3. Apply the updates to the ORM object
+    for key, value in update_data.items():
+        # Use setattr to dynamically update the ORM attribute (e.g., user_record.name = "new name")
+        setattr(user_record, key, value)
+    
+    # 4. Commit and Refresh
+    db.commit()
+    db.refresh(user_record)
+    
+    # 5. Return the full, updated profile
+    return user_record
