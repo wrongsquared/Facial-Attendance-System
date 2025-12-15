@@ -20,8 +20,6 @@ import enum
 class Base(DeclarativeBase):
     pass
 
-
-
 class UserProfile(Base): #User Profiles, Student, Lecturer, Admins
     __tablename__ = "userprofiles"
     profileTypeID: Mapped[int] = mapped_column(primary_key=True)
@@ -53,9 +51,6 @@ class User(Base): #User
 
     # Password is not required as it is stored as hash in the hidden supabase password table
     photo: Mapped[str | None] #Allows for None, as we figure out how we want to store the photo.
-
-
-
 
 class Admin(User): #Admin, Child of User
     __tablename__ = "admins"
