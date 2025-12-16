@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from database.db import Lesson, Courses, Module
-from typing import Literal,List
-from datetime import date, datetime
+from typing import Literal,List, Optional
+from datetime import date, datetime, time
 
 class UserSignUp(BaseModel):
     email: EmailStr
@@ -173,5 +173,16 @@ class WeeklyLesson(BaseModel):
     start_time: datetime
     end_time: datetime
     location: str
+    class Config:
+        from_attributes = True
+
+class AttendanceLogEntry(BaseModel):
+    user_id: str               # Corresponds to Student.studentNum
+    student_name: str          # Corresponds to Student.name
+    module_code: str           # Corresponds to Module.moduleCode
+    status: Literal['Present', 'Absent', 'Late'] # The calculated status
+    date: str                  # The formatted date of the lesson
+    lesson_id: int             # The ID of the specific Lesson
+    
     class Config:
         from_attributes = True

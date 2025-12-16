@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import and_, func, case, desc
-from datetime import datetime
+from sqlalchemy import and_, func, case, desc, or_
+from datetime import datetime,time, date, timedelta
 from database.db_config import get_db
 from dependencies.deps import get_current_user_id
 from database.db import (UserProfile, #This was really long so I had to bracket it
@@ -26,9 +26,10 @@ from pdantic.schemas import( timetableEntry,
                             Literal,
                             viewUserProfile,
                             UserProfileUpdate,
-                            ReportCriteria)
+                            ReportCriteria,AttendanceLogEntry)
 from io import StringIO
 from routers import studentDashboardRouter
+from typing import Union, List
 import csv
 
 
@@ -54,8 +55,8 @@ def get_lecturer_timetable(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    now = datetime.datetime.now()
-    next_week = now + datetime.timedelta(days=7)
+    now = datetime.now()
+    next_week = now + timedelta(days=7)
 
     upcoming_lessons = db.query(Lesson, Module)\
         .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
@@ -125,7 +126,7 @@ def get_lecturer_average_attendance_safe(
         # 4. Get Lessons
         lesson_count = db.query(Lesson).filter(
             Lesson.lecModID == lm.lecModID,
-            Lesson.endDateTime < datetime.datetime.now()
+            Lesson.endDateTime < datetime.now()
         ).count()
 
         # 5. Math
@@ -134,7 +135,7 @@ def get_lecturer_average_attendance_safe(
         unique_checkins = db.query(AttdCheck.lessonID, AttdCheck.studentID)\
             .join(Lesson).filter(
                 Lesson.lecModID == lm.lecModID,
-                Lesson.endDateTime < datetime.datetime.now()
+                Lesson.endDateTime < datetime.now()
             )\
             .distinct().count()
             
@@ -163,8 +164,8 @@ def get_recent_sessions_card(
     """
     
     # Define the time window (Last 7 Days)
-    now = datetime.datetime.now()
-    seven_days_ago = now - datetime.timedelta(days=7)
+    now = datetime.now()
+    seven_days_ago = now - timedelta(days=7)
 
     # Query Logic: Count the unique Lesson IDs
     recent_sessions_count = db.query(func.count(Lesson.lessonID))\
@@ -221,7 +222,7 @@ def get_lecturer_courses_overview(
         # D. Get Finished Lessons
         lessons_taught = db.query(Lesson).filter(
             Lesson.lecModID == lm.lecModID,
-            Lesson.endDateTime < datetime.datetime.now()
+            Lesson.endDateTime < datetime.now()
         ).count()
 
         # E. Calculate Capacity & Actuals
@@ -251,10 +252,12 @@ def get_classes_today(
     db: Session = Depends(get_db)
 ):
     # 1. Define the Time Window (Start of Today to End of Today)
-    today = datetime.datetime.now().date()
-    start_of_day = datetime.datetime.combine(today, datetime.time.min)
-    end_of_day = datetime.datetime.combine(today, datetime.time.max)
-    now = datetime.datetime.now()
+    now = datetime.now() 
+    today = now.date()
+            
+            # FIX: Use 'time.min' and 'time.max'
+    start_of_day = datetime.combine(today, time.min) 
+    end_of_day = datetime.combine(today, time.max)
 
     # 2. Query Lessons for Today
     lessons_today = db.query(Lesson, Module)\
@@ -350,8 +353,8 @@ def get_recent_sessions_log(
     """
     
     # 1. Define the Time Window (Last 30 Days)
-    now = datetime.datetime.now()
-    thirty_days_ago = now - datetime.timedelta(days=30) 
+    now = datetime.now()
+    thirty_days_ago = now - timedelta(days=30) 
 
     # 2. Query Completed Lessons
     # Get all lessons taught by the user that have ended in the last 30 days.
@@ -452,6 +455,8 @@ def update_user_profile(
     # 5. Return the full, updated profile
     return user_record
 
+
+# Generate and download attendance report
 @router.post("/lecturer/reports/generate-download")
 def generate_and_download_report(
     criteria: ReportCriteria,
@@ -566,3 +571,136 @@ def generate_and_download_report(
         "filename": f"Attendance_Report_{criteria.report_type}_{criteria.date_from}_to_{criteria.date_to}.csv",
         "media_type": "text/csv"
     }
+
+# Lecturer Attendance Log with Dynamic Filtering
+@router.get("/lecturer/attendance-log", response_model=List[AttendanceLogEntry])
+def get_lecturer_attendance_log_filtered(
+    # URL QUERY PARAMETERS
+    search_term: str = Query(None, description="Search by Student Name or ID"),
+    module_code: str = Query(None, description="Filter by Module Code"),
+    status: Literal['Present', 'Absent', 'Late'] = Query(None, description="Filter by Status"),
+    date: date = Query(None, description="Filter by specific date (YYYY-MM-DD)"),
+    limit: int = Query(50, gt=0),
+    offset: int = Query(0, ge=0),
+    
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    
+    # --- 1. Define Core Lesson Sets (Filter Lessons by Lecturer & Date) ---
+    
+    relevant_lessons_query = db.query(
+        Lesson.lessonID, Lesson.startDateTime, Lesson.endDateTime, LecMod.moduleID
+    ).join(LecMod).filter(
+        LecMod.lecturerID == user_id,
+        Lesson.endDateTime < datetime.now() # Only completed lessons
+    )
+    
+    # Apply URL DATE filter if provided
+    if date:
+        start_of_day = datetime.combine(date, time.min) # Note: time.min must be imported/defined
+        end_of_day = datetime.combine(date, time.max)   # Note: time.max must be imported/defined
+        relevant_lessons_query = relevant_lessons_query.filter(
+            Lesson.startDateTime.between(start_of_day, end_of_day)
+        )
+        
+    relevant_lessons = relevant_lessons_query.subquery()
+
+    # All student enrollments relevant to the lecturer
+    enrolled_students = db.query(StudentModules.studentID, StudentModules.modulesID).subquery()
+    
+    # Full Cartesian Product (A row for every Student X Lesson pairing)
+    attendance_slots = db.query(
+        enrolled_students.c.studentID,
+        relevant_lessons.c.lessonID,
+        relevant_lessons.c.startDateTime,
+        relevant_lessons.c.moduleID
+    ).join(
+        relevant_lessons,
+        enrolled_students.c.modulesID == relevant_lessons.c.moduleID
+    ).subquery()
+    
+    
+    # --- 2. LATE Status Subquery (Corrected Syntax) ---
+    late_check = db.query(
+        EntLeave.studentID, EntLeave.lessonID,
+        # Corrected syntax: func.count(case(condition, result))
+        func.count(case(
+            (EntLeave.enter > relevant_lessons.c.startDateTime + timedelta(minutes=5), 1)
+        , else_=None)).label('late_count')
+    ).group_by(EntLeave.studentID, EntLeave.lessonID).subquery()
+    
+    
+    # --- 3. Final Query Construction ---
+    
+    # The calculated status expression (Corrected Syntax)
+    status_expr = case(
+        (func.count(AttdCheck.AttdCheckID) > 0, # <-- CRITICAL FIX: This is now an aggregate function
+         case( 
+             (func.max(late_check.c.late_count) > 0, 'Late') 
+         , else_='Present')
+        )
+    , else_='Absent').label('status')
+    
+    # Base SELECT statement joins all necessary data
+    final_query = db.query(
+        Student.studentNum.label('user_id'),
+        Student.name.label('student_name'),
+        Module.moduleCode.label('module_code'),
+        attendance_slots.c.startDateTime.label('date_time'),
+        attendance_slots.c.lessonID.label('lesson_id'),
+        status_expr
+    ).select_from(attendance_slots).join(
+        Student, Student.studentID == attendance_slots.c.studentID
+    ).join(
+        Module, Module.moduleID == attendance_slots.c.moduleID
+    ).outerjoin(
+        AttdCheck, and_(AttdCheck.lessonID == attendance_slots.c.lessonID, AttdCheck.studentID == attendance_slots.c.studentID)
+    ).outerjoin(
+        late_check, and_(late_check.c.lessonID == attendance_slots.c.lessonID, late_check.c.studentID == attendance_slots.c.studentID)
+    ).group_by(
+    Student.studentNum, 
+    Student.name, 
+    Module.moduleCode, 
+    attendance_slots.c.startDateTime, 
+    attendance_slots.c.lessonID
+)
+
+    # --- 4. Apply Dynamic Filters ---
+    
+    if module_code:
+        final_query = final_query.filter(Module.moduleCode == module_code)
+
+    if search_term:
+        search_like = f"%{search_term}%"
+        # Search by Student Name OR Student ID (studentNum)
+        search_filter = or_(
+            Student.name.ilike(search_like),
+            Student.studentNum.ilike(search_like)
+        )
+        final_query = final_query.filter(search_filter)
+        
+    # --- 5. Execute, Filter Status (Python), and Paginate ---
+
+    # Execute the query (LIMIT and OFFSET are applied to the full dataset)
+    final_records = final_query.order_by(
+        attendance_slots.c.startDateTime.desc()
+    ).all()
+
+    log_entries = []
+    for row in final_records:
+        entry = AttendanceLogEntry(
+            user_id=row.user_id,
+            student_name=row.student_name,
+            module_code=row.module_code,
+            status=row.status,
+            date=row.date_time.strftime("%d %b %Y"),
+            lesson_id=row.lesson_id
+        )
+        
+        # Apply Status Filter (Python-side filtering)
+        if not status or entry.status == status:
+            log_entries.append(entry)
+
+    # Apply Pagination to the final list
+    return log_entries[offset:offset + limit]
