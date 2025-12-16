@@ -186,3 +186,24 @@ class AttendanceLogEntry(BaseModel):
     
     class Config:
         from_attributes = True
+
+class DetailedAttendanceRecord(BaseModel):
+    # Top Section
+    student_name: str
+    user_id: str
+    module_code: str
+    date: str
+    
+    # Details Section (Left Column)
+    attendance_status: Literal['Present', 'Absent', 'Late']
+    live_check: Literal['Passed', 'Failed', 'N/A']
+    timestamp: str 
+    virtual_tripwire: Literal['Triggered', 'Untriggered', 'N/A']
+    
+    # Details Section (Right Column)
+    attendance_method: str
+    camera_location: str
+    verification_type: str
+    
+    class Config:
+        from_attributes = True

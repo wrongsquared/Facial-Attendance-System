@@ -26,7 +26,9 @@ from pdantic.schemas import( timetableEntry,
                             Literal,
                             viewUserProfile,
                             UserProfileUpdate,
-                            ReportCriteria,AttendanceLogEntry)
+                            ReportCriteria,
+                            AttendanceLogEntry,
+                            DetailedAttendanceRecord)
 from io import StringIO
 from routers import studentDashboardRouter
 from typing import Union, List
@@ -704,3 +706,78 @@ def get_lecturer_attendance_log_filtered(
 
     # Apply Pagination to the final list
     return log_entries[offset:offset + limit]
+
+# Detailed Attendance Record
+@router.get("/lecturer/attendance/details/{lesson_id}/{student_num}", response_model=DetailedAttendanceRecord)
+def get_detailed_attendance_record(
+    lesson_id: int,
+    student_num: str, 
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    
+    # 1. Base Query: Start from Student and fetch all related data
+    
+    # We will query all needed entities (Student, Lesson, Module) but start the FROM clause at Student
+    record = db.query(Student, Lesson, Module)\
+        .select_from(Student) \
+        .join(Lesson, Lesson.lessonID == lesson_id) \
+        .join(LecMod, Lesson.lecModID == LecMod.lecModID) \
+        .join(Module, Module.moduleID == LecMod.moduleID) \
+        .filter(Student.studentNum == student_num) \
+        .first()
+
+    if not record:
+        raise HTTPException(status_code=404, detail="Attendance record not found.")
+
+    student, lesson, module = record
+    
+    # 2. Check for Presence/Late Status (Simplified Logic from the Log Query)
+    # A. Check for AttdCheck existence
+    is_present = db.query(AttdCheck).filter(
+        AttdCheck.lessonID == lesson_id, 
+        AttdCheck.studentID == student_num
+    ).first()
+
+    # B. Check for Late Status (using the 5-minute rule)
+    is_late = db.query(EntLeave).filter(
+        EntLeave.lessonID == lesson_id, 
+        EntLeave.studentID == student_num,
+        EntLeave.enter > lesson.startDateTime + timedelta(minutes=5)
+    ).first()
+
+    # C. Final Status Assignment
+    if not is_present:
+        status_str = 'Absent'
+    elif is_late:
+        status_str = 'Late'
+    else:
+        status_str = 'Present'
+        
+    # D. Get Timestamp (Use EntLeave.enter time if available, otherwise lesson start)
+    entry_time_record = db.query(EntLeave.enter).filter(EntLeave.lessonID == lesson_id, EntLeave.studentID == student_num).first()
+    timestamp_str = (entry_time_record[0] if entry_time_record else lesson.startDateTime).strftime("%H:%M %p")
+
+
+    # 3. Assemble and Return Data (Using Placeholders for Missing DB Fields)
+    
+    # Location (Using the corrected fields from your Lesson model)
+    camera_location_str = f"Building {lesson.building}, Room {lesson.room}" if lesson.building and lesson.room else "TBA"
+
+    return DetailedAttendanceRecord(
+        # Top Section
+        student_name=student.name,
+        user_id=student.studentNum, # Use the Student Number
+        module_code=module.moduleCode,
+        date=lesson.startDateTime.strftime("%d %b %Y"),
+        
+        # Details Section
+        attendance_status=status_str,
+        live_check='Passed', # <--- PLACEHOLDER (Requires a 'liveCheck' column)
+        timestamp=timestamp_str,
+        virtual_tripwire='Triggered', # <--- PLACEHOLDER (Requires a 'tripwire' column)
+        
+        attendance_method='Biometric Scan', # <--- PLACEHOLDER (Requires a 'method' column)
+        camera_location=camera_location_str,
+        verification_type='Multi-person group verification' # <--- PLACEHOLDER (Requires a 'verification' column)
+    )
