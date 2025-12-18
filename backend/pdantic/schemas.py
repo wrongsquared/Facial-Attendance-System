@@ -207,32 +207,3 @@ class DetailedAttendanceRecord(BaseModel):
     
     class Config:
         from_attributes = True
-
-class DailyTimetable(BaseModel):
-    module_code: str
-    module_name: str
-    lesson_type: str
-    start_time: str  # "14:00"
-    end_time: str    # "15:30"
-    location: str
-   
-    class Config:
-        from_attributes = True
-
-class Weeklytimetable(BaseModel):
-    day_of_week: str
-    date_of_day: str  
-    module_code: str
-    module_name: str
-    lesson_type: str
-    start_time: str  # "14:00"
-    end_time: str    # "15:30"
-    location: str
-    class Config:
-        from_attributes = True  
-
-class MonthlyTimetable(BaseModel):
-    date_of_month: date 
-    module_code: str
-    class Config:
-        from_attributes = True
