@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 from database.db_config import get_db
-from pdantic.schemas import AdminDashboardStats, CourseAttentionItem
+from pdantic.schemas import AdminDashboardStats, CourseAttentionItem, UserManagementItem
 from dependencies.deps import get_current_user_id
-from database.db import Lesson, AttdCheck, User, Student, StudentModules, Module, LecMod, Lecturer
+from database.db import Lesson, AttdCheck, User, Student, StudentModules, Module, LecMod, Lecturer, UserProfile
 from datetime import datetime, timedelta
 
 router = APIRouter()
@@ -84,17 +84,13 @@ def get_admin_dashboard_stats(db: Session = Depends(get_db)):
 @router.get("/admin/courses/attention", response_model=list[CourseAttentionItem])
 def get_courses_requiring_attention(db: Session = Depends(get_db)):
     
-    # 1. Get all Modules with their Lecturer and Student Count
-    # We use a subquery or just simple iteration for MVP clarity.
-    # Let's iterate over modules to be safe with the math logic.
-    
     modules = db.query(Module).all()
     results = []
     
     now = datetime.now()
 
     for mod in modules:
-        # A. Get Lecturer Name
+        # Get Lecturer Name
         # Assuming 1 lecturer per module for simplicity in dashboard
         lecturer_user = (
             db.query(User)
@@ -105,14 +101,14 @@ def get_courses_requiring_attention(db: Session = Depends(get_db)):
         )
         lecturer_name = lecturer_user.name if lecturer_user else "Unknown"
 
-        # B. Count Enrolled Students
+        # Count Enrolled Students
         student_count = db.query(func.count(StudentModules.studentID))\
             .filter(StudentModules.modulesID == mod.moduleID).scalar() or 0
 
         if student_count == 0:
             continue # Skip empty courses
 
-        # C. Count Past Lessons
+        # Count Past Lessons
         # We need to join LecMod to get lessons for this module
         past_lessons_count = (
             db.query(func.count(Lesson.lessonID))
@@ -125,7 +121,7 @@ def get_courses_requiring_attention(db: Session = Depends(get_db)):
         if past_lessons_count == 0:
             continue # No classes held yet, can't have low attendance
 
-        # D. Count Actual Attendance Records
+        #  Count Actual Attendance Records
         total_attendance = (
             db.query(func.count(AttdCheck.AttdCheckID))
             .join(Lesson, AttdCheck.lessonID == Lesson.lessonID)
@@ -134,12 +130,11 @@ def get_courses_requiring_attention(db: Session = Depends(get_db)):
             .scalar()
         ) or 0
 
-        # E. Calculate Rate
-        # Denominator = Students * Lessons
+        # Calculate Rate
         total_possible = student_count * past_lessons_count
         rate = round((total_attendance / total_possible) * 100)
 
-        # F. Filter: Only return if < 80%
+        # Only return if < 80%
         if rate < 80:
             results.append({
                 "module_code": mod.moduleCode,
@@ -150,3 +145,43 @@ def get_courses_requiring_attention(db: Session = Depends(get_db)):
             })
 
     return results
+
+
+@router.get("/admin/users/recent", response_model=list[UserManagementItem])
+def get_recent_users(
+    db: Session = Depends(get_db),
+    limit: int = 5
+):
+    # Query Users + Profile Type Name
+    results = (
+        db.query(
+            User,
+            UserProfile.profileTypeName
+        )
+        .join(UserProfile, User.profileTypeID == UserProfile.profileTypeID)
+        .limit(limit)
+        .all()
+    )
+
+    output = []
+    for user, role_name in results:
+        
+        # Logic to determine status 
+        status = "active" 
+        # Example logic: if user.email_confirmed is False, status = "pending"
+        
+        # Logic for Joined Date
+        # If no created_at column, use a placeholder or today
+        joined = datetime.now().strftime("%d %b %Y") 
+        # if user.created_at: joined = user.created_at.strftime("%d %b %Y")
+
+        output.append({
+            "user_id": str(user.userID),
+            "name": user.name,
+            "email": user.email,
+            "role": role_name,
+            "status": status,
+            "joined_date": joined
+        })
+
+    return output

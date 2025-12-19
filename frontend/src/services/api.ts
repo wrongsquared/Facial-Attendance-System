@@ -257,4 +257,17 @@ export interface CourseAttention {
 export const getCoursesRequiringAttention = async (token: string) => {
   return await fetchProtected("/admin/courses/attention", token);
 };
+
+export interface UserManagementItem {
+  user_id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: "active" | "pending" | "inactive";
+  joined_date: string;
+}
+
+export const getRecentUsers = async (token: string) => {
+  return await fetchProtected("/admin/users/recent", token);
+};
 //Admin Routes end
