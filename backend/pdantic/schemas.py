@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr
 from database.db import Lesson, Courses, Module
 from typing import Literal,List, Optional
 from datetime import date, datetime, time
-
+# User Login
 class UserSignUp(BaseModel):
     email: EmailStr
     password: str
@@ -23,9 +23,7 @@ class TokenResponse(BaseModel):
     role_id: int   # e.g., 1 for Student, 2 for Lecturer
     role_name: str
 
-#-------------------------------------#
-# Lecturer Dashboard Summary Schemas  #
-#-------------------------------------#
+#Lecturer Dashboard Start
 class LecturerDashboardSummary(BaseModel):
     """High-level summary for the lecturer's main dashboard view."""
     total_modules: int
@@ -263,5 +261,19 @@ class OverallClassAttendanceDetails(BaseModel):
     # The Data Table
     attendance_log: List[AttendanceDetailRow]
     
+    class Config:
+        from_attributes = True
+#Lecturer Dashboard end
+
+#Admin Dashboard Start
+class AdminStats(BaseModel): #H
+    attendanceRate: int
+    attendanceRateChange: int
+    monthlyAbsences: int
+    monthlyAbsencesChange: int
+    activeUsers: int
+    activeUsersChange: int
+    records: int
+    recordsChange: int
     class Config:
         from_attributes = True

@@ -4,31 +4,33 @@ from sqlalchemy import and_, func, case, desc, or_, extract, cast, Integer
 from datetime import datetime,time, date, timedelta
 from database.db_config import get_db
 from dependencies.deps import get_current_user_id
-from database.db import (UserProfile, #This was really long so I had to bracket it
+from database.db import (#This was really long so I had to bracket it
                          User, 
-                         Admin, 
-                         Lecturer, 
                          Student, 
                          Lesson, 
-                         EntLeave, 
                          Module, 
                          AttdCheck, 
-                         StudentModules, 
-                         studentAngles, 
-                         Courses, 
-                         LecMod)
+                         StudentModules,  
+                         LecMod,
+                         EntLeave)
+
 from pdantic.schemas import( timetableEntry, 
                             AttendanceOverviewCard, 
                             RecentSessionsCardData, 
                             RecentSessionRecord, 
-                            courseoverviewcard, 
+                            Courseoverviewcard, 
                             ClassToday,
                             Literal,
                             viewUserProfile,
                             UserProfileUpdate,
                             ReportCriteria,
                             AttendanceLogEntry,
-                            DetailedAttendanceRecord,DailyTimetable,Weeklytimetable,MonthlyTimetable,AttendanceDetailRow,OverallClassAttendanceDetails)
+                            DetailedAttendanceRecord,
+                            DailyTimetable,
+                            Weeklytimetable,
+                            MonthlyTimetable,
+                            AttendanceDetailRow,
+                            OverallClassAttendanceDetails)
 from io import StringIO
 from routers import studentDashboardRouter
 from typing import Union, List
@@ -37,12 +39,7 @@ import csv
 
 router = APIRouter() 
 
-#---------------------------#
-# LECTURER DASHBOARD ROUTES
-#---------------------------#
-
-# total module taught by me
-@router.get("/lecturer/dashboard/summary")
+@router.get("/lecturer/dashboard/summary") #sum of mods taught by lecturer
 def get_lecturer_dashboard_summary(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
@@ -74,7 +71,7 @@ def get_lecturer_timetable(
     results = []
     for lesson, module in upcoming_lessons:
         
-        # 1. Handle Location (Combine Building + Room)
+        # Handle Location (Combine Building + Room)
         bldg = lesson.building or ""
         rm = lesson.room or ""
         
@@ -86,7 +83,7 @@ def get_lecturer_timetable(
         if not loc_str:
             loc_str = "Online"
 
-        # 2. Create the Pydantic Object
+        # Create the Pydantic Object
         entry = timetableEntry(
             module_code=module.moduleCode,
             day_of_week=lesson.startDateTime.strftime("%a"),
@@ -110,28 +107,28 @@ def get_lecturer_average_attendance_safe(
     total_actual_checkins = 0
 
     for lm in lec_mods:
-        # 1. Get Official Count
+        # Get Count
         enrolled_count = db.query(StudentModules).filter(
             StudentModules.modulesID == lm.moduleID
         ).count()
 
-        # 2. Get Count of distinct people who have EVER attended this module
+        # Get Count of distinct people who have EVER attended this module
         # (This catches students missing from the StudentModules table)
         active_students = db.query(AttdCheck.studentID)\
             .join(Lesson).filter(Lesson.lecModID == lm.lecModID)\
             .distinct().count()
 
-        # 3. SAFETY CHECK: Use the higher number
+        # Use the higher number
         # If DB says 1 student, but 4 people are attending, we use 4 to prevent >100%
         real_student_count = max(enrolled_count, active_students)
 
-        # 4. Get Lessons
+        # Get Lessons
         lesson_count = db.query(Lesson).filter(
             Lesson.lecModID == lm.lecModID,
             Lesson.endDateTime < datetime.now()
         ).count()
 
-        # 5. Math
+        # Math
         total_capacity += (real_student_count * lesson_count)
 
         unique_checkins = db.query(AttdCheck.lessonID, AttdCheck.studentID)\
@@ -151,7 +148,6 @@ def get_lecturer_average_attendance_safe(
 
     return AttendanceOverviewCard(
         Average_attendance=round(percentage, 1), 
-        label="Across all courses"
     )
 
 # Recent Sessions recorded
@@ -181,12 +177,11 @@ def get_recent_sessions_card(
     # Return Data
     return RecentSessionsCardData(
         Recent_sessions_record=recent_sessions_count, 
-        label="Recent sessions recorded"
     )
 
 router.include_router(studentDashboardRouter.router, tags=["Student"])
 # Course Overview Cards
-@router.get("/lecturer/dashboard/my-courses-overview", response_model=list[courseoverviewcard])
+@router.get("/lecturer/dashboard/my-courses-overview", response_model=list[Courseoverviewcard])
 def get_lecturer_courses_overview(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
@@ -238,7 +233,7 @@ def get_lecturer_courses_overview(
         rate = (actual_checkins / capacity * 100.0) if capacity > 0 else 0.0
 
         # 3. Append to results
-        results.append(courseoverviewcard(
+        results.append(Courseoverviewcard(
             module_code=module.moduleCode,
             module_name=module.moduleName, # Assumes moduleName is the descriptive title
             overall_attendance_rate=round(rate, 0), # Round to 0 decimal places (e.g., 91%)
