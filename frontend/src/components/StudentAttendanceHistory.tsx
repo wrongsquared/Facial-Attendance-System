@@ -143,14 +143,6 @@ export function StudentAttendanceHistory({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const formatDate = (date: Date) => {
-    const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    ];
-    return `${date.getDate().toString().padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
-  };
-
   // Filter records
   const filteredRecords = attendanceRecords.filter((record) => {
     const matchesSearch =
@@ -174,6 +166,14 @@ export function StudentAttendanceHistory({
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const currentRecords = filteredRecords.slice(startIndex, endIndex);
+
+  const formatDate = (date: Date) => {
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    return `${date.getDate().toString().padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
