@@ -215,6 +215,14 @@ export function LecturerAttendanceRecords({
   const [selectedRecord, setSelectedRecord] = useState<typeof attendanceRecords[0] | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  const formatDate = (date: Date) => {
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    return `${date.getDate().toString().padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  };
+
   // Filter records
   const filteredRecords = attendanceRecords.filter((record) => {
     const matchesSearch =
@@ -239,14 +247,6 @@ export function LecturerAttendanceRecords({
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const currentRecords = filteredRecords.slice(startIndex, endIndex);
-
-  const formatDate = (date: Date) => {
-    const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    ];
-    return `${date.getDate().toString().padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {

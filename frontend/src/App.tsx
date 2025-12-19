@@ -20,6 +20,9 @@ import { ManualOverride } from './components/ManualOverride';
 import { AttendanceReports } from './components/AttendanceReports';
 import { AdminAttendanceReports } from './components/AdminAttendanceReports';
 import { StudentProfile } from './components/StudentProfile';
+import { ManageUserAccounts } from './components/ManageUserAccounts';
+import { CreateUser } from './components/CreateUser';
+import { UpdateUser } from './components/UpdateUser';
 import { Toast } from './components/Toast';
 import { Button } from './components/ui/button';
 
