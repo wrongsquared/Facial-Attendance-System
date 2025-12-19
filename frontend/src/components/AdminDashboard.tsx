@@ -12,13 +12,17 @@ import {
   Users,
   BookOpen,
   TrendingUp,
+  AlertCircle,
   LogOut,
   Settings,
   UserPlus,
+  BookPlus,
   Bell,
   ClipboardCheck,
   UserX,
+  FileText,
   Fingerprint,
+  FileEdit,
 } from "lucide-react";
 import {
   Table,
@@ -45,9 +49,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
-import { useAuth } from "../cont/AuthContext"; 
-import { useEffect, useState } from "react";
-import { getAdminProfile } from "../services/api";
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -171,33 +172,6 @@ export function AdminDashboard({
   onNavigateToAttendanceRecords,
   onNavigateToReports,
 }: AdminDashboardProps) {
-  const [loading, setLoading] = useState(true);
-  const { token, user } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
-
-  useEffect(() => {
-    const fetchDashboardData = async () =>{
-      if (!token) return;
-    
-      try{
-        const [
-          profileData,
-        ] = await Promise.all([
-          getAdminProfile(token),
-        ]);
-      setProfile(profileData);
-      }
-      catch (err) {
-          console.error("Failed to load dashboard:", err);
-          // Optional: setError(true) to show a "Retry" button
-        } finally {
-          //Stop loading only when EVERYTHING is finished (or failed)
-          setLoading(false);
-        }
-      };
-      fetchDashboardData();
-    }, [token]);
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
@@ -226,9 +200,9 @@ export function AdminDashboard({
                 <AvatarFallback>AM</AvatarFallback>
               </Avatar>
               <div className="hidden md:block">
-                <p>{profile?.name ?? "Undefined Name"}</p>
+                <p>Admin User</p>
                 <p className="text-sm text-gray-600">
-                  {profile?.role ?? "Undefined"}
+                  System Administrator
                 </p>
               </div>
             </div>
