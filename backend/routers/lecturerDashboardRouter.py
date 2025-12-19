@@ -18,7 +18,7 @@ from pdantic.schemas import( timetableEntry,
                             AttendanceOverviewCard, 
                             RecentSessionsCardData, 
                             RecentSessionRecord, 
-                            Courseoverviewcard, 
+                            courseoverviewcard, 
                             ClassToday,
                             Literal,
                             viewUserProfile,
@@ -181,7 +181,7 @@ def get_recent_sessions_card(
 
 router.include_router(studentDashboardRouter.router, tags=["Student"])
 # Course Overview Cards
-@router.get("/lecturer/dashboard/my-courses-overview", response_model=list[Courseoverviewcard])
+@router.get("/lecturer/dashboard/my-courses-overview", response_model=list[courseoverviewcard])
 def get_lecturer_courses_overview(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
@@ -233,7 +233,7 @@ def get_lecturer_courses_overview(
         rate = (actual_checkins / capacity * 100.0) if capacity > 0 else 0.0
 
         # 3. Append to results
-        results.append(Courseoverviewcard(
+        results.append(courseoverviewcard(
             module_code=module.moduleCode,
             module_name=module.moduleName, # Assumes moduleName is the descriptive title
             overall_attendance_rate=round(rate, 0), # Round to 0 decimal places (e.g., 91%)
