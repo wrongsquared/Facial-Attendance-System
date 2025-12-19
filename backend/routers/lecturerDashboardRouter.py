@@ -4,16 +4,19 @@ from sqlalchemy import and_, func, case, desc, or_, extract, cast, Integer
 from datetime import datetime,time, date, timedelta
 from database.db_config import get_db
 from dependencies.deps import get_current_user_id
-from database.db import (#This was really long so I had to bracket it
+from database.db import (UserProfile, #This was really long so I had to bracket it
                          User, 
+                         Admin, 
+                         Lecturer, 
                          Student, 
                          Lesson, 
+                         EntLeave, 
                          Module, 
                          AttdCheck, 
-                         StudentModules,  
-                         LecMod,
-                         EntLeave)
-
+                         StudentModules, 
+                         studentAngles, 
+                         Courses, 
+                         LecMod)
 from pdantic.schemas import( timetableEntry, 
                             AttendanceOverviewCard, 
                             RecentSessionsCardData, 
@@ -25,21 +28,21 @@ from pdantic.schemas import( timetableEntry,
                             UserProfileUpdate,
                             ReportCriteria,
                             AttendanceLogEntry,
-                            DetailedAttendanceRecord,
-                            DailyTimetable,
-                            Weeklytimetable,
-                            MonthlyTimetable,
-                            AttendanceDetailRow,
-                            OverallClassAttendanceDetails)
+                            DetailedAttendanceRecord,DailyTimetable,Weeklytimetable,MonthlyTimetable,AttendanceDetailRow,OverallClassAttendanceDetails)
 from io import StringIO
 from routers import studentDashboardRouter
-from typing import Union, List
+from typing import Union, List,Literal
 import csv
 
 
 router = APIRouter() 
 
-@router.get("/lecturer/dashboard/summary") #sum of mods taught by lecturer
+#---------------------------#
+# LECTURER DASHBOARD ROUTES
+#---------------------------#
+
+# total module taught by me
+@router.get("/lecturer/dashboard/summary")
 def get_lecturer_dashboard_summary(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
@@ -54,44 +57,63 @@ def get_lecturer_timetable(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
+    # 1. Get the start of 'today' (midnight) so past classes today don't disappear
     now = datetime.now()
-    next_week = now + timedelta(days=7)
+    today_start = datetime.combine(now.date(), time.min)
+    seven_days_later = today_start + timedelta(days=7)
 
+    # 2. Fetch all lessons starting from today's midnight through the next 7 days
     upcoming_lessons = db.query(Lesson, Module)\
         .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
         .join(Module, LecMod.moduleID == Module.moduleID)\
         .filter(
             LecMod.lecturerID == user_id,
-            Lesson.startDateTime >= now,
-            Lesson.startDateTime <= next_week
+            Lesson.startDateTime >= today_start,
+            Lesson.startDateTime < seven_days_later
         )\
         .order_by(Lesson.startDateTime)\
         .all()
 
-    results = []
+    # 3. Create our 7-day slot list (starting from today)
+    date_range = [now.date() + timedelta(days=i) for i in range(7)]
+    
+    # Organize DB results into a dictionary by date
+    lessons_by_date = {}
     for lesson, module in upcoming_lessons:
-        
-        # Handle Location (Combine Building + Room)
-        bldg = lesson.building or ""
-        rm = lesson.room or ""
-        
-        if bldg and rm:
-            loc_str = f"{bldg}-{rm}"
-        else:
-            loc_str = bldg + rm 
-            
-        if not loc_str:
-            loc_str = "Online"
+        d = lesson.startDateTime.date()
+        if d not in lessons_by_date:
+            lessons_by_date[d] = []
+        lessons_by_date[d].append((lesson, module))
 
-        # Create the Pydantic Object
-        entry = timetableEntry(
-            module_code=module.moduleCode,
-            day_of_week=lesson.startDateTime.strftime("%a"),
-            start_time=lesson.startDateTime.strftime("%I:%M %p").lstrip("0"),
-            end_time=lesson.endDateTime.strftime("%I:%M %p").lstrip("0"),
-            location=loc_str
-        )
-        results.append(entry)
+    results = []
+
+    # 4. Build the final response
+    for date_obj in date_range:
+        day_name = date_obj.strftime("%a")
+        
+        if date_obj in lessons_by_date:
+            # Day has classes (shows even if they ended earlier today)
+            for lesson, module in lessons_by_date[date_obj]:
+                bldg = lesson.building or ""
+                rm = lesson.room or ""
+                loc_str = f"{bldg}-{rm}" if bldg and rm else (bldg + rm or "Online")
+
+                results.append(timetableEntry(
+                    module_code=module.moduleCode,
+                    day_of_week=day_name,
+                    start_time=lesson.startDateTime.strftime("%I:%M %p").lstrip("0"),
+                    end_time=lesson.endDateTime.strftime("%I:%M %p").lstrip("0"),
+                    location=loc_str
+                ))
+        else:
+            # Day has NO classes
+            results.append(timetableEntry(
+                module_code="No Classes Scheduled",
+                day_of_week=day_name,
+                start_time="",
+                end_time="",
+                location=""
+            ))
 
     return results
 
@@ -107,28 +129,28 @@ def get_lecturer_average_attendance_safe(
     total_actual_checkins = 0
 
     for lm in lec_mods:
-        # Get Count
+        # 1. Get Official Count
         enrolled_count = db.query(StudentModules).filter(
             StudentModules.modulesID == lm.moduleID
         ).count()
 
-        # Get Count of distinct people who have EVER attended this module
+        # 2. Get Count of distinct people who have EVER attended this module
         # (This catches students missing from the StudentModules table)
         active_students = db.query(AttdCheck.studentID)\
             .join(Lesson).filter(Lesson.lecModID == lm.lecModID)\
             .distinct().count()
 
-        # Use the higher number
+        # 3. SAFETY CHECK: Use the higher number
         # If DB says 1 student, but 4 people are attending, we use 4 to prevent >100%
         real_student_count = max(enrolled_count, active_students)
 
-        # Get Lessons
+        # 4. Get Lessons
         lesson_count = db.query(Lesson).filter(
             Lesson.lecModID == lm.lecModID,
             Lesson.endDateTime < datetime.now()
         ).count()
 
-        # Math
+        # 5. Math
         total_capacity += (real_student_count * lesson_count)
 
         unique_checkins = db.query(AttdCheck.lessonID, AttdCheck.studentID)\
@@ -147,7 +169,8 @@ def get_lecturer_average_attendance_safe(
         percentage = (total_actual_checkins / total_capacity) * 100.0
 
     return AttendanceOverviewCard(
-        Average_attendance=round(percentage, 1)
+        Average_attendance=round(percentage, 1), 
+        label="Across all courses"
     )
 
 # Recent Sessions recorded
@@ -176,7 +199,8 @@ def get_recent_sessions_card(
 
     # Return Data
     return RecentSessionsCardData(
-        Recent_sessions_record=recent_sessions_count
+        Recent_sessions_record=recent_sessions_count, 
+        label="Recent sessions recorded"
     )
 
 router.include_router(studentDashboardRouter.router, tags=["Student"])
