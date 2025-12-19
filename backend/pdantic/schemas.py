@@ -55,7 +55,7 @@ class timetableEntry(BaseModel):
     start_time: str  # "14:00"
     end_time: str    # "15:30"
     location: str
-
+   
 class TodaysLessons(BaseModel):
     lessonID:int
     ModuleCode: str
