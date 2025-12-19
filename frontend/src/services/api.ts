@@ -228,8 +228,9 @@ export const getrecentSessionslog = async(token:string) =>{
 //Admin Routes Begin
 
 export const getAdminProfile = async (token: string) =>{
-  return await fetchProtected('/lecturer/my-profile', token);
+  return await fetchProtected('/admin/my-profile', token);
 }
+
 export interface AdminStats { //Sent by H, Admin
   attendanceRate: number;
   attendanceRateChange: number;
@@ -242,7 +243,7 @@ export interface AdminStats { //Sent by H, Admin
 }
 
 export const getAdminDashboardStats = async (token: string) => {
-  return await fetchProtected("/admin/my-profile", token);
+  return await fetchProtected("/admin/dash", token);
 };
 
 //Admin Routes end

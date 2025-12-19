@@ -233,8 +233,8 @@ def read_my_student_profile(
     db: Session = Depends(get_db)
 ):
     
-    student_data = db.query(Lecturer).filter(Lecturer.lecturerID == user_id).first()
-    return student_data
+    lecturer_data = db.query(Lecturer).filter(Lecturer.lecturerID == user_id).first()
+    return lecturer_data
 
 @app.get("/admin/my-profile")
 def read_my_student_profile(
@@ -242,8 +242,8 @@ def read_my_student_profile(
     db: Session = Depends(get_db)
 ):
     
-    student_data = db.query(Lecturer).filter(Lecturer.lecturerID == user_id).first()
-    return student_data
+    admin_data = db.query(Lecturer).filter(Lecturer.lecturerID == user_id).first()
+    return admin_data
 
 #Important to keep this
 app.include_router(studentDashboardRouter.router, tags=['student'])
