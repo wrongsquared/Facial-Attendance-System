@@ -60,7 +60,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import type { AttendanceRecord } from "../App";
 
 interface AdminAttendanceRecordsProps {
   onLogout: () => void;
@@ -71,9 +70,141 @@ interface AdminAttendanceRecordsProps {
     date: string;
     status: string;
   }) => void;
-  attendanceRecords: AttendanceRecord[];
-  updateAttendanceRecord: (userId: string, date: string, newStatus: string) => void;
 }
+
+// Mock data for attendance records
+const attendanceRecords = [
+  {
+    userId: "S1001",
+    studentName: "John Smith",
+    module: "CSCI334",
+    status: "Present",
+    date: "01 Dec 2025",
+    attendanceMethod: "Biometric Scan",
+    liveCheck: "Passed",
+    cameraLocation: "Building 41, Room 104",
+    timestamp: "09:00 AM",
+    verificationType: "Multi-person group verification",
+    virtualTripwire: "Triggered",
+  },
+  {
+    userId: "S1002",
+    studentName: "Emma Johnson",
+    module: "CSCI334",
+    status: "Present",
+    date: "01 Dec 2025",
+    attendanceMethod: "Biometric Scan",
+    liveCheck: "Passed",
+    cameraLocation: "Building 41, Room 104",
+    timestamp: "09:02 AM",
+    verificationType: "Multi-person group verification",
+    virtualTripwire: "Triggered",
+  },
+  {
+    userId: "S1003",
+    studentName: "Michael Brown",
+    module: "CSCI203",
+    status: "Absent",
+    date: "01 Dec 2025",
+    attendanceMethod: "N/A",
+    liveCheck: "N/A",
+    cameraLocation: "N/A",
+    timestamp: "N/A",
+    verificationType: "N/A",
+    virtualTripwire: "Not Triggered",
+  },
+  {
+    userId: "S1004",
+    studentName: "Sophia Davis",
+    module: "CSCI334",
+    status: "Late",
+    date: "01 Dec 2025",
+    attendanceMethod: "Biometric Scan",
+    liveCheck: "Passed",
+    cameraLocation: "Building 41, Room 104",
+    timestamp: "09:15 AM",
+    verificationType: "Multi-person group verification",
+    virtualTripwire: "Triggered",
+  },
+  {
+    userId: "S1005",
+    studentName: "James Wilson",
+    module: "CSCI203",
+    status: "Present",
+    date: "01 Dec 2025",
+    attendanceMethod: "Biometric Scan",
+    liveCheck: "Passed",
+    cameraLocation: "Building 15, Room 203",
+    timestamp: "10:00 AM",
+    verificationType: "Multi-person group verification",
+    virtualTripwire: "Triggered",
+  },
+  {
+    userId: "S1006",
+    studentName: "Olivia Martinez",
+    module: "CSCI334",
+    status: "Present",
+    date: "30 Nov 2025",
+    attendanceMethod: "Biometric Scan",
+    liveCheck: "Passed",
+    cameraLocation: "Building 41, Room 104",
+    timestamp: "09:01 AM",
+    verificationType: "Multi-person group verification",
+    virtualTripwire: "Triggered",
+  },
+  {
+    userId: "S1007",
+    studentName: "William Taylor",
+    module: "CSCI203",
+    status: "Absent",
+    date: "30 Nov 2025",
+    attendanceMethod: "N/A",
+    liveCheck: "N/A",
+    cameraLocation: "N/A",
+    timestamp: "N/A",
+    verificationType: "N/A",
+    virtualTripwire: "Not Triggered",
+  },
+  {
+    userId: "S1008",
+    studentName: "Ava Anderson",
+    module: "CSCI334",
+    status: "Present",
+    date: "30 Nov 2025",
+    attendanceMethod: "Biometric Scan",
+    liveCheck: "Failed",
+    cameraLocation: "Building 41, Room 104",
+    timestamp: "09:03 AM",
+    verificationType: "Multi-person group verification",
+    virtualTripwire: "Triggered",
+  },
+  {
+    userId: "S1009",
+    studentName: "Benjamin Thomas",
+    module: "CSCI203",
+    status: "Late",
+    date: "29 Nov 2025",
+    attendanceMethod: "Biometric Scan",
+    liveCheck: "Passed",
+    cameraLocation: "Building 15, Room 203",
+    timestamp: "10:18 AM",
+    verificationType: "Multi-person group verification",
+    virtualTripwire: "Triggered",
+  },
+  {
+    userId: "S1010",
+    studentName: "Isabella Moore",
+    module: "CSCI334",
+    status: "Present",
+    date: "29 Nov 2025",
+    attendanceMethod: "Biometric Scan",
+    liveCheck: "Passed",
+    cameraLocation: "Building 41, Room 104",
+    timestamp: "09:00 AM",
+    verificationType: "Multi-person group verification",
+    virtualTripwire: "Triggered",
+  },
+];
 
 const ITEMS_PER_PAGE = 8;
 
@@ -81,8 +212,6 @@ export function AdminAttendanceRecords({
   onLogout,
   onBack,
   onNavigateToManualOverride,
-  attendanceRecords,
-  updateAttendanceRecord,
 }: AdminAttendanceRecordsProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedModule, setSelectedModule] = useState("all");
@@ -91,15 +220,6 @@ export function AdminAttendanceRecords({
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRecord, setSelectedRecord] = useState<typeof attendanceRecords[0] | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  // Helper function to format date - must be declared before it's used
-  const formatDate = (date: Date) => {
-    const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    ];
-    return `${date.getDate().toString().padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
-  };
 
   // Filter records
   const filteredRecords = attendanceRecords.filter((record) => {
@@ -125,6 +245,14 @@ export function AdminAttendanceRecords({
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const currentRecords = filteredRecords.slice(startIndex, endIndex);
+
+  const formatDate = (date: Date) => {
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    return `${date.getDate().toString().padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {

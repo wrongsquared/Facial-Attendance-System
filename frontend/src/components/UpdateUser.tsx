@@ -46,10 +46,9 @@ interface UpdateUserProps {
     role: string;
     status: string;
   };
-  showToast: (message: string) => void;
 }
 
-export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showToast }: UpdateUserProps) {
+export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData }: UpdateUserProps) {
   const [userType, setUserType] = useState<string>(userData.role);
   const [userId, setUserId] = useState(userData.userId);
   const [password, setPassword] = useState("");
@@ -76,8 +75,8 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
     // In a real app, this would make an API call to update the user
     console.log("Updating user:", { userType, userId, password });
     
-    // Show success toast
-    showToast("User Account Updated!");
+    // Show success message
+    alert(`User account updated successfully!\nUser Type: ${userType}\nUser ID: ${userId}`);
     
     // Navigate back to manage users page
     onUpdateSuccess();

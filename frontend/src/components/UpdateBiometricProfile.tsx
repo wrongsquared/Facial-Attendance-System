@@ -43,14 +43,12 @@ interface UpdateBiometricProfileProps {
     name: string;
     role: string;
   };
-  showToast: (message: string) => void;
 }
 
 export function UpdateBiometricProfile({
   onLogout,
   onBack,
   userData,
-  showToast,
 }: UpdateBiometricProfileProps) {
   const [updateMethod, setUpdateMethod] = useState("Facial Recognition");
   const [notes, setNotes] = useState("");
@@ -82,7 +80,9 @@ export function UpdateBiometricProfile({
   };
 
   const handleUpdate = () => {
-    showToast("Biometric Profile Updated!");
+    alert(
+      `Biometric Profile Updated:\nUser ID: ${userData.userId}\nName: ${userData.name}\nUpdate Method: ${updateMethod}\nNotes: ${notes}`
+    );
     onBack();
   };
 

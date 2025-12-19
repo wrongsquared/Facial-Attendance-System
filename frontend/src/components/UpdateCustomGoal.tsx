@@ -42,18 +42,12 @@ interface UpdateCustomGoalProps {
     role: string;
     currentGoal: number | null;
   };
-  onUpdateGoal: (userId: string, goal: number) => void;
-  onDeleteGoal: (userId: string) => void;
-  showToast: (message: string) => void;
 }
 
 export function UpdateCustomGoal({
   onLogout,
   onBack,
   userData,
-  onUpdateGoal,
-  onDeleteGoal,
-  showToast,
 }: UpdateCustomGoalProps) {
   const [setGoal, setSetGoal] = useState<string>("");
 
@@ -64,14 +58,10 @@ export function UpdateCustomGoal({
   }
 
   const handleUpdateGoal = () => {
-    onUpdateGoal(userData.userId, parseInt(setGoal));
-    showToast("Attendance Goal Updated!");
-    onBack();
-  };
-
-  const handleDeleteGoal = () => {
-    onDeleteGoal(userData.userId);
-    showToast("Attendance Goal Deleted!");
+    // Mock update functionality
+    alert(
+      `Custom Goal Updated:\nUser ID: ${userData.userId}\nName: ${userData.name}\nRole: ${userData.role}\nNew Goal: ${setGoal}%`
+    );
     onBack();
   };
 
@@ -198,17 +188,9 @@ export function UpdateCustomGoal({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex justify-between items-center gap-4 pt-6 border-t">
+            <div className="flex justify-between pt-6 border-t">
               <Button variant="outline" onClick={handleCancel}>
                 Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDeleteGoal}
-                disabled={userData.currentGoal === null}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                Delete Custom Goal
               </Button>
               <Button
                 onClick={handleUpdateGoal}
