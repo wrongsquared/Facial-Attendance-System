@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { AttendanceRecord } from '../components/Attendance';
 import {
   Card,
   CardContent,
@@ -60,7 +61,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import type { AttendanceRecord } from "../App";
 
 interface AdminAttendanceRecordsProps {
   onLogout: () => void;
@@ -82,7 +82,6 @@ export function AdminAttendanceRecords({
   onBack,
   onNavigateToManualOverride,
   attendanceRecords,
-  updateAttendanceRecord,
 }: AdminAttendanceRecordsProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedModule, setSelectedModule] = useState("all");

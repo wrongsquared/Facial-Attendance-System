@@ -1,6 +1,7 @@
+import './styles/globals.css';
 import { useState } from 'react';
 import { useAuth } from './cont/AuthContext'; 
-import { loginUser, LoginCredentials } from './services/api';
+import { loginUser, LoginCredentials, } from './services/api';
 import { LoginPage } from './components/LoginPage';
 import { StudentDashboard } from './components/StudentDashboard';
 import { LecturerDashboard } from './components/LecturerDashboard';
@@ -25,9 +26,25 @@ import { StudentProfile } from './components/StudentProfile';
 import { StudentProgressTracker } from './components/StudentProgressTracker';
 import { CreateUser } from './components/CreateUser';
 import { UpdateUser } from './components/UpdateUser';
+import { Toast } from './components/Toast';
 import { Footer } from './components/Footer';
+import type { AttendanceRecord } from './components/Attendance';
 
-
+// User profile data type
+interface UserProfileData {
+  userId: string;
+  name: string;
+  role: string;
+  status: string;
+  email: string;
+  dateOfBirth: string;
+  contactNumber: string;
+  address: string;
+  enrollmentDate: string;
+  associatedModules: string;
+  biometricStatus: string;
+  biometricLastUpdated: string;
+}
 
 type LecturerView = 'dashboard' | 'reports' | 'profile' | 'timetable' | 'records';
 type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser';
@@ -61,6 +78,40 @@ export default function App() {
     role: string;
     currentGoal: number | null;
   } | null>(null);
+
+  // User goals state - mapping userId to goal percentage (null means deleted/no goal)
+  const [userGoals, setUserGoals] = useState<Record<string, number | null>>({
+  });
+
+
+  // User profiles state - comprehensive profile data for all users
+  const [userProfiles, setUserProfiles] = useState<Record<string, UserProfileData>>({
+  });
+
+  // Attendance records state
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+
+// Toast state
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+  };
+
+  const hideToast = () => {
+    setToastMessage(null);
+  };
+
+  // Function to update attendance record
+  const updateAttendanceRecord = (userId: string, date: string, newStatus: string) => {
+    setAttendanceRecords(prev => 
+      prev.map(record => 
+        record.userId === userId && record.date === date
+          ? { ...record, status: newStatus }
+          : record
+      )
+    );
+  };
 
   // 4. NEW LOGIN LOGIC: Connects to Backend
   const handleLogin = async (creds: LoginCredentials, selectedRole: string) => {
@@ -188,6 +239,45 @@ export default function App() {
 
   const handleBackToManageUserProfile = () => {
     setAdminView('manageUserProfile');
+  };
+
+  const handleUpdateUserGoal = (userId: string, goal: number) => {
+    setUserGoals(prev => ({
+      ...prev,
+      [userId]: goal
+    }));
+  };
+
+  const handleDeleteUserGoal = (userId: string) => {
+    setUserGoals(prev => ({
+      ...prev,
+      [userId]: null
+    }));
+  };
+
+  const handleUpdateUserProfile = (userId: string, profileData: Omit<UserProfileData, 'userId'>) => {
+    // Store the old name before updating
+    const oldName = userProfiles[userId]?.name;
+    
+    setUserProfiles(prev => ({
+      ...prev,
+      [userId]: {
+        ...prev[userId],
+        ...profileData,
+        userId, // Ensure userId is preserved
+      }
+    }));
+    
+    // Also update attendance records if name changed
+    if (profileData.name && oldName !== profileData.name) {
+      setAttendanceRecords(prevRecords =>
+        prevRecords.map(record =>
+          record.userId === userId
+            ? { ...record, studentName: profileData.name }
+            : record
+        )
+      );
+    }
   };
 
   const handleNavigateToUpdateUserProfile = (userData: {
@@ -365,6 +455,7 @@ export default function App() {
           onBack={handleBackToManageUsers}
           onUpdateSuccess={handleBackToManageUsers}
           userData={selectedUserData}
+          showToast={showToast}
         />
       )}
       {userRole === 'admin' && adminView === 'manageUserProfile' && (
@@ -373,6 +464,8 @@ export default function App() {
           onBack={handleBackToAdminDashboard}
           onNavigateToCreateCustomGoal={handleNavigateToCreateCustomGoal}
           onNavigateToUpdateUserProfile={handleNavigateToUpdateUserProfile}
+          userGoals={userGoals}
+          userProfiles={userProfiles}
         />
       )}
       {userRole === 'admin' && adminView === 'updateUserProfile' && selectedBiometricUserData && (
@@ -381,6 +474,9 @@ export default function App() {
           onBack={handleBackToManageUserProfile}
           onNavigateToBiometricProfile={handleNavigateToBiometricProfile}
           userData={selectedBiometricUserData}
+          userProfileData={userProfiles[selectedBiometricUserData.userId]}
+          onUpdateProfile={handleUpdateUserProfile}
+          showToast={showToast}
         />
       )}
       {userRole === 'admin' && adminView === 'createCustomGoal' && selectedCustomGoalUserData && (
@@ -388,6 +484,9 @@ export default function App() {
           onLogout={handleLogout} 
           onBack={handleBackToManageUserProfile}
           userData={selectedCustomGoalUserData}
+          onUpdateGoal={handleUpdateUserGoal}
+          onDeleteGoal={handleDeleteUserGoal}
+          showToast={showToast}
         />
       )}
       {userRole === 'admin' && adminView === 'manageBiometric' && (
@@ -410,6 +509,7 @@ export default function App() {
           onLogout={handleLogout} 
           onBack={handleBackToBiometricProfile}
           userData={selectedBiometricUserData}
+          showToast={showToast}
         />
       )}
       {userRole === 'admin' && adminView === 'attendanceRecords' && (
@@ -417,6 +517,8 @@ export default function App() {
           onLogout={handleLogout} 
           onBack={handleBackToAdminDashboard}
           onNavigateToManualOverride={handleNavigateToManualOverride}
+          attendanceRecords={attendanceRecords}
+          updateAttendanceRecord={updateAttendanceRecord}
         />
       )}
       {userRole === 'admin' && adminView === 'manualOverride' && selectedStudentData && (
@@ -424,6 +526,8 @@ export default function App() {
           onLogout={handleLogout} 
           onBack={handleBackToAttendanceRecords}
           studentData={selectedStudentData}
+          showToast={showToast}
+          updateAttendanceRecord={updateAttendanceRecord}
         />
       )}
       {userRole === 'admin' && adminView === 'adminReports' && (
@@ -432,7 +536,7 @@ export default function App() {
           onBack={handleBackToAdminDashboard}
         />
       )}
-      <Footer />
+      <Toast message={toastMessage} onClose={hideToast} />
     </div>
   );
 }

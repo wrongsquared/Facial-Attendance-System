@@ -229,11 +229,6 @@ export function ManageBiometricProfile({
     onNavigateToCreateBiometric({ userId, name, role });
   };
 
-  const handleUpdate = (userId: string, name: string, role: string) => {
-    // Navigate to update biometric profile page
-    onNavigateToUpdateBiometric({ userId, name, role });
-  };
-
   const confirmDelete = () => {
     if (userToDelete) {
       alert(`Delete biometric profile for ${userToDelete.name} (${userToDelete.userId})`);
@@ -476,7 +471,7 @@ export function ManageBiometricProfile({
 
       {/* Delete Confirmation Dialog */}
       {userToDelete && (
-        <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && cancelDelete()}>
+        <AlertDialog open={!!userToDelete} onOpenChange={(open: any) => !open && cancelDelete()}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Biometric Profile</AlertDialogTitle>
