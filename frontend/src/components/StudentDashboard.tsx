@@ -123,6 +123,8 @@ useEffect(() => {
       if (!token) return;
 
       try {
+        // 1. Fire off all requests at the exact same time (Parallel)
+        // This is much faster than waiting for one, then the next.
         const [
           lessonData, 
           profileData, 
@@ -141,7 +143,7 @@ useEffect(() => {
           getWeeklyTimetable(token)
         ]);
 
-        //Set all states at once
+        // 2. Set all states at once
         setLessons(lessonData);
         setProfile(profileData);
         setTodaysClasses(todaysData);
@@ -154,7 +156,7 @@ useEffect(() => {
         console.error("Failed to load dashboard:", err);
         // Optional: setError(true) to show a "Retry" button
       } finally {
-        //Stop loading only when EVERYTHING is finished (or failed)
+        // 3. Stop loading only when EVERYTHING is finished (or failed)
         setLoading(false);
       }
     };

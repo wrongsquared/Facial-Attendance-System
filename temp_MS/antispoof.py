@@ -2,38 +2,26 @@
 import onnxruntime as ort
 import numpy as np
 import cv2
+import os
 
-MODEL_PATH = "antispoof_best.onnx"
-INPUT_SIZE = 112
-TEMPERATURE = 2.5   # <<< VERY IMPORTANT (tuned for replay)
+MODEL_PATH = "antispoof_custom.onnx"
+INPUT_SIZE = (224, 224)
+THRESH = 0.5
 
-sess = ort.InferenceSession(
-    MODEL_PATH,
-    providers=["CPUExecutionProvider"]
-)
+sess = ort.InferenceSession(MODEL_PATH, providers=["CPUExecutionProvider"])
 
-def preprocess(img_bgr):
-    img = cv2.resize(img_bgr, (INPUT_SIZE, INPUT_SIZE))
+def preprocess(img):
+    img = cv2.resize(img, INPUT_SIZE)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    img = img.astype(np.float32) / 255.0
-    img = np.transpose(img, (2, 0, 1))[None, ...]
+    img = img.astype(np.float32)/255.0
+    img = np.transpose(img, (2,0,1))[None,:,:,:]
     return img
 
-def softmax(x):
-    e = np.exp(x - np.max(x))
-    return e / e.sum()
-
-def is_real_face_raw(img_bgr):
-    if img_bgr is None or img_bgr.size == 0:
-        return 0.0
-
-    x = preprocess(img_bgr)
-    logits = sess.run(None, {"input": x})[0][0]
-
-    # 🔥 Temperature scaling
-    logits = logits / TEMPERATURE
-
-    probs = softmax(logits)
-    prob_real = float(probs[0])   # class 0 = REAL
-
-    return prob_real
+def is_real_face(face_img):
+    try:
+        x = preprocess(face_img)
+        out = sess.run(None, {"input": x})[0]
+        prob_real = float(out.flatten()[1])
+        return prob_real >= THRESH, prob_real
+    except:
+        return False, 0.0
