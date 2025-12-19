@@ -57,6 +57,21 @@ interface ManageUserProfileProps {
     name: string;
     role: string;
   }) => void;
+  userGoals: Record<string, number | null>;
+  userProfiles: Record<string, {
+    userId: string;
+    name: string;
+    role: string;
+    status: string;
+    email: string;
+    dateOfBirth: string;
+    contactNumber: string;
+    address: string;
+    enrollmentDate: string;
+    associatedModules: string;
+    biometricStatus: string;
+    biometricLastUpdated: string;
+  }>;
 }
 
 type UserProfile = {
@@ -162,6 +177,8 @@ export function ManageUserProfile({
   onBack,
   onNavigateToCreateCustomGoal,
   onNavigateToUpdateUserProfile,
+  userGoals,
+  userProfiles,
 }: ManageUserProfileProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -210,8 +227,15 @@ export function ManageUserProfile({
     // Find the user profile
     const userProfile = allUserProfiles.find(profile => profile.userId === userId);
     if (userProfile) {
-      // Convert currentGoal to number or null
-      const goalValue = currentGoal === "N/A" ? null : parseInt(currentGoal);
+      // Get the actual goal value from userGoals state or parse from string
+      let goalValue: number | null;
+      if (userGoals[userId] !== undefined) {
+        goalValue = userGoals[userId];
+      } else if (currentGoal === "N/A" || currentGoal === "None") {
+        goalValue = null;
+      } else {
+        goalValue = parseInt(currentGoal);
+      }
       onNavigateToCreateCustomGoal({
         userId: userProfile.userId,
         name: userProfile.name,
@@ -377,23 +401,42 @@ export function ManageUserProfile({
               </TableHeader>
               <TableBody>
                 {currentProfiles.length > 0 ? (
-                  currentProfiles.map((profile) => (
+                  currentProfiles.map((profile) => {
+                    // Get updated profile data from userProfiles state if available
+                    const updatedProfile = userProfiles[profile.userId] || profile;
+                    const displayName = updatedProfile.name;
+                    const displayRole = updatedProfile.role;
+                    const displayStatus = updatedProfile.status;
+                    
+                    // Get the current goal from userGoals prop
+                    // If userId exists in userGoals with a value, show that
+                    // If userId exists in userGoals but is null, show "None" (deleted)
+                    // Otherwise use hardcoded value
+                    let currentGoal: string;
+                    if (profile.userId in userGoals) {
+                      const goalValue = userGoals[profile.userId];
+                      currentGoal = goalValue !== null ? `${goalValue}%` : "None";
+                    } else {
+                      currentGoal = profile.currentGoals;
+                    }
+                    
+                    return (
                     <TableRow key={profile.userId}>
                       <TableCell className="align-middle">{profile.userId}</TableCell>
-                      <TableCell className="align-middle">{profile.name}</TableCell>
-                      <TableCell className="align-middle">{profile.role}</TableCell>
+                      <TableCell className="align-middle">{displayName}</TableCell>
+                      <TableCell className="align-middle">{displayRole}</TableCell>
                       <TableCell className="align-middle">
                         <span
                           className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-                            profile.status === "Active"
+                            displayStatus === "Active"
                               ? "bg-green-100 text-green-800"
                               : "bg-gray-100 text-gray-800"
                           }`}
                         >
-                          {profile.status}
+                          {displayStatus}
                         </span>
                       </TableCell>
-                      <TableCell className="align-middle">{profile.currentGoals}</TableCell>
+                      <TableCell className="align-middle">{currentGoal}</TableCell>
                       <TableCell className="text-right align-middle">
                         <div className="flex items-center justify-end gap-2">
                           <Button
@@ -402,10 +445,10 @@ export function ManageUserProfile({
                             onClick={() =>
                               handleEditGoal(
                                 profile.userId,
-                                profile.currentGoals
+                                currentGoal
                               )
                             }
-                            disabled={profile.currentGoals === "N/A"}
+                            disabled={displayRole !== "Student"}
                           >
                             <Edit className="h-4 w-4 mr-2" />
                             Manage Goal
@@ -414,7 +457,7 @@ export function ManageUserProfile({
                             variant="ghost"
                             size="sm"
                             onClick={() =>
-                              handleManageProfile(profile.userId, profile.name, profile.role)
+                              handleManageProfile(profile.userId, displayName, displayRole)
                             }
                           >
                             <Edit className="h-4 w-4 mr-2" />
@@ -423,7 +466,7 @@ export function ManageUserProfile({
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
+                  )})
                 ) : (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8">

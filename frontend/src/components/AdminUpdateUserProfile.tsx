@@ -43,6 +43,34 @@ interface AdminUpdateUserProfileProps {
     name: string;
     role: string;
   };
+  userProfileData?: {
+    userId: string;
+    name: string;
+    role: string;
+    status: string;
+    email: string;
+    dateOfBirth: string;
+    contactNumber: string;
+    address: string;
+    enrollmentDate: string;
+    associatedModules: string;
+    biometricStatus: string;
+    biometricLastUpdated: string;
+  };
+  onUpdateProfile: (userId: string, profileData: {
+    name: string;
+    role: string;
+    status: string;
+    email: string;
+    dateOfBirth: string;
+    contactNumber: string;
+    address: string;
+    enrollmentDate: string;
+    associatedModules: string;
+    biometricStatus: string;
+    biometricLastUpdated: string;
+  }) => void;
+  showToast: (message: string) => void;
 }
 
 export function AdminUpdateUserProfile({
@@ -50,28 +78,42 @@ export function AdminUpdateUserProfile({
   onBack,
   onNavigateToBiometricProfile,
   userData,
+  userProfileData,
+  onUpdateProfile,
+  showToast,
 }: AdminUpdateUserProfileProps) {
-  // Personal Information
-  const [name, setName] = useState(userData.name);
-  const [email, setEmail] = useState("john.smith@uow.edu.au");
-  const [dateOfBirth, setDateOfBirth] = useState("1998-05-15");
-  const [contactNumber, setContactNumber] = useState("+61 412 345 678");
-  const [address, setAddress] = useState("123 Main Street, Wollongong NSW 2500");
+  // Personal Information - use userProfileData if available, otherwise defaults
+  const [name, setName] = useState(userProfileData?.name || userData.name);
+  const [email, setEmail] = useState(userProfileData?.email || "john.smith@uow.edu.au");
+  const [dateOfBirth, setDateOfBirth] = useState(userProfileData?.dateOfBirth || "1998-05-15");
+  const [contactNumber, setContactNumber] = useState(userProfileData?.contactNumber || "+61 412 345 678");
+  const [address, setAddress] = useState(userProfileData?.address || "123 Main Street, Wollongong NSW 2500");
 
   // Account & System Information
-  const [role, setRole] = useState(userData.role);
-  const [status, setStatus] = useState("Active");
-  const [enrollmentDate] = useState("15 Feb 2023");
-  const [associatedModules] = useState("CSCI334, CSCI251, CSCI203");
+  const [role, setRole] = useState(userProfileData?.role || userData.role);
+  const [status, setStatus] = useState(userProfileData?.status || "Active");
+  const enrollmentDate = userProfileData?.enrollmentDate || "15 Feb 2023";
+  const associatedModules = userProfileData?.associatedModules || "CSCI334, CSCI251, CSCI203";
 
   // Biometric Profile
-  const [biometricStatus] = useState("Enrolled");
-  const [biometricLastUpdated] = useState("28 Oct 2025");
+  const biometricStatus = userProfileData?.biometricStatus || "Enrolled";
+  const biometricLastUpdated = userProfileData?.biometricLastUpdated || "28 Oct 2025";
 
   const handleSave = () => {
-    alert(
-      `Profile Updated:\nName: ${name}\nEmail: ${email}\nRole: ${role}\nStatus: ${status}`
-    );
+    onUpdateProfile(userData.userId, {
+      name,
+      role,
+      status,
+      email,
+      dateOfBirth,
+      contactNumber,
+      address,
+      enrollmentDate,
+      associatedModules,
+      biometricStatus,
+      biometricLastUpdated,
+    });
+    showToast("User Profile Updated!");
     onBack();
   };
 

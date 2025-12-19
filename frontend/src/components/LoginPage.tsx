@@ -17,16 +17,17 @@ import {
   SelectValue,
 } from "./ui/select";
 import logoImage from "figma:asset/7f4aea41a772ddccb866f53538bcc63281191ac1.png";
-import { LoginCredentials } from "../services/api";
 
 interface LoginPageProps {
-  onLogin: (creds: LoginCredentials, selectedRole: string) => void;
+  onLogin: (userType: "student" | "lecturer" | "admin") => void;
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [userType, setUserType] = useState<"student" | "lecturer" | "admin" >("student");
+  const [userType, setUserType] = useState<
+    "student" | "lecturer" | "admin"
+  >("student");
   const [error, setError] = useState("");
 
   const handleLogin = () => {
@@ -41,9 +42,9 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       return;
     }
 
-
+    // Mock validation - in a real app, this would check against a backend
     setError("");
-    onLogin({email,password}, userType);
+    onLogin(userType);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
