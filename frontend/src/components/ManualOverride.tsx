@@ -36,22 +36,27 @@ interface ManualOverrideProps {
     date: string;
     status: string;
   };
+  showToast: (message: string) => void;
+  updateAttendanceRecord: (userId: string, date: string, newStatus: string) => void;
 }
 
 export function ManualOverride({
   onLogout,
   onBack,
   studentData,
+  showToast,
+  updateAttendanceRecord,
 }: ManualOverrideProps) {
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [adminNotes, setAdminNotes] = useState<string>("");
 
   const handleSave = () => {
-    // Mock save functionality
-    alert(
-      `Attendance updated:\nStudent: ${studentData.studentName}\nNew Status: ${selectedStatus}\nReason: ${selectedReason}\nNotes: ${adminNotes}`
-    );
+    // Update the attendance record with the new status
+    updateAttendanceRecord(studentData.userId, studentData.date, selectedStatus);
+    // Show success toast
+    showToast("Manual Attendance Override successful!");
+    // Navigate back to records page
     onBack();
   };
 
