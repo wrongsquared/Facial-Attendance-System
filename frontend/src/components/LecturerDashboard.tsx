@@ -8,6 +8,7 @@ import {
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
+import { useEffect, useState } from "react";
 import {
   Calendar,
   Users,
@@ -36,6 +37,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
+import { useAuth } from "../cont/AuthContext"; 
+import { 
+  getLecturerProfile,
+  getLecturerModulesCount,
+  getLecturertimetable,
+  timetableEntry,
+  getavgatt,
+  getClassesToday,
+  ClassesToday,
+  CourseOverview,
+  getCourseOverview,
+  getrecentSessionsrecord,
+  recentSessionsLog,
+  getrecentSessionslog} from "../services/api";
 
 interface LecturerDashboardProps {
   onLogout: () => void;
@@ -45,133 +60,6 @@ interface LecturerDashboardProps {
   onNavigateToRecords: () => void;
 }
 
-const todayClasses = [
-  {
-    id: 1,
-    subject: "CSCI334 - Database Systems",
-    time: "9:00 AM - 11:00 AM",
-    location: "Building 3, Room 205",
-    enrolled: 45,
-    attended: 42,
-  },
-  {
-    id: 2,
-    subject: "CSCI203 - Algorithms",
-    time: "2:00 PM - 4:00 PM",
-    location: "Building 1, Room 310",
-    enrolled: 38,
-    attended: 0,
-  },
-];
-
-const recentSessions = [
-  {
-    id: 1,
-    subject: "CSCI334 - Database Systems",
-    date: "28 Oct 2025",
-    time: "9:00 AM",
-    attended: 42,
-    total: 45,
-    percentage: 93,
-  },
-  {
-    id: 2,
-    subject: "CSCI203 - Algorithms",
-    date: "27 Oct 2025",
-    time: "2:00 PM",
-    attended: 35,
-    total: 38,
-    percentage: 92,
-  },
-  {
-    id: 3,
-    subject: "CSCI334 - Database Systems",
-    date: "26 Oct 2025",
-    time: "9:00 AM",
-    attended: 40,
-    total: 45,
-    percentage: 89,
-  },
-  {
-    id: 4,
-    subject: "CSCI203 - Algorithms",
-    date: "25 Oct 2025",
-    time: "2:00 PM",
-    attended: 36,
-    total: 38,
-    percentage: 95,
-  },
-];
-
-const courses = [
-  {
-    id: 1,
-    code: "CSCI334",
-    name: "Database Systems",
-    enrolled: 45,
-    avgAttendance: 91,
-  },
-  {
-    id: 2,
-    code: "CSCI203",
-    name: "Algorithms",
-    enrolled: 38,
-    avgAttendance: 94,
-  },
-];
-
-const weeklySchedule = [
-  {
-    day: "Monday",
-    classes: [
-      {
-        subject: "CSCI334",
-        time: "9:00 AM - 11:00 AM",
-        room: "B3-205",
-      },
-    ],
-  },
-  {
-    day: "Tuesday",
-    classes: [
-      {
-        subject: "CSCI203",
-        time: "2:00 PM - 4:00 PM",
-        room: "B1-310",
-      },
-    ],
-  },
-  {
-    day: "Wednesday",
-    classes: [
-      {
-        subject: "CSCI334",
-        time: "9:00 AM - 11:00 AM",
-        room: "B3-205",
-      },
-    ],
-  },
-  {
-    day: "Thursday",
-    classes: [
-      {
-        subject: "CSCI203",
-        time: "2:00 PM - 4:00 PM",
-        room: "B1-310",
-      },
-    ],
-  },
-  {
-    day: "Friday",
-    classes: [
-      {
-        subject: "CSCI334",
-        time: "11:00 AM - 1:00 PM",
-        room: "B3-205",
-      },
-    ],
-  },
-];
 
 export function LecturerDashboard({
   onLogout,
@@ -180,6 +68,84 @@ export function LecturerDashboard({
   onNavigateToTimetable,
   onNavigateToRecords,
 }: LecturerDashboardProps) {
+
+
+  const [loading, setLoading] = useState(true);
+  const { token, user } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
+  const [totalModules, settotalModules] = useState(0);
+  const [avgattM, setavgattM] = useState(0);
+  const [reportCount, setreportCount] = useState(0);
+
+  const [timetable, settimetable] = useState<timetableEntry[]>([])
+  const [todaysClasses, setTodaysClasses] = useState<ClassesToday[]>([]);
+  const [courseovw, setCourseovw] = useState<CourseOverview[]>([]);
+  const [recentSessionsLog, setrecentSessionsLog] = useState<recentSessionsLog[]>([]);
+
+
+  useEffect(() => {
+    const fetchDashboardData = async () =>{
+      if (!token) return;
+    
+      try{
+        const [
+          profileData,
+          ModulesCount,
+          timetable,
+          avgAttM,
+          todayclasses,
+          courseoview,
+          reportCount,
+          recentSessionsLog
+        ] = await Promise.all([
+          getLecturerProfile(token),
+          getLecturerModulesCount(token),
+          getLecturertimetable(token),
+          getavgatt(token),
+          getClassesToday(token),
+          getCourseOverview(token),
+          getrecentSessionsrecord(token),
+          getrecentSessionslog(token)
+        ]);
+      setProfile(profileData);
+      settotalModules(ModulesCount.total_modules);
+      settimetable(timetable);
+      setavgattM(avgAttM.Average_attendance);
+      setTodaysClasses(todayclasses);
+      setCourseovw(courseoview);
+      setreportCount(reportCount.Recent_sessions_record);
+      setrecentSessionsLog(recentSessionsLog);
+      }
+      catch (err) {
+          console.error("Failed to load dashboard:", err);
+          // Optional: setError(true) to show a "Retry" button
+        } finally {
+          //Stop loading only when EVERYTHING is finished (or failed)
+          setLoading(false);
+        }
+      };
+      fetchDashboardData();
+    }, [token]);
+    const getWeeklySchedule = () => {
+    const grouped: Record<string, timetableEntry[]> = {
+      Mon: [], Tue: [], Wed: [], Thu: [], Fri: [], Sat: [], Sun: []
+    };
+
+    timetable.forEach((lesson) => {
+      // The backend sends "Mon", "Tue", etc.
+      const day = lesson.day_of_week; 
+      
+      if (grouped[day]) {
+        grouped[day].push(lesson);
+      }
+    });
+
+    return grouped;
+  };
+
+  const weeklySchedule = getWeeklySchedule();
+  // Keys must match the backend's "strftime('%a')" format (Mon, Tue, Wed...)
+  const dayOrder = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
@@ -208,9 +174,9 @@ export function LecturerDashboard({
                 <AvatarFallback>DR</AvatarFallback>
               </Avatar>
               <div className="hidden md:block">
-                <p>Dr. Rachel Wong</p>
+                <p>{profile?.name ?? "Undefined Name"}</p>
                 <p className="text-sm text-gray-600">
-                  Computer Science
+                  {profile?.specialistIn ?? "------"}
                 </p>
               </div>
             </div>
@@ -247,14 +213,14 @@ export function LecturerDashboard({
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm">
-                Total Courses
+                Total Active Modules
               </CardTitle>
               <BookOpen className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-6xl font-bold">2</div>
+              <div className="text-6xl font-bold">{totalModules}</div>
               <p className="text-xs text-gray-600 mt-1">
-                Active courses
+                Active modules
               </p>
             </CardContent>
           </Card>
@@ -267,7 +233,7 @@ export function LecturerDashboard({
               <ClipboardCheck className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-6xl font-bold">92.5%</div>
+              <div className="text-6xl font-bold">{avgattM}%</div>
               <p className="text-xs text-gray-600 mt-1">
                 Across all courses
               </p>
@@ -280,33 +246,43 @@ export function LecturerDashboard({
                 Timetable
               </CardTitle>
 
-              {/* ✅ Icon on right side */}
+              {/*Icon on right side */}
               <Calendar className="h-4 w-4 text-blue-600" />
             </CardHeader>
 
             <CardContent>
               <div className="space-y-2 mb-4">
-                {weeklySchedule.map((daySchedule) => (
-                  <div
-                    key={daySchedule.day}
-                    className="flex items-start gap-2 text-xs"
-                  >
-                    <span className="font-medium w-16 shrink-0">
-                      {daySchedule.day.slice(0, 3)}
-                    </span>
-                    <div className="flex-1">
-                      {daySchedule.classes.map((cls, idx) => (
-                        <div
-                          key={idx}
-                          className="text-gray-600"
-                        >
-                          {cls.subject} • {cls.time} •{" "}
-                          {cls.room}
-                        </div>
-                      ))}
+                {Object.values(weeklySchedule).every(arr => arr.length === 0) ? (
+                   <p className="text-xs text-gray-400">No classes this week.</p>
+
+                ) : (dayOrder.map((day) => {
+                    const classes = weeklySchedule[day];
+                    // Skip days with no classes
+                    if (!classes || classes.length === 0) return null;
+
+                    return(
+                    <div
+                      key={day}
+                      className="flex items-start gap-2 text-xs"
+                    >
+                      <span className="font-medium w-16 shrink-0">
+                        {day.toUpperCase()}
+                      </span>
+                      <div className="flex-1">
+                        {classes.map((cls, idx) => (
+                          <div
+                            key={idx}
+                            className="text-gray-600"
+                          >
+                            {cls.module_code} • {cls.start_time} - {cls.end_time} •{" "}
+                            {cls.location}
+                          </div>
+                        ))}
                     </div>
                   </div>
-                ))}
+                  );
+                  })
+                )}
               </div>
 
               {/* View timetable button */}
@@ -329,7 +305,7 @@ export function LecturerDashboard({
               <Calendar className="h-4 w-4 text-orange-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-6xl font-bold">4</div>
+              <div className="text-6xl font-bold">{reportCount}</div>
               <p className="text-xs text-gray-600 mt-1">
                 Recent sessions recorded
               </p>
@@ -366,46 +342,53 @@ export function LecturerDashboard({
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {todayClasses.map((classItem) => (
+                {todaysClasses.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-6">
+                    No classes scheduled for today.
+                  </p>
+                ) : ( 
+                  todaysClasses.map((classItem, index) => (
                   <div
-                    key={classItem.id}
+                    key={index}
                     className="p-4 border rounded-lg"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <p className="font-medium">
-                          {classItem.subject}
+                          {classItem.module_code} - {classItem.module_name}
                         </p>
                         <p className="text-sm text-gray-600 mt-1">
-                          {classItem.time}
+                          {classItem.time_range}
                         </p>
                         <p className="text-sm text-gray-600">
                           {classItem.location}
                         </p>
                       </div>
-                      {classItem.attended > 0 ? (
-                        <Badge className="bg-blue-600 text-white hover:bg-blue-700">
-                          Completed
+                        <Badge
+                          className={
+                            classItem.status === 'Live' 
+                              ? "bg-green-600 hover:bg-green-700 text-white" // Live = Green
+                              : classItem.status === 'Completed' 
+                              ? "bg-blue-600 hover:bg-blue-700 text-white"   // Completed = Blue
+                              : "bg-gray-100 text-gray-800 hover:bg-gray-200" // Pending = Gray
+                          }
+                        >
+                          {classItem.status}
                         </Badge>
-                      ) : (
-                        <Badge variant="secondary">
-                          Pending
-                        </Badge>
-                      )}
                     </div>
-                    {classItem.attended > 0 && (
+                    {classItem.status !=='Pending' && (
                       <div className="flex items-center justify-between text-sm bg-green-50 p-2 rounded">
                         <span className="text-green-700">
-                          Attendance recorded
+                          {classItem.status === 'Live' ? "Marking in progress..." : "Attendance recorded"}
                         </span>
                         <span className="text-green-700">
-                          {classItem.attended}/
-                          {classItem.enrolled} present
+                          {classItem.attendance_display}
                         </span>
                       </div>
                     )}
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -420,32 +403,42 @@ export function LecturerDashboard({
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {courses.map((course) => (
+                {courseovw.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    No courses found.
+                  </p>
+                ) : (
+                courseovw.map((course) => (
                   <div
-                    key={course.id}
+                    key={course.module_code}
                     className="p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <p className="font-medium">
-                          {course.code}
+                          {course.module_code}
                         </p>
                         <p className="text-sm text-gray-600">
-                          {course.name}
+                          {course.module_name}
                         </p>
                       </div>
-                      <Badge variant="outline">
-                        {course.avgAttendance}% attendance
+                      <Badge variant="outline" className={
+                          course.overall_attendance_rate < 80 
+                            ? "border-red-200 text-red-700 bg-red-50" 
+                            : "border-green-200 text-green-700 bg-green-50"
+                        }>
+                        {course.overall_attendance_rate}% attendance
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600 mt-3">
                       <Users className="h-4 w-4" />
                       <span>
-                        {course.enrolled} students enrolled
+                        {course.students_enrolled} students enrolled
                       </span>
                     </div>
                   </div>
-                ))}
+                ))
+              )}
               </div>
             </CardContent>
           </Card>
@@ -460,6 +453,11 @@ export function LecturerDashboard({
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {recentSessionsLog.length === 0 ? ( //Empty check
+              <p className="text-sm text-gray-500 text-center py-4">
+                No recent sessions found.
+              </p>
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -473,8 +471,8 @@ export function LecturerDashboard({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recentSessions.map((session) => (
-                  <TableRow key={session.id}>
+                {recentSessionsLog.map((session,index) => (
+                  <TableRow key={index}>
                     <TableCell>{session.subject}</TableCell>
                     <TableCell>{session.date}</TableCell>
                     <TableCell>{session.time}</TableCell>
@@ -502,6 +500,7 @@ export function LecturerDashboard({
                 ))}
               </TableBody>
             </Table>
+            )}
           </CardContent>
         </Card>
       </main>

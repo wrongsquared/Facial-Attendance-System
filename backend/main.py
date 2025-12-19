@@ -1,25 +1,17 @@
 from typing import Union, List
 from fastapi import FastAPI, Depends, HTTPException, status, APIRouter
 from sqlalchemy import func, distinct, case, literal, and_
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials   
+from fastapi.middleware.cors import CORSMiddleware 
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session, joinedload
 from database.db_config import get_db #Gets the Initialized db session
 from database.db import (UserProfile, #This was really long so I had to bracket it
                          User, 
-                         Admin, 
                          Lecturer, 
-                         Student, 
-                         Lesson, 
-                         EntLeave, 
-                         Module, 
-                         AttdCheck, 
-                         StudentModules, 
-                         studentAngles, 
-                         Courses, 
-                         LecMod)
+                         Student,
+                         Admin)
+
 from uuid import UUID
 from pdantic.schemas import (UserSignUp, #This was really long so I had to bracket it
                              UserLogin, 
@@ -27,12 +19,10 @@ from pdantic.schemas import (UserSignUp, #This was really long so I had to brack
 from dependencies.deps import get_current_user_id
 from client import supabase, supabase_adm
 import datetime
-from routers import studentDashboardRouter, lecturerDashboardRouter 
+from routers import adminDashboardRouter, studentDashboardRouter, lecturerDashboardRouter 
 
 
 app = FastAPI()
-security = HTTPBearer()
-
 
 origins = [
     "http://localhost:3000",  # React Create App
@@ -54,9 +44,7 @@ def read_root(db: Session= Depends(get_db)):
 
 @app.post("/createAcc", status_code=status.HTTP_201_CREATED)
 def register_user(user: UserSignUp, db: Session = Depends(get_db)):
-    # ==========================================
-    # STEP 1: Create User in Supabase Auth
-    # ==========================================
+    # Create User in Supabase Auth
     try:
         # This contacts Supabase Cloud to create the login
         auth_response = supabase_adm.auth.admin.create_user({
@@ -81,9 +69,8 @@ def register_user(user: UserSignUp, db: Session = Depends(get_db)):
         # Catch Supabase errors (like "Password too short" or "Email exists")
         raise HTTPException(status_code=400, detail=str(e))
 
-    # ==========================================
-    # STEP 2: Create Profile in Postgres
-    # ==========================================
+
+    # Create Profile in Postgres
     try:
         new_db_user = None
 
@@ -132,23 +119,19 @@ def register_user(user: UserSignUp, db: Session = Depends(get_db)):
         # Note: Requires Service Role Key to delete. If using Anon key, you can't cleanup easily.
         print(f"Database error: {e}") 
         raise HTTPException(status_code=500, detail="Profile creation failed. Please contact support.")
-# @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 
 @app.delete("/delacc/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(user_id: UUID, db: Session = Depends(get_db)):
     
-    # ==========================================
-    # STEP 1: Check if user exists in Public DB
-    # ==========================================
+
+    # Check if user exists in Public DB
     # We query the Base 'User' table because it covers Students, Lecturers, etc.
     user_to_delete = db.query(User).filter(User.userID == user_id).first()
     
     if not user_to_delete:
         raise HTTPException(status_code=404, detail="User not found in database")
 
-    # ==========================================
-    # STEP 2: Delete from Public Database (SQLAlchemy)
-    # ==========================================
+    # Delete from Public Database (SQLAlchemy)
     try:
         db.delete(user_to_delete)
         db.commit()
@@ -156,9 +139,9 @@ def delete_user(user_id: UUID, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to delete profile: {str(e)}")
 
-    # ==========================================
-    # STEP 3: Delete from Supabase Auth (Cloud)
-    # ==========================================
+
+    # Delete from Supabase Auth (Cloud)
+
     try:
         # returns an object with 'data' and 'error' (in older versions) 
         # or simply returns None/Data (in newer versions)
@@ -176,7 +159,7 @@ def delete_user(user_id: UUID, db: Session = Depends(get_db)):
 
     return None
 
-
+ #Student Login
 @app.post("/login", response_model = TokenResponse)
 def login(credentials:UserLogin, db:Session = Depends(get_db)):
     try:
@@ -194,10 +177,8 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
     except Exception as e:
         # Supabase throws an exception if password is wrong or email not confirmed
         raise HTTPException(status_code=401, detail=str(e))
-    # -------------------------------------------------------
-    # STEP 2: Identify Role from Postgres DB
-    # -------------------------------------------------------
-    # We have the UUID from Supabase. Now let's see who they are in our DB.
+
+    # Identify Role from Postgres DB
     
     user_uuid = user.id
     
@@ -215,9 +196,7 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
     if profile_type:
         role_name = profile_type.profileTypeName
 
-    # -------------------------------------------------------
-    # STEP 3: Return the Bundle
-    # -------------------------------------------------------
+    # Return the Bundle
     return {
         "access_token": session.access_token,
         "refresh_token": session.refresh_token,
@@ -240,21 +219,34 @@ def logout():
         # Even if it fails, we return 204 because the user wants to leave.
         return None
     
-@app.get("/my-profile")
+@app.get("/student/my-profile")
 def read_my_student_profile(
     user_id: str = Depends(get_current_user_id), 
     db: Session = Depends(get_db)
 ):
-    # If the code reaches here, the token is valid.
-    # We also know the user_id (UUID).
     
-    # We can safely query data specifically for this user
     student_data = db.query(Student).filter(Student.studentID == user_id).first()
-    # lesson_data = db.query(Lesson).join()
-    # attendance_data = db.query()
     return student_data
 
+@app.get("/lecturer/my-profile")
+def read_my_student_profile(
+    user_id: str = Depends(get_current_user_id), 
+    db: Session = Depends(get_db)
+):
+    
+    lecturer_data = db.query(Lecturer).filter(Lecturer.lecturerID == user_id).first()
+    return lecturer_data
+
+@app.get("/admin/my-profile")
+def read_my_student_profile(
+    user_id: str = Depends(get_current_user_id), 
+    db: Session = Depends(get_db)
+):
+    
+    admin_data = db.query(Admin).filter(Admin.adminID == user_id).first()
+    return admin_data
 
 #Important to keep this
 app.include_router(studentDashboardRouter.router, tags=['student'])
+app.include_router(adminDashboardRouter.router, tags=['admin'])
 app.include_router(lecturerDashboardRouter.router, tags=['lecturer'])

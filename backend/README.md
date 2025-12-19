@@ -55,6 +55,8 @@
     So the start of the Connection String will look like:
 
         postgresql+psycopg2://postgres(rest of the Connection string to follow)
+    
+    Replace the [Your Password] segment with your database's password.
     ### SPBASE_URL, SPBASE_KEY, SPBASE_SKEY
     This contains the field of your Project's URL.
 
