@@ -51,7 +51,9 @@ import { getAdminProfile,
         getAdminStats,
         AdminStats,
       CourseAttention,
-      getCoursesRequiringAttention} from "../services/api";
+      getCoursesRequiringAttention,
+      getRecentUsers, 
+      UserManagementItem} from "../services/api";
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -111,6 +113,7 @@ export function AdminDashboard({
   const { token, user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [recentU, setrecentU] = useState<UserManagementItem[]>([]);
 
   const [lowAttendanceCourses, setLowAttendanceCourses] = useState<CourseAttention[]>([]);
   useEffect(() => {
@@ -121,15 +124,18 @@ export function AdminDashboard({
         const [
           profileData,
           dbdata,
-          attentionData
+          attentionData,
+          recentUs
         ] = await Promise.all([
           getAdminProfile(token),
           getAdminStats(token),
-          getCoursesRequiringAttention(token)
+          getCoursesRequiringAttention(token),
+          getRecentUsers(token)
         ]);
       setProfile(profileData);
       setStats(dbdata);
       setLowAttendanceCourses(attentionData);
+      setrecentU(recentUs);
       }
       catch (err) {
           console.error("Failed to load dashboard:", err);
@@ -434,8 +440,15 @@ export function AdminDashboard({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recentUsers.map((user) => (
-                      <TableRow key={user.id}>
+                    {recentU.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-4 text-gray-500">
+                          No users found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                    recentU.map((user) => (
+                      <TableRow key={user.user_id}>
                         <TableCell>{user.name}</TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
@@ -454,7 +467,7 @@ export function AdminDashboard({
                             {user.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>{user.joined}</TableCell>
+                        <TableCell>{user.joined_date}</TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
@@ -465,7 +478,8 @@ export function AdminDashboard({
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ))
+                  )}
                   </TableBody>
                 </Table>
               </TabsContent>

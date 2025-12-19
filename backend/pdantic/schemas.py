@@ -283,3 +283,14 @@ class CourseAttentionItem(BaseModel):
     lecturer_name: str
     student_count: int
     attendance_rate: int
+
+class UserManagementItem(BaseModel):
+    user_id: str # UUID
+    name: str
+    email: str
+    role: str    # "Student", "Lecturer"
+    status: str  # "active", "pending"
+    joined_date: str # Formatted date string or datetime
+
+    class Config:
+        from_attributes = True
