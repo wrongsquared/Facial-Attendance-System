@@ -242,7 +242,7 @@ export interface AdminStats { //Sent by H, Admin
 }
 
 export const getAdminDashboardStats = async (token: string) => {
-  return await fetchProtected("/admin/dashboard", token);
+  return await fetchProtected("/admin/my-profile", token);
 };
 
 //Admin Routes end

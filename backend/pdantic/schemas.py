@@ -42,12 +42,12 @@ class StudentLessons(BaseModel):
 
 class RecentSessionsCardData(BaseModel):
     Recent_sessions_record: int    # The big number (e.g., 4)
-    label: str    # The text (e.g., "Recent sessions recorded")
+
 
 
 class AttendanceOverviewCard(BaseModel):
     Average_attendance: float  # The percentage (e.g., 92.5)
-    label: str    # The text (e.g., "Across all courses")
+
    
 class timetableEntry(BaseModel):
     module_code: str

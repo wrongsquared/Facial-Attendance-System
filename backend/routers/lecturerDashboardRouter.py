@@ -147,7 +147,7 @@ def get_lecturer_average_attendance_safe(
         percentage = (total_actual_checkins / total_capacity) * 100.0
 
     return AttendanceOverviewCard(
-        Average_attendance=round(percentage, 1), 
+        Average_attendance=round(percentage, 1)
     )
 
 # Recent Sessions recorded
@@ -176,7 +176,7 @@ def get_recent_sessions_card(
 
     # Return Data
     return RecentSessionsCardData(
-        Recent_sessions_record=recent_sessions_count, 
+        Recent_sessions_record=recent_sessions_count
     )
 
 router.include_router(studentDashboardRouter.router, tags=["Student"])
