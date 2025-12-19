@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr
 from database.db import Lesson, Courses, Module
 from typing import Literal,List, Optional
 from datetime import date, datetime, time
-
+# User Login
 class UserSignUp(BaseModel):
     email: EmailStr
     password: str
@@ -23,9 +23,7 @@ class TokenResponse(BaseModel):
     role_id: int   # e.g., 1 for Student, 2 for Lecturer
     role_name: str
 
-#-------------------------------------#
-# Lecturer Dashboard Summary Schemas  #
-#-------------------------------------#
+#Lecturer Dashboard Start
 class LecturerDashboardSummary(BaseModel):
     """High-level summary for the lecturer's main dashboard view."""
     total_modules: int
@@ -44,12 +42,12 @@ class StudentLessons(BaseModel):
 
 class RecentSessionsCardData(BaseModel):
     Recent_sessions_record: int    # The big number (e.g., 4)
-    label: str    # The text (e.g., "Recent sessions recorded")
+
 
 
 class AttendanceOverviewCard(BaseModel):
     Average_attendance: float  # The percentage (e.g., 92.5)
-    label: str    # The text (e.g., "Across all courses")
+
    
 class timetableEntry(BaseModel):
     module_code: str
@@ -207,3 +205,81 @@ class DetailedAttendanceRecord(BaseModel):
     
     class Config:
         from_attributes = True
+
+class DailyTimetable(BaseModel):
+    module_code: str
+    module_name: str
+    lesson_type: str
+    start_time: str  # "14:00"
+    end_time: str    # "15:30"
+    location: str
+   
+    class Config:
+        from_attributes = True
+
+class Weeklytimetable(BaseModel):
+    day_of_week: str
+    date_of_day: str  
+    module_code: str
+    module_name: str
+    lesson_type: str
+    start_time: str  # "14:00"
+    end_time: str    # "15:30"
+    location: str
+    class Config:
+        from_attributes = True  
+
+class MonthlyTimetable(BaseModel):
+    date_of_month: date 
+    module_code: str
+    class Config:
+        from_attributes = True
+
+# Attendance Detail for the class
+class AttendanceDetailRow(BaseModel):
+    user_id: str               # S1001
+    student_name: str          # John Smith
+    check_in_time: str | None  # 09:00 AM (from EntLeave)
+    status: Literal['Present', 'Absent', 'Late']
+    
+    class Config:
+        from_attributes = True
+
+class OverallClassAttendanceDetails(BaseModel):
+    # Header Information
+    subject_details: str       # CSCI334 - Database Systems
+    lesson_details: str        # 28 Oct 2025 · 9:00 AM · Lab 2 (Room 3-05)
+    
+    # Metrics
+    attended_count: int        # 42
+    total_enrolled: int        # 45
+    attendance_rate: float     # 93.0
+    Present_count: int        # 36
+    late_arrivals: int         # 3
+    absentees: int             # 3
+
+    # The Data Table
+    attendance_log: List[AttendanceDetailRow]
+    
+    class Config:
+        from_attributes = True
+#Lecturer Dashboard end
+
+#Admin Dashboard Start
+class AdminDashboardStats(BaseModel):
+    overall_attendance_rate: float
+    monthly_absences: int
+    total_active_users: int
+    total_records: int
+    # Optional trends (You can calculate these or hardcode "0" for MVP)
+    trend_attendance: str 
+    trend_absences: str
+    trend_users: str
+    trend_records: "str"
+
+class CourseAttentionItem(BaseModel):
+    module_code: str
+    module_name: str
+    lecturer_name: str
+    student_count: int
+    attendance_rate: int

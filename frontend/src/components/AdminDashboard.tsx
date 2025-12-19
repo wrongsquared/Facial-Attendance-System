@@ -12,17 +12,13 @@ import {
   Users,
   BookOpen,
   TrendingUp,
-  AlertCircle,
   LogOut,
   Settings,
   UserPlus,
-  BookPlus,
   Bell,
   ClipboardCheck,
   UserX,
-  FileText,
   Fingerprint,
-  FileEdit,
 } from "lucide-react";
 import {
   Table,
@@ -49,6 +45,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
+import { useAuth } from "../cont/AuthContext"; 
+import { useEffect, useState } from "react";
+import { getAdminProfile, 
+        getAdminStats,
+        AdminStats,
+      CourseAttention,
+      getCoursesRequiringAttention} from "../services/api";
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -59,37 +62,6 @@ interface AdminDashboardProps {
   onNavigateToReports: () => void;
 }
 
-const systemStats = [
-  {
-    label: "Overall Attendance Rate",
-    value: "87.3%",
-    change: "+2.1%",
-    icon: TrendingUp,
-    color: "text-blue-600",
-  },
-  {
-    label: "Monthly Absences",
-    value: 247,
-    change: "-12",
-    icon: UserX,
-    color: "text-green-600",
-  },
-  {
-    label: "Total Active Users",
-    value: 2990,
-    change: "+135",
-    icon: Users,
-    color: "text-purple-600",
-  },
-  {
-    label: "Attendance Records and Report",
-    value: "15.2K",
-    change: "+1.3K",
-    icon: ClipboardCheck,
-    color: "text-orange-600",
-    hasButtons: true,
-  },
-];
 
 const recentUsers = [
   {
@@ -126,43 +98,6 @@ const recentUsers = [
   },
 ];
 
-const lowAttendanceCourses = [
-  {
-    code: "CSCI101",
-    name: "Introduction to Programming",
-    attendance: 72,
-    students: 65,
-    lecturer: "Dr. Smith",
-  },
-  {
-    code: "MATH201",
-    name: "Calculus II",
-    attendance: 75,
-    students: 42,
-    lecturer: "Prof. Johnson",
-  },
-];
-
-const systemAlerts = [
-  {
-    id: 1,
-    type: "warning",
-    message: "CSCI101 has below 75% attendance rate",
-    time: "2 hours ago",
-  },
-  {
-    id: 2,
-    type: "info",
-    message: "4 new user registrations pending approval",
-    time: "5 hours ago",
-  },
-  {
-    id: 3,
-    type: "success",
-    message: "System backup completed successfully",
-    time: "1 day ago",
-  },
-];
 
 export function AdminDashboard({
   onLogout,
@@ -172,6 +107,42 @@ export function AdminDashboard({
   onNavigateToAttendanceRecords,
   onNavigateToReports,
 }: AdminDashboardProps) {
+  const [loading, setLoading] = useState(true);
+  const { token, user } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
+  const [stats, setStats] = useState<AdminStats | null>(null);
+
+  const [lowAttendanceCourses, setLowAttendanceCourses] = useState<CourseAttention[]>([]);
+  useEffect(() => {
+    const fetchDashboardData = async () =>{
+      if (!token) return;
+    
+      try{
+        const [
+          profileData,
+          dbdata,
+          attentionData
+        ] = await Promise.all([
+          getAdminProfile(token),
+          getAdminStats(token),
+          getCoursesRequiringAttention(token)
+        ]);
+      setProfile(profileData);
+      setStats(dbdata);
+      setLowAttendanceCourses(attentionData);
+      }
+      catch (err) {
+          console.error("Failed to load dashboard:", err);
+          // Optional: setError(true) to show a "Retry" button
+        } finally {
+          //Stop loading only when EVERYTHING is finished (or failed)
+          setLoading(false);
+        }
+      };
+      fetchDashboardData();
+    }, [token]);
+
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
@@ -200,9 +171,9 @@ export function AdminDashboard({
                 <AvatarFallback>AM</AvatarFallback>
               </Avatar>
               <div className="hidden md:block">
-                <p>Admin User</p>
+                <p>{profile?.name ?? "Undefined Name"}</p>
                 <p className="text-sm text-gray-600">
-                  System Administrator
+                  {profile?.role ?? "Undefined"}
                 </p>
               </div>
             </div>
@@ -236,22 +207,95 @@ export function AdminDashboard({
       <main className="container mx-auto px-4 py-8 flex-1">
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {systemStats.map((stat, index) => {
-            const Icon = stat.icon;
-            return (
-              <Card key={index}>
+              <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm">
-                    {stat.label}
+                    Overall Attendance Rate
                   </CardTitle>
-                  <Icon className={`h-4 w-4 ${stat.color}`} />
+                  <TrendingUp className={`h-4 w-4 text-blue-600`} />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl">{stat.value}</div>
+                  <div className="text-2xl">{stats?.overall_attendance_rate ?? 0}%</div>
                   <p className="text-xs text-green-600 mt-1">
-                    {stat.change} from last month
+                    {stats?.trend_attendance ?? "No data"}
                   </p>
-                  {stat.hasButtons && (
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm">
+                    Monthly Absences
+                  </CardTitle>
+                  <UserX className="h-4 w-4 text-green-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl">
+                    {stats?.monthly_absences ?? 0}
+                  </div>
+                  <p className="text-xs text-green-600 mt-1">
+                    {stats?.trend_absences ?? "No data"}
+                  </p>
+                </CardContent>
+                </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm">
+                    Total Active Users
+                  </CardTitle>
+                  <Users className="h-4 w-4 text-purple-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl">
+                    {stats?.total_active_users ?? 0}
+                  </div>
+                  {/* The Green Trend Text */}
+                  <p className="text-xs text-green-600 mt-1">
+                    {stats?.trend_users ?? "No data"}
+                  </p>
+                </CardContent>
+              </Card>
+
+            {/* CARD 4: Attendance Records (With Buttons) */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm">
+                  Attendance Records and Report
+                </CardTitle>
+                <ClipboardCheck className="h-4 w-4 text-orange-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl">
+                  {stats?.total_records ?? 0}
+                </div>
+                {/* The Green Trend Text */}
+                <p className="text-xs text-green-600 mb-3">
+                  {stats?.trend_records ?? "No data"}
+                </p>
+
+                {/* Navigation Buttons */}
+                <div className="flex flex-col gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      // Ensure this prop is passed in AdminDashboard({ ... })
+                      onClick={onNavigateToAttendanceRecords} 
+                    >
+                      View Attendance Record
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={onNavigateToReports}
+                    >
+                      View Report
+                    </Button>
+                </div>
+              </CardContent>
+            </Card>
+                  {/*
+                  { {stat.hasButtons && (
                     <div className="mt-4 space-y-2">
                       <Button
                         variant="outline"
@@ -270,56 +314,57 @@ export function AdminDashboard({
                         View Report
                       </Button>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+                  )}*/}
+
+            
+          
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Low Attendance Courses */}
           <Card>
             <CardHeader>
-              <CardTitle>Courses Requiring Attention</CardTitle>
+              <CardTitle>Modules Requiring Attention</CardTitle>
               <CardDescription>
-                Courses with attendance below 80%
+                Modules with attendance below 80%
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {lowAttendanceCourses.map((course) => (
+                {lowAttendanceCourses.length === 0 ? (
+                    <p className="text-gray-500">No Entry.</p>
+                  ) : (
+                  lowAttendanceCourses.map((modules) => (
                   <div
-                    key={course.code}
+                    key={modules.module_code}
                     className="p-4 border rounded-lg"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div>
                         <p className="font-medium">
-                          {course.code}
+                          {modules.module_code}
                         </p>
                         <p className="text-sm text-gray-600">
-                          {course.name}
+                          {modules.module_name}
                         </p>
                         <p className="text-sm text-gray-600 mt-1">
-                          {course.lecturer}
+                          {modules.lecturer_name}
                         </p>
                       </div>
                       <Badge variant="destructive">
-                        {course.attendance}%
+                        {modules.attendance_rate}%
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600 mt-3">
                       <Users className="h-4 w-4" />
-                      <span>{course.students} students</span>
+                      <span>{modules.student_count} students</span>
                     </div>
                   </div>
-                ))}
+                )))}
               </div>
             </CardContent>
           </Card>
 
-          {/* Quick Actions */}
           <Card>
             <CardHeader>
               <CardTitle>Quick Actions</CardTitle>
