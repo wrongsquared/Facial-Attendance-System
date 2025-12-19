@@ -9,7 +9,8 @@ from database.db_config import get_db #Gets the Initialized db session
 from database.db import (UserProfile, #This was really long so I had to bracket it
                          User, 
                          Lecturer, 
-                         Student)
+                         Student,
+                         Admin)
 
 from uuid import UUID
 from pdantic.schemas import (UserSignUp, #This was really long so I had to bracket it
@@ -242,7 +243,7 @@ def read_my_student_profile(
     db: Session = Depends(get_db)
 ):
     
-    admin_data = db.query(Lecturer).filter(Lecturer.lecturerID == user_id).first()
+    admin_data = db.query(Admin).filter(Admin.adminID == user_id).first()
     return admin_data
 
 #Important to keep this
