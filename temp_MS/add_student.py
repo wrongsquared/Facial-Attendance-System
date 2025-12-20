@@ -30,7 +30,7 @@ os.makedirs(out_dir, exist_ok=True)
 face_detector = cv2.CascadeClassifier(CASCADE_PATH)
 cap = cv2.VideoCapture(0)
 
-print("\n📸 Starting camera... Follow the instructions.\n")
+print("\n Starting camera... Follow the instructions.\n")
 
 count = 0
 phase = 0
@@ -51,7 +51,7 @@ def augment_lighting(img):
 while True:
     ret, frame = cap.read()
     if not ret:
-        print("⚠️ Camera error.")
+        print(" Camera error.")
         break
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -106,4 +106,4 @@ while True:
 
 cap.release()
 cv2.destroyAllWindows()
-print("❌ Capture cancelled.")
+print(" Capture cancelled.")

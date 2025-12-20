@@ -1,33 +1,59 @@
+# recognise_live.py
 import cv2
-import pickle
+import dlib
 import numpy as np
-import face_recognition
-from antispoof import is_real_face
+import pickle
+from datetime import datetime
+from collections import deque
+from antispoof import is_real_face_raw
 
-EMB_FILE = "encodings.pkl"
-CLS_FILE = "classifier.pkl"
-LBL_FILE = "labels.pkl"
+print("Loading dlib models...")
+detector = dlib.get_frontal_face_detector()
+shape_predictor = dlib.shape_predictor("shape_predictor_5_face_landmarks.dat")
+face_rec_model = dlib.face_recognition_model_v1(
+    "dlib_face_recognition_resnet_model_v1.dat"
+)
 
-PROBA_THRESHOLD = 0.55     # stricter = fewer false positives
-ANTI_SPOOF_ENFORCED = True
+print("Loading face classifier + label encoder...")
+clf = pickle.load(open("classifier.pkl", "rb"))
+encoder = pickle.load(open("labels.pkl", "rb"))   # IMPORTANT FIX
+print("System ready.\n")
 
-def load_models():
-    print("Loading face embeddings (for consistency)...")
-    with open(EMB_FILE, "rb") as f:
-        emb_data = pickle.load(f)
+# ------------------------------
+# SETTINGS
+# ------------------------------
+REAL_THRESH = 0.5
+MIN_ACCURACY = 0.70   # 70% threshold
+MIN_FACE_RATIO = 0.12
 
-    print("Loading classifier...")
-    with open(CLS_FILE, "rb") as f:
-        classifier = pickle.load(f)
+CONF_HISTORY = 8
 
-    print("Loading label encoder...")
-    with open(LBL_FILE, "rb") as f:
-        label_encoder = pickle.load(f)
+attendance_marked = set()
+confidence_buffers = {}
 
-    return classifier, label_encoder
+# ------------------------------
+# HELPERS
+# ------------------------------
+def clamp(x1, y1, x2, y2, w, h):
+    return max(0,x1), max(0,y1), min(w,x2), min(h,y2)
 
+def embed(frame, box):
+    x1,y1,x2,y2 = box
+    crop = frame[y1:y2, x1:x2]
+    rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
+    shape = shape_predictor(
+        rgb,
+        dlib.rectangle(0,0,crop.shape[1],crop.shape[0])
+    )
+    return np.array(face_rec_model.compute_face_descriptor(rgb, shape))
+
+def now_str():
+    return datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+
+# ------------------------------
+# MAIN
+# ------------------------------
 def main():
-    classifier, encoder = load_models()
     cap = cv2.VideoCapture(0)
 
     while True:
@@ -35,40 +61,110 @@ def main():
         if not ret:
             break
 
-        rgb = frame[:, :, ::-1]
-        face_locs = face_recognition.face_locations(rgb)
-        face_encs = face_recognition.face_encodings(rgb, face_locs)
+        h,w = frame.shape[:2]
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        for (top, right, bottom, left), face_emb in zip(face_locs, face_encs):
+        faces = detector(gray, 0)
 
-            # Anti-Spoof Check
-            crop = frame[top:bottom, left:right]
-            is_real, score = is_real_face(crop)
+        for d in faces:
+            x1,y1,x2,y2 = clamp(d.left(),d.top(),d.right(),d.bottom(),w,h)
+            face = frame[y1:y2, x1:x2]
 
-            if ANTI_SPOOF_ENFORCED and not is_real:
-                cv2.rectangle(frame, (left, top), (right, bottom), (0,0,255), 2)
-                cv2.putText(frame, f"SPOOF ({score:.2f})",
-                            (left, top - 10), 0, 0.6, (0,0,255), 2)
+            face_ratio = (x2-x1)/w
+
+            # ------------------------------
+            # TOO FAR CHECK
+            # ------------------------------
+            if face_ratio < MIN_FACE_RATIO:
+                cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,255),2)
+                cv2.putText(frame,"Please move closer",
+                            (x1,y1-10),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7,(0,255,255),2)
                 continue
 
-            # Classification
-            proba = classifier.predict_proba([face_emb])[0]
-            max_p = np.max(proba)
-            label_idx = np.argmax(proba)
+            # ------------------------------
+            # ANTI-SPOOF
+            # ------------------------------
+            cnn_score = float(is_real_face_raw(face))
+            if cnn_score < REAL_THRESH:
+                cv2.rectangle(frame,(x1,y1),(x2,y2),(0,0,255),2)
+                cv2.putText(frame,"SPOOF",
+                            (x1,y1-10),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7,(0,0,255),2)
+                continue
 
-            if max_p < PROBA_THRESHOLD:
-                label = "Unknown"
-                color = (0, 165, 255)
-            else:
-                label = encoder.inverse_transform([label_idx])[0]
-                color = (0, 255, 0)
+            # ------------------------------
+            # FACE RECOGNITION
+            # ------------------------------
+            emb = embed(frame,(x1,y1,x2,y2))
+            probs = clf.predict_proba([emb])[0]
 
-            # Draw result
-            cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
-            cv2.putText(frame, f"{label} ({max_p:.2f})",
-                        (left, top - 10), 0, 0.6, color, 2)
+            idx = int(np.argmax(probs))
+            raw_conf = float(probs[idx])
 
-        cv2.imshow("Live Recognition + Classifier + AntiSpoof", frame)
+            # Smooth confidence
+            if idx not in confidence_buffers:
+                confidence_buffers[idx] = deque(maxlen=CONF_HISTORY)
+
+            confidence_buffers[idx].append(raw_conf)
+            smooth_conf = np.mean(confidence_buffers[idx])
+            accuracy = smooth_conf * 100
+
+            student_name = encoder.inverse_transform([idx])[0]
+
+            # ------------------------------
+            # ACCURACY GATE (NEW)
+            # ------------------------------
+            if smooth_conf < MIN_ACCURACY:
+                cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,255),2)
+                cv2.putText(
+                    frame,
+                    "Please move closer",
+                    (x1,y1-10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0,255,255),
+                    2
+                )
+                continue
+
+            # ------------------------------
+            # ATTENDANCE
+            # ------------------------------
+            if student_name not in attendance_marked:
+                attendance_marked.add(student_name)
+                timestamp = now_str()
+
+                print(
+                    f"{timestamp} - {student_name} marked present "
+                    f"({accuracy:.1f}% Accuracy)"
+                )
+
+                cv2.putText(
+                    frame,
+                    f"{student_name} marked present",
+                    (10, 80),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.75,
+                    (0,255,0),
+                    2
+                )
+
+            # Draw success
+            cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
+            cv2.putText(
+                frame,
+                f"{student_name} ({accuracy:.1f}%)",
+                (x1,y1-10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (0,255,0),
+                2
+            )
+
+        cv2.imshow("Live Face Attendance", frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
