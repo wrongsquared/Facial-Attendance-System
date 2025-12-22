@@ -15,10 +15,10 @@ import { LecturerAttendanceRecords } from './components/LecturerAttendanceRecord
 import { ManageUserAccounts } from './components/ManageUserAccounts';
 import { ManageBiometricProfile } from './components/ManageBiometricProfile';
 import { ManageUserProfile } from './components/ManageUserProfile';
+import { ManageCustomGoals } from './components/ManageCustomGoals';
 import { AdminUpdateUserProfile } from './components/AdminUpdateUserProfile';
 import { CreateBiometricProfile } from './components/CreateBiometricProfile';
 import { UpdateBiometricProfile } from './components/UpdateBiometricProfile';
-import { UpdateCustomGoal } from './components/UpdateCustomGoal';
 import { ManualOverride } from './components/ManualOverride';
 import { StudentAttendanceHistory } from './components/StudentAttendanceHistory';
 import { StudentTimetable } from './components/StudentTimetable';
@@ -47,7 +47,7 @@ interface UserProfileData {
 }
 
 type LecturerView = 'dashboard' | 'reports' | 'profile' | 'timetable' | 'records';
-type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser';
+type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'manageCustomGoals' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser';
 type StudentView = 'dashboard' | 'attendanceHistory' | 'timetable' | 'profile' | 'progress';
 
 export default function App() {
@@ -83,6 +83,12 @@ export default function App() {
   const [userGoals, setUserGoals] = useState<Record<string, number | null>>({
   });
 
+  // Goal metadata state - tracking when and by whom goals were set/updated
+  const [goalMetadata, setGoalMetadata] = useState<Record<string, {
+    lastUpdated: string;
+    setBy: string;
+  }>>({
+  });
 
   // User profiles state - comprehensive profile data for all users
   const [userProfiles, setUserProfiles] = useState<Record<string, UserProfileData>>({
@@ -201,6 +207,10 @@ export default function App() {
     setAdminView('manageUserProfile');
   };
 
+  const handleNavigateToManageCustomGoals = () => {
+    setAdminView('manageCustomGoals');
+  };
+
   const handleNavigateToBiometricProfile = () => {
     setAdminView('manageBiometric');
   };
@@ -227,6 +237,16 @@ export default function App() {
     setAdminView('manageBiometric');
   };
 
+  const handleNavigateToCreateCustomGoalFromManageGoals = (userData: {
+    userId: string;
+    name: string;
+    role: string;
+    currentGoal: number | null;
+  }) => {
+    setSelectedCustomGoalUserData(userData);
+    setAdminView('createCustomGoal');
+  };
+
   const handleNavigateToCreateCustomGoal = (userData: {
     userId: string;
     name: string;
@@ -241,10 +261,36 @@ export default function App() {
     setAdminView('manageUserProfile');
   };
 
+  const handleBackToManageCustomGoals = () => {
+    setAdminView('manageCustomGoals');
+  };
+
+  const handleBackFromCustomGoal = () => {
+  };
+
   const handleUpdateUserGoal = (userId: string, goal: number) => {
     setUserGoals(prev => ({
       ...prev,
       [userId]: goal
+    }));
+    
+    // Update metadata when goal is created/updated
+    const now = new Date();
+    const dateTime = now.toLocaleString('en-AU', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+    
+    setGoalMetadata(prev => ({
+      ...prev,
+      [userId]: {
+        lastUpdated: dateTime,
+        setBy: "Admin User"
+      }
     }));
   };
 
@@ -426,13 +472,14 @@ export default function App() {
       )}
       {userRole === 'admin' && adminView === 'dashboard' && (
         <AdminDashboard 
-          onLogout={handleLogout} 
+          onLogout={handleLogout}
           onNavigateToManageUsers={handleNavigateToManageUsers}
           onNavigateToManageUserProfile={handleNavigateToManageUserProfile}
           onNavigateToBiometricProfile={handleNavigateToBiometricProfile}
           onNavigateToAttendanceRecords={handleNavigateToAdminAttendanceRecords}
-          onNavigateToReports={handleNavigateToAdminReports}
-        />
+          onNavigateToReports={handleNavigateToAdminReports} onNavigateToManageCustomGoals={function (): void {
+            throw new Error('Function not implemented.');
+          } }        />
       )}
       {userRole === 'admin' && adminView === 'manageUsers' && (
         <ManageUserAccounts 
@@ -462,10 +509,22 @@ export default function App() {
         <ManageUserProfile 
           onLogout={handleLogout} 
           onBack={handleBackToAdminDashboard}
-          onNavigateToCreateCustomGoal={handleNavigateToCreateCustomGoal}
+          onNavigateToCreateCustomGoal={handleNavigateToCreateCustomGoalFromManageGoals}
           onNavigateToUpdateUserProfile={handleNavigateToUpdateUserProfile}
           userGoals={userGoals}
           userProfiles={userProfiles}
+        />
+      )}
+      {userRole === 'admin' && adminView === 'manageCustomGoals' && (
+        <ManageCustomGoals 
+          onBack={handleBackToAdminDashboard}
+          onCreateGoal={handleUpdateUserGoal}
+          onUpdateGoal={handleUpdateUserGoal}
+          onDeleteGoal={handleDeleteUserGoal}
+          showToast={showToast}
+          userGoals={userGoals}
+          userProfiles={userProfiles}
+          goalMetadata={goalMetadata}
         />
       )}
       {userRole === 'admin' && adminView === 'updateUserProfile' && selectedBiometricUserData && (
@@ -482,10 +541,9 @@ export default function App() {
       {userRole === 'admin' && adminView === 'createCustomGoal' && selectedCustomGoalUserData && (
         <UpdateCustomGoal 
           onLogout={handleLogout} 
-          onBack={handleBackToManageUserProfile}
+          onBack={handleBackFromCustomGoal}
           userData={selectedCustomGoalUserData}
-          onUpdateGoal={handleUpdateUserGoal}
-          onDeleteGoal={handleDeleteUserGoal}
+          onCreateGoal={handleUpdateUserGoal}
           showToast={showToast}
         />
       )}

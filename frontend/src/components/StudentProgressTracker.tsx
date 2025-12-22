@@ -65,30 +65,9 @@ const allModules: ModuleProgress[] = [
     goal: 85,
     status: "On Track",
   },
-  {
-    moduleCode: "ISIT312",
-    moduleName: "Big Data Management",
-    progress: 88,
-    goal: 85,
-    status: "On Track",
-  },
-  {
-    moduleCode: "CSCI205",
-    moduleName: "Operating Systems",
-    progress: 75,
-    goal: 80,
-    status: "At Risk",
-  },
-  {
-    moduleCode: "CSCI311",
-    moduleName: "Mobile Computing",
-    progress: 90,
-    goal: 85,
-    status: "On Track",
-  },
 ];
 
-const MODULES_PER_PAGE = 4;
+const MODULES_PER_PAGE = 3;
 
 export function StudentProgressTracker({
   onLogout,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { SetStateAction, useState } from "react";
 import {
   Card,
   CardContent,
@@ -229,7 +229,7 @@ export function ManageUserProfile({
     if (userProfile) {
       // Get the actual goal value from userGoals state or parse from string
       let goalValue: number | null;
-      if (userGoals && userGoals[userId] !== undefined) {
+      if (userGoals[userId] !== undefined) {
         goalValue = userGoals[userId];
       } else if (currentGoal === "N/A" || currentGoal === "None") {
         goalValue = null;
@@ -345,7 +345,7 @@ export function ManageUserProfile({
               <div className="w-full md:w-48">
                 <Select
                   value={roleFilter}
-                  onValueChange={(value:string) => {
+                  onValueChange={(value: SetStateAction<string>) => {
                     setRoleFilter(value);
                     handleFilterChange();
                   }}
@@ -366,7 +366,7 @@ export function ManageUserProfile({
               <div className="w-full md:w-48">
                 <Select
                   value={statusFilter}
-                  onValueChange={(value:string) => {
+                  onValueChange={(value: SetStateAction<string>) => {
                     setStatusFilter(value);
                     handleFilterChange();
                   }}
@@ -403,17 +403,17 @@ export function ManageUserProfile({
                 {currentProfiles.length > 0 ? (
                   currentProfiles.map((profile) => {
                     // Get updated profile data from userProfiles state if available
-                    const updatedProfile = userProfiles && userProfiles[profile.userId];
-                    const displayName = updatedProfile?.name || profile.name;
-                    const displayRole = updatedProfile?.role || profile.role;
-                    const displayStatus = updatedProfile?.status || profile.status;
+                    const updatedProfile = userProfiles[profile.userId] || profile;
+                    const displayName = updatedProfile.name;
+                    const displayRole = updatedProfile.role;
+                    const displayStatus = updatedProfile.status;
                     
                     // Get the current goal from userGoals prop
                     // If userId exists in userGoals with a value, show that
                     // If userId exists in userGoals but is null, show "None" (deleted)
                     // Otherwise use hardcoded value
                     let currentGoal: string;
-                    if (userGoals && profile.userId in userGoals) {
+                    if (profile.userId in userGoals) {
                       const goalValue = userGoals[profile.userId];
                       currentGoal = goalValue !== null ? `${goalValue}%` : "None";
                     } else {
@@ -439,20 +439,6 @@ export function ManageUserProfile({
                       <TableCell className="align-middle">{currentGoal}</TableCell>
                       <TableCell className="text-right align-middle">
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              handleEditGoal(
-                                profile.userId,
-                                currentGoal
-                              )
-                            }
-                            disabled={displayRole !== "Student"}
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            Manage Goal
-                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"

@@ -19,6 +19,7 @@ import {
   ClipboardCheck,
   UserX,
   Fingerprint,
+  FileEdit,
 } from "lucide-react";
 import {
   Table,
@@ -59,6 +60,7 @@ interface AdminDashboardProps {
   onLogout: () => void;
   onNavigateToManageUsers: () => void;
   onNavigateToManageUserProfile: () => void;
+  onNavigateToManageCustomGoals: () => void;
   onNavigateToBiometricProfile: () => void;
   onNavigateToAttendanceRecords: () => void;
   onNavigateToReports: () => void;
@@ -105,6 +107,7 @@ export function AdminDashboard({
   onLogout,
   onNavigateToManageUsers,
   onNavigateToManageUserProfile,
+  onNavigateToManageCustomGoals,
   onNavigateToBiometricProfile,
   onNavigateToAttendanceRecords,
   onNavigateToReports,
@@ -395,6 +398,14 @@ export function AdminDashboard({
                 >
                   <Users className="h-4 w-4 mr-2" />
                   Manage User Profile
+                </Button>
+                <Button
+                  className="w-full justify-start h-18"
+                  variant="outline"
+                  onClick={onNavigateToManageCustomGoals}
+                >
+                  <FileEdit className="h-4 w-4 mr-2" />
+                  Manage Custom Goals
                 </Button>
                 <Button
                   className="w-full justify-start h-18"

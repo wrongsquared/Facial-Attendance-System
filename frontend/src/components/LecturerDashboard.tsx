@@ -15,7 +15,6 @@ import {
   BookOpen,
   ClipboardCheck,
   LogOut,
-  Plus,
   Bell,
 } from "lucide-react";
 import {
@@ -70,8 +69,8 @@ export function LecturerDashboard({
 }: LecturerDashboardProps) {
 
 
-  const [loading, setLoading] = useState(true);
-  const { token, user } = useAuth();
+  const [, setLoading] = useState(true);
+  const { token } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [totalModules, settotalModules] = useState(0);
   const [avgattM, setavgattM] = useState(0);

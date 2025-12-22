@@ -260,7 +260,7 @@ export function UpdateBiometricProfile({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex justify-between pt-6 border-t">
+            <div className="flex justify-center gap-4 pt-6 border-t">
               <Button variant="outline" onClick={onBack}>
                 Cancel
               </Button>
