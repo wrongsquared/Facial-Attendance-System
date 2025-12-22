@@ -16,6 +16,7 @@ import { ManageUserAccounts } from './components/ManageUserAccounts';
 import { ManageBiometricProfile } from './components/ManageBiometricProfile';
 import { ManageUserProfile } from './components/ManageUserProfile';
 import { ManageCustomGoals } from './components/ManageCustomGoals';
+import { CreateCustomGoal } from './components/CreateCustomGoal';
 import { AdminUpdateUserProfile } from './components/AdminUpdateUserProfile';
 import { CreateBiometricProfile } from './components/CreateBiometricProfile';
 import { UpdateBiometricProfile } from './components/UpdateBiometricProfile';
@@ -539,7 +540,7 @@ export default function App() {
         />
       )}
       {userRole === 'admin' && adminView === 'createCustomGoal' && selectedCustomGoalUserData && (
-        <UpdateCustomGoal 
+        <CreateCustomGoal
           onLogout={handleLogout} 
           onBack={handleBackFromCustomGoal}
           userData={selectedCustomGoalUserData}
