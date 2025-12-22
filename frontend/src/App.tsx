@@ -473,14 +473,14 @@ export default function App() {
       )}
       {userRole === 'admin' && adminView === 'dashboard' && (
         <AdminDashboard 
-          onLogout={handleLogout}
+          onLogout={handleLogout} 
           onNavigateToManageUsers={handleNavigateToManageUsers}
           onNavigateToManageUserProfile={handleNavigateToManageUserProfile}
+          onNavigateToManageCustomGoals={handleNavigateToManageCustomGoals}
           onNavigateToBiometricProfile={handleNavigateToBiometricProfile}
           onNavigateToAttendanceRecords={handleNavigateToAdminAttendanceRecords}
-          onNavigateToReports={handleNavigateToAdminReports} onNavigateToManageCustomGoals={function (): void {
-            throw new Error('Function not implemented.');
-          } }        />
+          onNavigateToReports={handleNavigateToAdminReports}
+        />
       )}
       {userRole === 'admin' && adminView === 'manageUsers' && (
         <ManageUserAccounts 
