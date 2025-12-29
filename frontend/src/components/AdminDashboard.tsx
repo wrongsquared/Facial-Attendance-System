@@ -181,14 +181,6 @@ export function AdminDashboard({
                 <ClipboardCheck className="h-4 w-4 text-orange-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl">
-                  {stats?.total_records ?? 0}
-                </div>
-                {/* The Green Trend Text */}
-                <p className="text-xs text-green-600 mb-3">
-                  {stats?.trend_records ?? "No data"}
-                </p>
-
                 {/* Navigation Buttons */}
                 <div className="flex flex-col gap-2">
                     <Button 
