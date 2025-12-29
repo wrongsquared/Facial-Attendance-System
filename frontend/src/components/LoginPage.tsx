@@ -25,7 +25,7 @@ interface LoginPageProps {
 export function LoginPage({ onLogin }: LoginPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [userType, setUserType] = useState<"student" | "lecturer" | "admin" >("student");
+  const [userType, setUserType] = useState<"student" | "lecturer" | "admin" | "platformManager" >("student");
   const [error, setError] = useState("");
 
   const handleLogin = () => {
@@ -80,7 +80,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             <Select
               value={userType}
               onValueChange={(
-                value: "student" | "lecturer" | "admin",
+                value: "student" | "lecturer" | "admin" | "platformManager",
               ) => setUserType(value)}
             >
               <SelectTrigger id="userType" className="h-12">
@@ -92,6 +92,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   Lecturer
                 </SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="platformManager">Platform Manager</SelectItem>
               </SelectContent>
             </Select>
           </div>

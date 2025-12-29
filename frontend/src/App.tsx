@@ -6,6 +6,10 @@ import { LoginPage } from './components/LoginPage';
 import { StudentDashboard } from './components/StudentDashboard';
 import { LecturerDashboard } from './components/LecturerDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
+import { PlatformManagerDashboard } from './components/PlatformManagerDashboard';
+import { ManageInstitutionsProfile } from './components/ManageInstitutionsProfile';
+import { ViewInstitutionProfile } from './components/ViewInstitutionProfile';
+import { UpdateInstitutionProfile } from './components/UpdateInstitutionProfile';
 import { AdminAttendanceRecords } from './components/AdminAttendanceRecords';
 import { AdminAttendanceReports } from './components/AdminAttendanceReports';
 import { AttendanceReports } from './components/AttendanceReports';
@@ -50,12 +54,18 @@ interface UserProfileData {
 type LecturerView = 'dashboard' | 'reports' | 'profile' | 'timetable' | 'records';
 type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'manageCustomGoals' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser';
 type StudentView = 'dashboard' | 'attendanceHistory' | 'timetable' | 'profile' | 'progress';
+type PlatformManagerView = 'dashboard' | 'manageInstitutions' | 'viewInstitution' | 'updateInstitution';
 
 export default function App() {
   const { user, login, logout, loading } = useAuth();
   const [lecturerView, setLecturerView] = useState<LecturerView>('dashboard');
   const [adminView, setAdminView] = useState<AdminView>('dashboard');
   const [studentView, setStudentView] = useState<StudentView>('dashboard');
+  const [platformManagerView, setPlatformManagerView] = useState<PlatformManagerView>('dashboard');
+  const [selectedInstitutionData, setSelectedInstitutionData] = useState<{
+    institutionId: string;
+    institutionName: string;
+  } | null>(null);
   const [selectedUserData, setSelectedUserData] = useState<{
     userId: string;
     name: string;
@@ -156,6 +166,7 @@ export default function App() {
     setLecturerView('dashboard');
     setAdminView('dashboard');
     setStudentView('dashboard');
+    setPlatformManagerView('dashboard');
   };
 
   const handleNavigateToReports = () => {
@@ -383,6 +394,58 @@ export default function App() {
     setStudentView('progress');
   };
 
+  const handleNavigateToInstitutionsProfile = () => {
+    setPlatformManagerView('manageInstitutions');
+  };
+
+  const handleBackToPlatformManagerDashboard = () => {
+    setPlatformManagerView('dashboard');
+  };
+
+  const handleNavigateToCreateProfile = () => {
+    console.log('Navigate to Create Profile');
+    // This can be expanded later when the page is created
+  };
+
+  const handleNavigateToViewInstitution = (institutionData: {
+    institutionId: string;
+    institutionName: string;
+  }) => {
+    setSelectedInstitutionData(institutionData);
+    setPlatformManagerView('viewInstitution');
+  };
+
+  const handleBackToManageInstitutions = () => {
+    setPlatformManagerView('manageInstitutions');
+  };
+
+  const handleNavigateToEditInstitution = () => {
+    setPlatformManagerView('updateInstitution');
+  };
+
+  const handleBackToViewInstitution = () => {
+    setPlatformManagerView('viewInstitution');
+  };
+
+  const handleUpdateInstitution = (updatedData: {
+    institutionId: string;
+    institutionName: string;
+    institutionType: string;
+    address: string;
+    status: "Active" | "Inactive";
+    adminFullName: string;
+    adminEmail: string;
+    adminPhone: string;
+  }) => {
+    // Update the selected institution data
+    setSelectedInstitutionData({
+      institutionId: updatedData.institutionId,
+      institutionName: updatedData.institutionName,
+    });
+    // In a real app, this would make an API call to update the backend
+    console.log("Institution updated in App.tsx:", updatedData);
+  };
+
   // Show login page if no user is logged in
   if (!user) {
     return (
@@ -593,6 +656,38 @@ export default function App() {
         <AdminAttendanceReports 
           onLogout={handleLogout} 
           onBack={handleBackToAdminDashboard}
+        />
+      )}
+      {userRole === 'platformManager' && platformManagerView === 'dashboard' && (
+        <PlatformManagerDashboard 
+          onLogout={handleLogout}
+          onNavigateToInstitutionsProfile={handleNavigateToInstitutionsProfile}
+        />
+      )}
+      {userRole === 'platformManager' && platformManagerView === 'manageInstitutions' && (
+        <ManageInstitutionsProfile 
+          onLogout={handleLogout}
+          onBack={handleBackToPlatformManagerDashboard}
+          onCreateProfile={handleNavigateToCreateProfile}
+          onViewProfile={handleNavigateToViewInstitution}
+          onUpdateInstitution={handleUpdateInstitution}
+        />
+      )}
+      {userRole === 'platformManager' && platformManagerView === 'viewInstitution' && selectedInstitutionData && (
+        <ViewInstitutionProfile 
+          onLogout={handleLogout}
+          onBack={handleBackToManageInstitutions}
+          onEditProfile={handleNavigateToEditInstitution}
+          institutionData={selectedInstitutionData}
+          onUpdateInstitution={handleUpdateInstitution}
+        />
+      )}
+      {userRole === 'platformManager' && platformManagerView === 'updateInstitution' && selectedInstitutionData && (
+        <UpdateInstitutionProfile 
+          onLogout={handleLogout}
+          onBack={handleBackToViewInstitution}
+          institutionData={selectedInstitutionData}
+          onUpdateInstitution={handleUpdateInstitution}
         />
       )}
       <Toast message={toastMessage} onClose={hideToast} />
