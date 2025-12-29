@@ -1,6 +1,7 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { AuthResponse, logoutUser } from "../services/api";
+import { AuthResponse } from "../types/auth";
+import { logoutUser } from "../services/api";
 
 interface AuthContextType {
   user: AuthResponse | null;
@@ -39,7 +40,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 
   const logout = async () => {
-    // 1. Try to notify the server (Fire and Forget)
     if (token) {
       try {
         await logoutUser(token); 
@@ -48,13 +48,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    // 2. NUCLEAR OPTION: Clear everything locally
+    // Clear everything locally
     setUser(null);
     setToken(null);
     localStorage.removeItem("user");
     localStorage.removeItem("token");
     
-    // Optional: Clear any other keys you might have set
+    // Clear any other keys 
     // localStorage.clear(); 
   };
 

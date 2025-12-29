@@ -1,19 +1,21 @@
-from typing import Union, List
-from fastapi import FastAPI, Depends, HTTPException, status, APIRouter
+
+from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy import func, distinct, case, literal, and_
 from fastapi.middleware.cors import CORSMiddleware 
-from pydantic import BaseModel
+
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session, joinedload
+from sqlalchemy.orm import Session, joinedload
 from database.db_config import get_db #Gets the Initialized db session
 from database.db import (UserProfile, #This was really long so I had to bracket it
                          User, 
                          Lecturer, 
                          Student,
-                         Admin)
+                         Admin,
+                         Campus,
+                         University)
 
 from uuid import UUID
-from pdantic.schemas import (UserSignUp, #This was really long so I had to bracket it
+from schemas import (UserSignUp, #This was really long so I had to bracket it
                              UserLogin, 
                              TokenResponse)
 from dependencies.deps import get_current_user_id
@@ -159,7 +161,7 @@ def delete_user(user_id: UUID, db: Session = Depends(get_db)):
 
     return None
 
- #Student Login
+ #Student Login 
 @app.post("/login", response_model = TokenResponse)
 def login(credentials:UserLogin, db:Session = Depends(get_db)):
     try:
@@ -171,7 +173,6 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
         })
         session = auth_response.session
         user = auth_response.user
-        
         if not session or not user:
              raise HTTPException(status_code=401, detail="Invalid credentials")
     except Exception as e:
@@ -183,27 +184,56 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
     user_uuid = user.id
     
     # Query the 'users' table to get the profileTypeID
-    db_user = db.query(User).filter(User.userID == user_uuid).first()
-    
-    if not db_user:
-        # This happens if they exist in Auth but were deleted from DB (Ghost User)
-        raise HTTPException(status_code=404, detail="User profile not found in database.")
+    result = (
+        db.query(User, UserProfile, Campus, University)
+        .join(UserProfile, User.profileTypeID == UserProfile.profileTypeID)
+        .join(Campus, UserProfile.campusID == Campus.campusID)
+        .join(University, Campus.universityID == University.universityID)
+        .filter(User.userID == user_uuid)
+        .first()
+    )
 
-    # Optional: Fetch the text name of the role (e.g., "Student")
-    # This requires a join or a separate query if lazy loading isn't set up
-    role_name = "Unknown"
-    profile_type = db.query(UserProfile).filter(UserProfile.profileTypeID == db_user.profileTypeID).first()
-    if profile_type:
-        role_name = profile_type.profileTypeName
+    if not result:
+        # This handles cases where the user exists in Auth but not DB, 
+        # OR if the data integrity is broken (e.g. User exists but has no linked Campus)
+        raise HTTPException(status_code=404, detail="User profile or campus data incomplete.")
 
+    # Unpack the results
+    db_user, db_profile, db_campus, db_uni = result
+    role_name = db_profile.profileTypeName 
+    studentNums = None
+    specialistIns = None
+    admin_role = None
+    if role_name == "Student":
+        student_row = db.query(Student).filter(Student.studentID == user_uuid).first()
+        if student_row: studentNums = student_row.studentNum
+
+    elif role_name == "Lecturer":
+        lecturer_row = db.query(Lecturer).filter(Lecturer.lecturerID == user_uuid).first()
+        if lecturer_row: specialistIns = lecturer_row.specialistIn
+    elif role_name == "Admin": 
+        # Query the Admin table
+        admin_row = db.query(Admin).filter(Admin.adminID == user_uuid).first()
+        if admin_row:
+            # Get the specific 'role' column (e.g., "System Administrator")
+            admin_role = admin_row.role 
     # Return the Bundle
+
     return {
         "access_token": session.access_token,
         "refresh_token": session.refresh_token,
         "token_type": "bearer",
         "user_id": user_uuid,
-        "role_id": db_user.profileTypeID,
-        "role_name": role_name
+        "role_id": db_profile.profileTypeID,
+        "role_name": db_profile.profileTypeName,
+        "name": db_user.name,
+        "campus_id": db_campus.campusID,
+        "campus_name": db_campus.campusName,
+        "university_name": db_uni.universityName,
+
+        "studentNum": studentNums,
+        "specialistIn": specialistIns,
+        "job": admin_role
     }
 
 @app.post("/logout", status_code=204)

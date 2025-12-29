@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import and_, func, case, desc
 from datetime import datetime, timedelta
 from database.db_config import get_db
 from dependencies.deps import get_current_user_id
-from pdantic.schemas import( StudentLessons, 
+from schemas import( StudentLessons, 
                             TodaysLessons, 
                             OverallLessonsResponse,
                             AttendancePerModule, 
@@ -21,7 +21,7 @@ def get_student_timetable(
     db: Session = Depends(get_db)
 ) -> list[StudentLessons]:
     
-    # 1. Perform the Join
+    # Perform the Join
     results = (
         db.query(
             Lesson,             # Index 0
@@ -38,20 +38,17 @@ def get_student_timetable(
     
     timetable_data = []
 
-    # FIX: Unpack the tuple here
+
     for lesson_obj, mod_code, mod_name in results:
         
         timetable_data.append(
             StudentLessons(
-                # Use lesson_obj (the object), not lesson (the tuple)
+                # Use lesson_obj (the object)
                 lessonID=lesson_obj.lessonID,
                 lessonType=lesson_obj.lessontype,
                 start_time=lesson_obj.startDateTime,
                 end_time=lesson_obj.endDateTime,
                 
-                # If your StudentLessons schema expects a subject name, 
-                # you can use mod_code and mod_name here:
-                # subject=f"{mod_code} - {mod_name}" 
             )
         )
         
@@ -62,11 +59,11 @@ def get_todays_lessons(
     user_id: str = Depends(get_current_user_id), 
     db: Session = Depends(get_db)
 ):
-    # 1. Calculate Today's Date range
+    # Calculate Today's Date range
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
 
-    # 2. Query
+
     results = (
         db.query(
             Lesson,
@@ -77,7 +74,6 @@ def get_todays_lessons(
         .join(Module, LecMod.moduleID == Module.moduleID)
         .join(StudentModules, Module.moduleID == StudentModules.modulesID)
         .filter(StudentModules.studentID == user_id)
-        # FILTER FOR TODAY ONLY
         .filter(Lesson.startDateTime >= today_start)
         .filter(Lesson.startDateTime <= today_end)
         .order_by(Lesson.startDateTime.asc())
@@ -87,16 +83,14 @@ def get_todays_lessons(
     output_list = []
     
     for lesson, mod_code, mod_name in results:
-        # Create the location string manually if you don't have a column for it
-        # Or fetch it from a joined Room table if you have one
         loc_string = f"Building {lesson.building}, Room {lesson.room}"
-        # Example: loc_string = f"Bldg {lesson.buildingID} - Rm {lesson.roomID}"
+
 
         output_list.append(TodaysLessons(
             lessonID=lesson.lessonID,
             ModuleCode=mod_code,
             ModuleName=mod_name,
-            lessonType = lesson.lessontype, # Make sure column name matches DB
+            lessonType = lesson.lessontype,
             start_time=lesson.startDateTime,
             end_time=lesson.endDateTime,
             location=loc_string
@@ -119,8 +113,7 @@ def get_total_lessons(
         db.query(func.count(AttdCheck.AttdCheckID))
         .filter(AttdCheck.studentID == user_id)
         .scalar()
-    ) or 0 # or 0 means reutrn 0
-    #Calculate percentage.
+    ) or 0 
     percentage = 0.0
     if total_count > 0:
         percentage = round((attended_count/total_count)* 100 , 1)
@@ -138,35 +131,29 @@ def get_stats_by_module(
       ...
     ]
     """
-    # 1. Query Data
     results = (
         db.query(
             Module.moduleCode,
             Module.moduleName,
-            # Count TOTAL lessons for this module (that are in the past)
             func.count(Lesson.lessonID).label("total_lessons"),
-            # Count ATTENDED lessons (where the student has a record in AttdCheck)
             func.count(AttdCheck.AttdCheckID).label("attended_lessons")
         )
         .select_from(StudentModules)
-        # Join Chain: StudentModule -> Module -> LecMod -> Lesson
         .join(Module, StudentModules.modulesID == Module.moduleID)
         .join(LecMod, Module.moduleID == LecMod.moduleID)
         .join(Lesson, LecMod.lecModID == Lesson.lecModID)
         
-        # Left Join Attendance: Check if THIS student attended THIS lesson
         .outerjoin(AttdCheck, (AttdCheck.lessonID == Lesson.lessonID) & (AttdCheck.studentID == user_id))
         
-        # FILTERS
         .filter(StudentModules.studentID == user_id)
-        .filter(Lesson.endDateTime < datetime.now()) #  Only count past lessons
+        .filter(Lesson.endDateTime < datetime.now()) 
         
-        # Group by Module so we get one row per subject
+
         .group_by(Module.moduleCode, Module.moduleName)
         .all()
     )
 
-    # 2. Process logic (Calculate Percentage)
+
     output = []
     for code, name, total, attended in results:
         pct = 0
@@ -174,7 +161,7 @@ def get_stats_by_module(
             pct = round((attended / total) * 100)
             
         output.append({
-            "subject": f"{code} - {name}", # Combine Code + Name
+            "subject": f"{code} - {name}",
             "attended": attended,
             "total": total,
             "percentage": pct
@@ -199,22 +186,18 @@ def get_recent_attendance_history(
             Module.moduleName,
             AttdCheck.AttdCheckID # If this is not None, they were present
         )
-        # CRITICAL: Start from the Student's enrollment
         .select_from(StudentModules)
         
-        # Join Chain: Student -> Module -> Class -> Lesson
         .join(Module, StudentModules.modulesID == Module.moduleID)
         .join(LecMod, Module.moduleID == LecMod.moduleID)
         .join(Lesson, LecMod.lecModID == Lesson.lecModID)
         
-        # Left Join Attendance to see if they were there
         .outerjoin(AttdCheck, (AttdCheck.lessonID == Lesson.lessonID) & (AttdCheck.studentID == user_id))
         
-        # Filters
+
         .filter(StudentModules.studentID == user_id)
         .filter(Lesson.endDateTime < datetime.now()) # Only PAST lessons
         
-        # Order: Newest first
         .order_by(desc(Lesson.startDateTime))
         .limit(limit)
         .all()
@@ -245,7 +228,7 @@ def get_weekly_timetable(
     Fetches lessons for the NEXT 7 DAYS only.
     Includes status (upcoming/present/absent).
     """
-    # 1. Define the Window (Today -> Next 7 Days)
+    # Define the Window (Today -> Next 7 Days)
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     next_week = today + timedelta(days=7)
 
@@ -256,22 +239,21 @@ def get_weekly_timetable(
             Module.moduleName,
             AttdCheck.AttdCheckID
         )
-        # 2. Establish Base: Student's Enrolled Modules
+        # Establish Base: Student's Enrolled Modules
         .select_from(StudentModules)
         .join(Module, StudentModules.modulesID == Module.moduleID)
         .join(LecMod, Module.moduleID == LecMod.moduleID)
         .join(Lesson, LecMod.lecModID == Lesson.lecModID)
         
-        # 3. CRITICAL: Outer Join Attendance
-        # We want to see the lesson even if the student hasn't attended yet
+
         .outerjoin(AttdCheck, (AttdCheck.lessonID == Lesson.lessonID) & (AttdCheck.studentID == user_id))
         
-        # 4. Filters
+
         .filter(StudentModules.studentID == user_id)
         .filter(Lesson.startDateTime >= today)     # Starts Today or later
         .filter(Lesson.startDateTime < next_week)  # Ends within 7 days
         
-        # 5. Sort by Date (Earliest first)
+        # Sort by Date (Earliest first)
         .order_by(Lesson.startDateTime.asc())
         .all()
     )
@@ -290,7 +272,7 @@ def get_weekly_timetable(
             "lesson_type": lesson.lessontype,
             "start_time": lesson.startDateTime,
             "end_time": lesson.endDateTime,
-            "location": loc_string, # Replace with lesson.location if you have it
+            "location": loc_string, 
         })
 
     return output

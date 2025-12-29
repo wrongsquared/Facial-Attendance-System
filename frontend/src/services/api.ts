@@ -1,22 +1,15 @@
 
+import { LoginCredentials, AuthResponse } from "../types/auth";
+import { lessonInfo, TodaysLessons, AttendanceRecord, WeeklyLesson } from "../types/studentdash";
+import { ClassesToday, CourseOverview, timetableEntry } from "../types/lecturerdash";
+import { AdminStats, CourseAttention, UserManagementItem } from "../types/admindash";
+
 
 const API_URL = "http://127.0.0.1:8000"; // The FASTAPI URL
 
-export interface LoginCredentials {
-  email: string;
-  password: string;
-}
 
-export interface AuthResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-  user_id: string;
-  role_id: number;
-  role_name: string;
-}
 
-// 3. The Login Function
+// The Login Function
 export const loginUser = async (creds: LoginCredentials): Promise<AuthResponse> => {
   const response = await fetch(`${API_URL}/login`, {
     method: "POST",
@@ -67,73 +60,36 @@ export const getStudentProfile = async (token: string) =>{
   return await fetchProtected('/student/my-profile', token);
 }
 
-export interface lessonInfo {
-    lessonID: number;
-    lessonType: string;
-    start_time: string; 
-    end_time: string;
-    location: string;
-}
+
 
 export const getStudentTimetable = async (token: string) => {
     return await fetchProtected("/student/timetable", token);
 };
 
-export interface OverallLessonsStat {
-  total_lessons: number;
-  attended_lessons: number;
-  percentage: number;
-}
+
 
 export const getOverallLessons = async (token: string) => {
   return await fetchProtected("/student/overrall", token);
 };
 
-export interface TodaysLessons{
-    lessonID: number;
-    ModuleCode: string;
-    ModuleName: string;
-    lessonType: string;
-    start_time: Date;
-    end_time: Date;
-    location: string;
-    }
+
 
 export const getTodaysLessons = async( token:string) => {
   return await fetchProtected("/student/todayslesson", token);
 }
 
-export interface ModuleStat {
-  subject: string;
-  attended: number;
-  total: number;
-  percentage: number;
-}
+
 
 export const getStatsByModule = async (token: string) => {
   return await fetchProtected("/student/stats/by-module", token);
 };
 
-export interface AttendanceRecord {
-  lessonID: number;
-  subject: string;
-  date: string; // ISO String from backend
-  status: "present" | "absent";
-}
+
 
 export const getRecentHistory = async (token: string) => {
   return await fetchProtected("/student/history/recent", token);
 };
 
-export interface WeeklyLesson {
-  lessonID: number;
-  module_code: string;
-  module_name: string;
-  lesson_type: string;
-  start_time: string; // ISO String from backend
-  end_time: string;   // ISO String from backend
-  location: string; 
-}
 
 export const getWeeklyTimetable = async (token: string) => {
   return await fetchProtected("/student/timetable/weekly", token);
@@ -146,78 +102,42 @@ export const getLecturerProfile = async (token: string) =>{
   return await fetchProtected('/lecturer/my-profile', token);
 }
 
-export interface totalModuleTaught {
-  total_modules: number;
-}
+
 
 export const getLecturerModulesCount = async(token: string) =>{
   return await fetchProtected("/lecturer/dashboard/summary", token);
 }
 
-export interface timetableEntry {
-    module_code: string;
-    day_of_week: string;
-    start_time: string;
-    end_time: string;
-    location: string;
-}
+
 
 export const getLecturertimetable = async(token: string) =>{
   return await fetchProtected("/lecturer/dashboard/timetable", token);
 }
 
-export interface avgatt {
-  Average_attendance: number; //Float is still number in typescript
-}
+
 
 export const getavgatt = async(token:string) =>{
   return await fetchProtected("/lecturer/dashboard/average-attendance", token);
 }
 
 
-export interface ClassesToday{
-    module_code: string;
-    module_name: string;
-    time_range: string;
-    location: string;
-    status: 'Completed'| 'Pending'| 'Live';
-    present_count: number;
-    total_enrolled: number;
-    attendance_display: string;
-}
 
 
 export const getClassesToday = async(token:string) =>{
   return await fetchProtected("/lecturer/dashboard/classes-today",token);
 }
 
-export interface CourseOverview{
-   module_code: string;
-   module_name: string;
-   overall_attendance_rate: number;
-   students_enrolled: number;
-}
 
 export const getCourseOverview = async(token:string) =>{
   return await fetchProtected("/lecturer/dashboard/my-courses-overview",token);
 }
 
-export interface recentSessionsrecord{
-  Recent_sessions_record: number
-}
+
 
 export const getrecentSessionsrecord = async(token:string) =>{
   return await fetchProtected("/lecturer/dashboard/recent-sessions-card",token);
 }
 
-export interface recentSessionsLog{
-  subject: string;
-  date: string;    
-  time: string;         
-  attended: number;     
-  total:number;        
-  percentage: number;   
-}
 
     
 export const getrecentSessionslog = async(token:string) =>{
@@ -231,41 +151,18 @@ export const getAdminProfile = async (token: string) =>{
   return await fetchProtected('/admin/my-profile', token);
 }
 
-export interface AdminStats {
-  overall_attendance_rate: number;
-  monthly_absences: number;
-  total_active_users: number;
-  total_records: number;
-  trend_attendance: string;
-  trend_absences: string;
-  trend_users: string;
-  trend_records: string;
-}
 
 export const getAdminStats = async (token: string) => {
   return await fetchProtected("/admin/stats", token);
 };
 
-export interface CourseAttention {
-  module_code: string;
-  module_name: string;
-  lecturer_name: string;
-  student_count: number;
-  attendance_rate: number;
-}
+
 
 export const getCoursesRequiringAttention = async (token: string) => {
   return await fetchProtected("/admin/courses/attention", token);
 };
 
-export interface UserManagementItem {
-  user_id: string;
-  name: string;
-  email: string;
-  role: string;
-  status: "active" | "pending" | "inactive";
-  joined_date: string;
-}
+
 
 export const getRecentUsers = async (token: string) => {
   return await fetchProtected("/admin/users/recent", token);

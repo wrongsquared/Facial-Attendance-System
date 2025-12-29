@@ -1,0 +1,31 @@
+# Import everything from the sub-files
+from .auth import UserLogin, TokenResponse, UserSignUp
+from .student import (StudentLessons, 
+                      WeeklyLesson, 
+                      TodaysLessons, 
+                      OverallLessonsResponse, 
+                      EmergencyContactSchema, 
+                      AttendancePerModule,
+                      PreviousAttendances,
+                      WeeklyLesson,
+                      )
+from .lecturer import( timetableEntry, 
+                        AttendanceOverviewCard, 
+                        RecentSessionsCardData, 
+                        RecentSessionRecord, 
+                        courseoverviewcard, 
+                        ClassToday,
+                        Literal,
+                        viewUserProfile,
+                        UserProfileUpdate,
+                        ReportCriteria,
+                        AttendanceLogEntry,
+                        DetailedAttendanceRecord,
+                        DailyTimetable,
+                        Weeklytimetable,
+                        MonthlyTimetable,
+                        AttendanceDetailRow,
+                        OverallClassAttendanceDetails)
+from .admin import (AdminDashboardStats, 
+                    CourseAttentionItem, 
+                    UserManagementItem)

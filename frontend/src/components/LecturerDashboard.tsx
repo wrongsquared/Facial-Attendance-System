@@ -37,19 +37,17 @@ import {
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
 import { useAuth } from "../cont/AuthContext"; 
+import { timetableEntry, ClassesToday, CourseOverview, recentSessionsLog } from "../types/lecturerdash";
 import { 
   getLecturerProfile,
   getLecturerModulesCount,
   getLecturertimetable,
-  timetableEntry,
   getavgatt,
   getClassesToday,
-  ClassesToday,
-  CourseOverview,
   getCourseOverview,
   getrecentSessionsrecord,
-  recentSessionsLog,
   getrecentSessionslog} from "../services/api";
+import { Navbar } from "./Navbar";
 
 interface LecturerDashboardProps {
   onLogout: () => void;
@@ -147,63 +145,7 @@ export function LecturerDashboard({
   const dayOrder = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">
-                Lecturer Portal
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <div
-              className="flex items-center gap-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
-              onClick={onNavigateToProfile}
-            >
-              <Avatar>
-                <AvatarFallback>DR</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>{profile?.name ?? "Undefined Name"}</p>
-                <p className="text-sm text-gray-600">
-                  {profile?.specialistIn ?? "------"}
-                </p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
+      <Navbar title="Lecturer Portal" />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">

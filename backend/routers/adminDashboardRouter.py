@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 from database.db_config import get_db
-from pdantic.schemas import AdminDashboardStats, CourseAttentionItem, UserManagementItem
+from schemas import AdminDashboardStats, CourseAttentionItem, UserManagementItem
 from dependencies.deps import get_current_user_id
 from database.db import Lesson, AttdCheck, User, Student, StudentModules, Module, LecMod, Lecturer, UserProfile
 from datetime import datetime, timedelta
@@ -23,9 +23,6 @@ def get_admin_dashboard_stats(db: Session = Depends(get_db)):
 
     # Overall Attendance Rate
     # (Total Attended / Total Expected Lessons * Students)
-    # This is a complex query, for MVP let's estimate using just recorded checks
-    # vs total possible lesson slots. 
-    # For now, let's just return a placeholder or simple math:
     total_possible_slots = (
         db.query(func.count(StudentModules.studentID))
         .join(Module, StudentModules.modulesID == Module.moduleID)
@@ -35,8 +32,7 @@ def get_admin_dashboard_stats(db: Session = Depends(get_db)):
         .scalar()
     ) or 0
 
-    # B. Count Actual Presents (All time)
-    # (We already have this in total_records, assuming AttdCheck means 'Present')
+    # Count Actual Presents (All time)
     
     attendance_rate = 0.0
     if total_possible_slots > 0:
@@ -168,12 +164,9 @@ def get_recent_users(
         
         # Logic to determine status 
         status = "active" 
-        # Example logic: if user.email_confirmed is False, status = "pending"
-        
-        # Logic for Joined Date
-        # If no created_at column, use a placeholder or today
+
         joined = datetime.now().strftime("%d %b %Y") 
-        # if user.created_at: joined = user.created_at.strftime("%d %b %Y")
+
 
         output.append({
             "user_id": str(user.userID),

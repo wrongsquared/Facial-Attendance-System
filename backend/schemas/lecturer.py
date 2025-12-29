@@ -1,76 +1,25 @@
 from pydantic import BaseModel, EmailStr
-from database.db import Lesson, Courses, Module
-from typing import Literal,List, Optional
-from datetime import date, datetime, time
-# User Login
-class UserSignUp(BaseModel):
-    email: EmailStr
-    password: str
-    name: str
-    role: str
-    profile_type_id: int
-    pass
+from typing import Literal, List
+from datetime import date
 
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str
-    user_id: str
-    role_id: int   # e.g., 1 for Student, 2 for Lecturer
-    role_name: str
-
-#Lecturer Dashboard Start
-class LecturerDashboardSummary(BaseModel):
-    """High-level summary for the lecturer's main dashboard view."""
-    total_modules: int
-    total_students: int
-    overall_attendance_rate: float # 0.0 to 100.0
-    students_at_risk_count: int
-
-class StudentLessons(BaseModel):
-    lessonID: int
-    lessonType: str        
-    start_time: datetime
-    end_time: datetime
-    
-    class Config:
-        from_attributes = True
-
-class RecentSessionsCardData(BaseModel):
-    Recent_sessions_record: int    # The big number (e.g., 4)
-
-
-
-class AttendanceOverviewCard(BaseModel):
-    Average_attendance: float  # The percentage (e.g., 92.5)
-
-   
 class timetableEntry(BaseModel):
     module_code: str
     day_of_week: str
     start_time: str  # "14:00"
     end_time: str    # "15:30"
     location: str
-   
-class TodaysLessons(BaseModel):
-    lessonID:int
-    ModuleCode: str
-    ModuleName: str
-    lessonType: str
-    start_time: datetime
-    end_time: datetime
-    location: str #Building + Room stringed
+
+class RecentSessionRecord(BaseModel):
+    subject: str        
+    date: str           
+    time: str           
+    attended: int       # count of check-ins
+    total: int          # count of enrolled students
+    percentage: float   
+    
     class Config:
         from_attributes = True
 
-class OverallLessonsResponse(BaseModel):
-    total_lessons: int
-    attended_lessons:int
-    percentage: float
 
 class courseoverviewcard(BaseModel):
    module_code: str
@@ -97,24 +46,13 @@ class ClassToday(BaseModel):
     class Config:
         from_attributes = True
 
-class RecentSessionRecord(BaseModel):
-    subject: str        # e.g., "CSCI334 - Database Systems"
-    date: str           # e.g., "28 Oct 2025"
-    time: str           # e.g., "9:00 AM" (Start Time)
-    attended: int       # e.g., 42 (Count of check-ins)
-    total: int          # e.g., 45 (Count of enrolled students)
-    percentage: float   # e.g., 93.0
-    
-    class Config:
-        from_attributes = True
+class LecturerDashboardSummary(BaseModel):
+    """High-level summary for the lecturer's main dashboard view."""
+    total_modules: int
+    total_students: int
+    overall_attendance_rate: float # 0.0 to 100.0
+    students_at_risk_count: int
 
-class EmergencyContactSchema(BaseModel):
-    contactName: str
-    relationship_type: str
-    contactNumber: str
-    
-    class Config:
-        from_attributes = True
 class viewUserProfile(BaseModel):
     name: str
     email: EmailStr
@@ -149,38 +87,14 @@ class ReportCriteria(BaseModel):
     module_code: str 
     attendance_status: Literal['All', 'Present', 'Absent']
 
-class AttendancePerModule(BaseModel):
-    subject: str
-    attended: int
-    total: int
-    percentage: int
-
-class PreviousAttendances(BaseModel):
-    lessonID: int
-    subject: str
-    date: datetime
-    status: str 
-    class Config:
-        from_attributes = True
-
-class WeeklyLesson(BaseModel):
-    lessonID: int
-    module_code: str
-    module_name: str
-    lesson_type: str 
-    start_time: datetime
-    end_time: datetime
-    location: str
-    class Config:
-        from_attributes = True
 
 class AttendanceLogEntry(BaseModel):
-    user_id: str               # Corresponds to Student.studentNum
-    student_name: str          # Corresponds to Student.name
-    module_code: str           # Corresponds to Module.moduleCode
-    status: Literal['Present', 'Absent', 'Late'] # The calculated status
-    date: str                  # The formatted date of the lesson
-    lesson_id: int             # The ID of the specific Lesson
+    user_id: str               
+    student_name: str          
+    module_code: str           
+    status: Literal['Present', 'Absent', 'Late'] 
+    date: str                 
+    lesson_id: int             
     
     class Config:
         from_attributes = True
@@ -263,34 +177,9 @@ class OverallClassAttendanceDetails(BaseModel):
     
     class Config:
         from_attributes = True
-#Lecturer Dashboard end
 
-#Admin Dashboard Start
-class AdminDashboardStats(BaseModel):
-    overall_attendance_rate: float
-    monthly_absences: int
-    total_active_users: int
-    total_records: int
-    # Optional trends (You can calculate these or hardcode "0" for MVP)
-    trend_attendance: str 
-    trend_absences: str
-    trend_users: str
-    trend_records: "str"
+class RecentSessionsCardData(BaseModel):
+    Recent_sessions_record: int    
 
-class CourseAttentionItem(BaseModel):
-    module_code: str
-    module_name: str
-    lecturer_name: str
-    student_count: int
-    attendance_rate: int
-
-class UserManagementItem(BaseModel):
-    user_id: str # UUID
-    name: str
-    email: str
-    role: str    # "Student", "Lecturer"
-    status: str  # "active", "pending"
-    joined_date: str # Formatted date string or datetime
-
-    class Config:
-        from_attributes = True
+class AttendanceOverviewCard(BaseModel):
+    Average_attendance: float  

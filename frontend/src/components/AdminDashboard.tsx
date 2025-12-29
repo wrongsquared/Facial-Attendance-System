@@ -48,13 +48,12 @@ import {
 } from "./ui/alert-dialog";
 import { useAuth } from "../cont/AuthContext"; 
 import { useEffect, useState } from "react";
+import { AdminStats, CourseAttention, UserManagementItem } from "../types/admindash";
 import { getAdminProfile, 
         getAdminStats,
-        AdminStats,
-      CourseAttention,
       getCoursesRequiringAttention,
-      getRecentUsers, 
-      UserManagementItem} from "../services/api";
+      getRecentUsers } from "../services/api";
+import { Navbar } from "./Navbar";
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -65,42 +64,6 @@ interface AdminDashboardProps {
   onNavigateToAttendanceRecords: () => void;
   onNavigateToReports: () => void;
 }
-
-
-const recentUsers = [
-  {
-    id: 1,
-    name: "Emma Thompson",
-    email: "emma.thompson@uow.edu.au",
-    role: "Student",
-    status: "active",
-    joined: "28 Oct 2025",
-  },
-  {
-    id: 2,
-    name: "Michael Chen",
-    email: "michael.chen@uow.edu.au",
-    role: "Lecturer",
-    status: "active",
-    joined: "27 Oct 2025",
-  },
-  {
-    id: 3,
-    name: "Sarah Johnson",
-    email: "sarah.johnson@uow.edu.au",
-    role: "Student",
-    status: "active",
-    joined: "26 Oct 2025",
-  },
-  {
-    id: 4,
-    name: "David Park",
-    email: "david.park@uow.edu.au",
-    role: "Student",
-    status: "pending",
-    joined: "26 Oct 2025",
-  },
-];
 
 
 export function AdminDashboard({
@@ -155,62 +118,7 @@ export function AdminDashboard({
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">
-                Admin Portal
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback>AM</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>{profile?.name ?? "Undefined Name"}</p>
-                <p className="text-sm text-gray-600">
-                  {profile?.role ?? "Undefined"}
-                </p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
+      <Navbar title="Admin Portal" />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">

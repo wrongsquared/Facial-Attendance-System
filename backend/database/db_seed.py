@@ -7,13 +7,15 @@ from faker import Faker
 from sqlalchemy.orm import Session
 from db_config import SessionLocal, DATABASE_URL
 from db_clear import clear_db
-from db import Courses, UserProfile, Admin, Lecturer, Student, EntLeave, AttdCheck, Module, Lesson, LecMod, StudentModules, Courses
+from db import University, PlatformMgr, Campus, User, Courses, UserProfile, Admin, Lecturer, Student, EntLeave, AttdCheck, Module, Lesson, LecMod, StudentModules, Courses
 from datetime import timedelta
 from collections import defaultdict
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
+import traceback
 load_dotenv()
+
 
 
 def createAccountgetuuid(email: str , password: str, email_confirmed: bool):
@@ -31,43 +33,122 @@ def createAccountgetuuid(email: str , password: str, email_confirmed: bool):
 
     return user_uuid
 
-def seedCoursesOSS(dbSessionLocalInstance: Session, spbase: Client): #done
+def uniCampusSeed(dbSessionLocalInstance:Session, spbase: Client):
+    print(f"Seeding Unis: \n")
+    twoUnis = [{"name":"University of Wollongong", "address":"123 Happy Street",
+                "campuses":[{"name":"UOW Wollongong", "address":"123 Happy Street"}, {"name":"UOW Neverland", "address":"456 Rogers Road"}]},
+               {"name":"University of Neverland", "address":"123 Joyful Avenue",
+                "campuses":[{"name":"UON Neverland", "address":"123 Joyful Avenue"}, {"name":"UON Canberra", "address":"146 Funland Road"}]}]
+
+    for uni in twoUnis:
+        newuni = University(universityName = uni["name"], universityAddress = uni["address"])
+        dbSessionLocalInstance.add(newuni)
+
+        for campus in uni["campuses"]:
+            dbSessionLocalInstance.add(Campus(campusName = campus["name"], campusAddress = campus["address"], university = newuni))
+    
+    dbSessionLocalInstance.commit()
+    return None
+
+def seedCoursesOSS(dbSessionLocalInstance: Session, spbase: Client): 
     #No Primary Keys
     print(f"Seeding Courses: \n")
+    campuses = dbSessionLocalInstance.query(Campus).all()
+
     courseCodeHeader = ['ISIT', 'CSIT']
     i= 0
     loc = []
-    while i != 10:
+    while i < 10:
         head = random.choice(courseCodeHeader)
-        tail = random.randint(1,999)
-        tail = str(tail)
-        if len(tail) <3:
-            ohs = 3 - len(tail)
-            ohs = "0" * ohs
-            tail = tail+ohs
+        tail = str(random.randint(1, 999)).zfill(3) 
         # Generate a Random List of Courses.
         randomCourse = head + tail
+        campus = random.choice(campuses)
         if randomCourse in loc:
             continue
         else:
-            dbSessionLocalInstance.add(Courses(courseCode = randomCourse))
+            dbSessionLocalInstance.add(Courses(courseCode = randomCourse, campus = campus))
             loc.append(randomCourse)
             i+=1
 
     dbSessionLocalInstance.commit()
     return None
 
-def userProfileSeeder(dbSessionLocalInstance: Session, spbase: Client): #done
-    #No Primary Keys
+def userProfileSeeder(dbSessionLocalInstance: Session, spbase: Client): 
     print(f"Seeding User Profiles: \n")
-    #User Profile Types - Are Fixed
-    profileTypeList = ['Admin', 'Student', 'Lecturer']
-    for i in profileTypeList:
-        dbSessionLocalInstance.add(UserProfile(profileTypeName = i))
+    campuses = dbSessionLocalInstance.query(Campus).all()
+    profileTypeList = ['PManager', 'Admin', 'Student', 'Lecturer']
+    for campus in campuses:
+        print(f"  - Creating profiles for {campus.campusName}...")
+        
+        for role_name in profileTypeList:
+            # Check if it already exists to prevent duplicates
+            exists = dbSessionLocalInstance.query(UserProfile).filter_by(
+                profileTypeName=role_name, 
+                campusID=campus.campusID
+            ).first()
+            
+            if not exists:
+                new_profile = UserProfile(
+                    profileTypeName=role_name,
+                    campus=campus
+                )
+                dbSessionLocalInstance.add(new_profile)
     dbSessionLocalInstance.commit()
     return None
 
-def studentSeed(dbSessionLocalInstance: Session, spbase: Client): #done
+def platSeed(dbSessionLocalInstance: Session, spbase: Client):
+    uni = dbSessionLocalInstance.query(University).all()
+    for u in uni:
+        # grab the first campus found for a university.
+        target_campus = dbSessionLocalInstance.query(Campus).filter_by(universityID=u.universityID).first()
+
+        pm_profile = dbSessionLocalInstance.query(UserProfile).filter_by(profileTypeName="PManager",
+                                                                        campusID=target_campus.campusID).first()
+        if not pm_profile:
+            pm_profile = UserProfile(
+                profileTypeName="PManager",
+                campusID=target_campus.campusID
+            )
+            dbSessionLocalInstance.add(pm_profile)
+            dbSessionLocalInstance.commit() 
+        safe_name = u.universityName.replace(" ", "").lower()
+        email = f"manager@{safe_name}.edu"
+        password = "password123"
+        name = f"Manager of {u.universityName}"
+
+        if dbSessionLocalInstance.query(User).filter_by(email=email).first():
+            print(f"  - Manager for {u.universityName} already exists.")
+            continue
+        try:
+            # Assuming you have a helper or use the raw client
+            auth_user = spbase.auth.admin.create_user({
+                "email": email,
+                "password": password,
+                "email_confirm": True
+            })
+            user_uuid = uuid.UUID(auth_user.user.id)
+        except Exception as e:
+            print(f"  - Error creating Auth user for {email}: {e}")
+            # Optional: Try to fetch existing UID if create failed
+            continue
+
+        # Create the PManager
+        new_manager = PlatformMgr(
+            userID=user_uuid,
+            profileTypeID=pm_profile.profileTypeID, 
+            role = "Platform Manager",
+            email=email,
+            name=name,
+            photo = None
+        )
+        
+        dbSessionLocalInstance.add(new_manager)
+    
+    dbSessionLocalInstance.commit()
+    return None
+
+def studentSeed(dbSessionLocalInstance: Session, spbase: Client): 
     print(f"Seeding Students: \n")
     studentProfile = dbSessionLocalInstance.query(UserProfile).filter_by(profileTypeName='Student').first()
     specialNames = []
@@ -122,6 +203,9 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client): #done
             else:
                 studNums.append(studNumGenstr)
                 break
+        if not user_uuid:
+            print(f"❌ Skipping {name} ({email}): Auth creation failed (User might exist or error).")
+            continue # Skip to next loop iteration, DO NOT try to insert into DB
         dbSessionLocalInstance.add(Student(
                                         userID = user_uuid,
                                         profileType = studentProfile,
@@ -137,7 +221,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client): #done
 
     return None
 
-def adminSeed(dbSessionLocalInstance: Session, spbase: Client): # done
+def adminSeed(dbSessionLocalInstance: Session, spbase: Client): 
     #No Primary Keys
     print(f"Seeding Admins: \n")
     AdminProfile = dbSessionLocalInstance.query(UserProfile).filter_by(profileTypeName='Admin').first()
@@ -192,7 +276,7 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client): # done
 
     return None
 
-def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client): # done
+def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client): 
     #No Primary Keys
     print(f"Seeding Lecturers: \n")
     LecturerProfile = dbSessionLocalInstance.query(UserProfile).filter_by(profileTypeName='Lecturer').first()
@@ -246,7 +330,7 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client): # done
 
     return None
 
-def modulesSeed(dbSessionLocalInstance: Session, spbase: Client): # done
+def modulesSeed(dbSessionLocalInstance: Session, spbase: Client):
     #No Primary Keys
     print(f"Seeding Modules: \n")
     modNames = ["Big Data Management", "Web Development", "Advanced Programming"]
@@ -257,7 +341,7 @@ def modulesSeed(dbSessionLocalInstance: Session, spbase: Client): # done
                                             moduleCode = modCodes[i]))
     return None
 
-def lecModSeed(dbSessionLocalInstance: Session, spbase: Client): #done
+def lecModSeed(dbSessionLocalInstance: Session, spbase: Client): 
     #No Primary Keys
     print(f"Seeding LecMods: \n")
     lecturerobjs = dbSessionLocalInstance.query(Lecturer).all()
@@ -272,7 +356,7 @@ def lecModSeed(dbSessionLocalInstance: Session, spbase: Client): #done
     dbSessionLocalInstance.commit()
     return None
 
-def studentModulesSeed(dbSessionLocalInstance: Session, spbase: Client): #done
+def studentModulesSeed(dbSessionLocalInstance: Session, spbase: Client): 
     #No Primary Keys
     print(f"Seeding studentModules: \n")
     studentobjs = dbSessionLocalInstance.query(Student).all()
@@ -287,7 +371,7 @@ def studentModulesSeed(dbSessionLocalInstance: Session, spbase: Client): #done
     dbSessionLocalInstance.commit()
     return None
 
-def lessonsSeed(dbSessionLocalInstance: Session, spbase: Client): #done
+def lessonsSeed(dbSessionLocalInstance: Session, spbase: Client): 
     #No Primary Keys
     lecModobjs = dbSessionLocalInstance.query(LecMod).all()
     fake = Faker()
@@ -313,7 +397,7 @@ def lessonsSeed(dbSessionLocalInstance: Session, spbase: Client): #done
     dbSessionLocalInstance.commit()
     return None
 
-def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client): #done
+def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client): 
     #No Primary Keys
     print(f"Seeding EntLeave: \n")
     lessonobjs = dbSessionLocalInstance.query(Lesson).all()
@@ -361,7 +445,7 @@ def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
         lesson_durations[lesson.lessonID] = duration
         lesson_module_map[lesson.lessonID] = module_id
 
-    # 2. Get all Valid Enrollments (Student -> Module)
+    # Get all Valid Enrollments (Student -> Module)
     # We store this in a Set for O(1) fast lookups
     # Format: Set of (studentID, moduleID) tuples
     valid_enrollments = set()
@@ -369,7 +453,7 @@ def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
     for enroll in enrollment_objs:
         valid_enrollments.add((enroll.studentID, enroll.modulesID))
 
-    # 3. Calculate time spent based on Ent/Leave logs
+    # Calculate time spent based on Ent/Leave logs
     EntLeaveobjs = dbSessionLocalInstance.query(EntLeave).all()
     attendance_map = defaultdict(lambda: timedelta(0))
     
@@ -378,7 +462,7 @@ def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
         duration = entL.leave - entL.enter
         attendance_map[key] += duration
 
-    # 4. Generate Checks
+    # Generate Checks
     new_checks = []
     
     # Iterating through (Student, Lesson) pairs
@@ -389,18 +473,17 @@ def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
         if not lesson_length:
             continue
 
-        # C. NEW: Check if Student is actually enrolled in this lesson's module, if not skip
+        # NEW: Check if Student is actually enrolled in this lesson's module, if not skip
         module_id = lesson_module_map.get(lesson_id)
         if (student_id, module_id) not in valid_enrollments:
-            print(f"Skipping: Student {student_id} was present but is not enrolled in Module {module_id}")
             continue
 
-        # D. Calculate Ratio
+        # Calculate Ratio
         ratio = total_time / lesson_length
         if ratio > 0.5:
             new_checks.append(AttdCheck(lessonID=lesson_id, studentID=student_id)) 
 
-    # 5. Commit
+    # Commit
     if new_checks:
         print(f"Adding {len(new_checks)} verified attendance checks.")
         dbSessionLocalInstance.add_all(new_checks)
@@ -415,13 +498,15 @@ if __name__ == "__main__":
         spbse: Client = create_client(os.getenv("SPBASE_URL"), os.getenv("SPBASE_SKEY"))
         faker = Faker()
         clear_db(db_session, spbse)
+        uniCampusSeed(db_session, spbse)
         seedCoursesOSS(db_session, spbse)
         userProfileSeeder(db_session, spbse)
         modulesSeed(db_session, spbse)
         lecturerSeed(db_session, spbse)
         adminSeed(db_session, spbse)
-        lecModSeed(db_session, spbse)
+        platSeed(db_session,spbse)
         studentSeed(db_session, spbse)
+        lecModSeed(db_session, spbse)
         studentModulesSeed(db_session, spbse)
         lessonsSeed(db_session, spbse)
         entLeaveSeed(db_session, spbse)
@@ -431,5 +516,6 @@ if __name__ == "__main__":
         print("Finished seeding the database defaults!")
     except Exception as e:
         print(f"Exception occurred while seeding database: {e}")
+        print(traceback.format_exc())
     finally:
         db_session.close()

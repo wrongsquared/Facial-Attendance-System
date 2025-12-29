@@ -1,8 +1,8 @@
-"""RLS2
+"""rls1
 
-Revision ID: 31573afc0c57
-Revises: de75794cba33
-Create Date: 2025-12-09 14:33:51.064691
+Revision ID: 1b40da8c08c5
+Revises: dfdf3df56ead
+Create Date: 2025-12-27 08:29:32.379099
 
 """
 from typing import Sequence, Union
@@ -12,16 +12,16 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '31573afc0c57'
-down_revision: Union[str, Sequence[str], None] = 'de75794cba33'
+revision: str = '1b40da8c08c5'
+down_revision: Union[str, Sequence[str], None] = 'dfdf3df56ead'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
-
 
 tables = [
         'userprofiles','users','students','admins','lecturers',
         'entleave', 'attdcheck', 'modules','lessons','lecmods',
-        'studentmodules', 'courses', 'alembic_version', 'studentangles'
+        'studentmodules', 'courses', 'alembic_version', 'studentangles', 
+        'university', 'campus', 'pmanager'
         ]
 
 def upgrade() -> None:
@@ -31,9 +31,13 @@ def upgrade() -> None:
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
     # Drop Policy userprofile
     op.execute('DROP POLICY IF EXISTS "Enable Read for Users" ON userprofiles')
-    
+    op.execute('DROP POLICY IF EXISTS "pmanagers can edit their own campus" ON campus')
     # Drop Policy users
     op.execute('DROP POLICY IF EXISTS "Users can manage their own data" ON users')
+
+    op.execute('DROP POLICY IF EXISTS "Authenticated read access" ON university')
+    
+    op.execute('DROP POLICY IF EXISTS "Authenticated read access" ON campus')
 
     #Drop Policy students
     op.execute('DROP POLICY IF EXISTS "Students can access their own data" ON students')
@@ -41,6 +45,9 @@ def upgrade() -> None:
 
     #Drop Policy admin
     op.execute('DROP POLICY IF EXISTS "Admins see all" ON admins')
+    op.execute('DROP POLICY IF EXISTS "Platform Manager sees all" ON pmanager')  
+    op.execute('DROP POLICY IF EXISTS "Admins can edit their own campus" ON campus')
+    op.execute('DROP POLICY IF EXISTS "PManager has full access to campuses" ON campus')
     op.execute('DROP POLICY IF EXISTS "Authenticated can view courses" ON courses')
     op.execute('DROP POLICY IF EXISTS "Authenticated can view modules" ON modules')
     op.execute('DROP POLICY IF EXISTS "Student sees own modules" ON studentmodules')
@@ -48,7 +55,8 @@ def upgrade() -> None:
     op.execute('DROP POLICY IF EXISTS "Student sees own entry/leave" ON entleave')
     op.execute('DROP POLICY IF EXISTS "Lecturer manages own modules" ON lecmods')
     op.execute('DROP POLICY IF EXISTS "Everyone views lessons" ON lessons')
-    op.execute('DROP POLICY IF EXISTS "Lecturers manage their lessons" ON lessons')   
+    op.execute('DROP POLICY IF EXISTS "Lecturers manage their lessons" ON lessons') 
+
 
     op.execute('DROP POLICY IF EXISTS "Admin can view angles" ON "studentangles"')  
     # userprofiles Policy
@@ -65,7 +73,9 @@ def upgrade() -> None:
         ON users FOR ALL
         USING (auth.uid() = "userID"); 
     """)
-
+    op.execute('CREATE POLICY "Authenticated read access" ON university FOR SELECT TO authenticated USING (true)')
+    
+    op.execute('CREATE POLICY "Authenticated read access" ON campus FOR SELECT TO authenticated USING (true)')
     # students Policy
     op.execute("""
         CREATE POLICY "Students can access their own data"
@@ -84,7 +94,11 @@ def upgrade() -> None:
         ON admins FOR ALL
         USING (auth.uid() = "adminID"); 
     """)
-
+    op.execute("""
+        CREATE POLICY "Platform Manager sees all"
+        ON pmanager FOR ALL
+        USING (auth.uid() = "pmanagerID"); 
+    """)
     # Course policy
     op.execute('CREATE POLICY "Authenticated can view courses" ON courses FOR SELECT TO authenticated USING (true)')
     # Module Policy
@@ -117,7 +131,39 @@ def upgrade() -> None:
             ) 
         )
     """)
-
+    op.execute("""
+        CREATE POLICY "PManagers manage their university campuses"
+        ON campus
+        FOR ALL  -- Allows SELECT, INSERT, UPDATE, DELETE
+        TO authenticated
+        USING (
+            EXISTS (
+                SELECT 1 
+                FROM users u
+                JOIN userprofiles up ON u."profileTypeID" = up."profileTypeID"
+                JOIN campus user_campus ON up."campusID" = user_campus."campusID"
+                WHERE u."userID" = auth.uid()
+                AND up."profileTypeName" = 'PManager'
+                AND user_campus."universityID" = campus."universityID"
+            )
+        );
+    """)
+    op.execute("""
+        CREATE POLICY "Admins manage specific campus"
+        ON campus
+        FOR ALL
+        TO authenticated
+        USING (
+            EXISTS (
+                SELECT 1 
+                FROM users u
+                JOIN userprofiles up ON u."profileTypeID" = up."profileTypeID"
+                WHERE u."userID" = auth.uid()
+                AND up."profileTypeName" = 'Admin'
+                AND up."campusID" = campus."campusID" -- Exact ID match only
+            )
+        );
+    """)
     pass
 
 
@@ -126,9 +172,13 @@ def downgrade() -> None:
 
     # Drop Policy userprofile
     op.execute('DROP POLICY IF EXISTS "Enable Read for Users" ON userprofiles')
-    
+    op.execute('DROP POLICY IF EXISTS "pmanagers can edit their own campus" ON campus')
     # Drop Policy users
     op.execute('DROP POLICY IF EXISTS "Users can manage their own data" ON users')
+
+    op.execute('DROP POLICY IF EXISTS "Authenticated read access" ON university')
+    
+    op.execute('DROP POLICY IF EXISTS "Authenticated read access" ON campus')
 
     #Drop Policy students
     op.execute('DROP POLICY IF EXISTS "Students can access their own data" ON students')
@@ -136,6 +186,9 @@ def downgrade() -> None:
 
     #Drop Policy admin
     op.execute('DROP POLICY IF EXISTS "Admins see all" ON admins')
+    op.execute('DROP POLICY IF EXISTS "Platform Manager sees all" ON pmanager')  
+    op.execute('DROP POLICY IF EXISTS "Admins can edit their own campus" ON campus')
+    op.execute('DROP POLICY IF EXISTS "PManager has full access to campuses" ON campus')
     op.execute('DROP POLICY IF EXISTS "Authenticated can view courses" ON courses')
     op.execute('DROP POLICY IF EXISTS "Authenticated can view modules" ON modules')
     op.execute('DROP POLICY IF EXISTS "Student sees own modules" ON studentmodules')

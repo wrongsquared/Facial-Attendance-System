@@ -20,11 +20,39 @@ import enum
 class Base(DeclarativeBase):
     pass
 
+#Adds a University
+class University(Base):
+    __tablename__ = "university"
+    universityID: Mapped[int] = mapped_column(primary_key = True)
+    universityName: Mapped[str]
+    universityAddress: Mapped[str] #University's main address
+
+    #Has Campuses
+    campus: Mapped[list["Campus"]] = relationship(back_populates="university")
+
+#Adds a Campus
+class Campus(Base):
+    __tablename__="campus"
+    campusID: Mapped[int] = mapped_column(primary_key= True)
+    campusName : Mapped[str]
+    campusAddress: Mapped[str]
+    # Belongs to a University
+    universityID: Mapped[int] = mapped_column(ForeignKey("university.universityID"))
+    university: Mapped[University] = relationship(back_populates="campus")
+    # Has User Profiles
+    profiles: Mapped[list["UserProfile"]] = relationship(back_populates="campus")
+    # Has Different Courses
+    courses: Mapped[list["Courses"]] = relationship(back_populates="campus")
+
+
 class UserProfile(Base): #User Profiles, Student, Lecturer, Admins
     __tablename__ = "userprofiles"
     profileTypeID: Mapped[int] = mapped_column(primary_key=True)
     profileTypeName: Mapped[str] = mapped_column(String(500))
     users: Mapped[list["User"]] = relationship(back_populates="profileType")
+    # Belongs to a Campus
+    campusID: Mapped[int] = mapped_column(ForeignKey("campus.campusID"))
+    campus:  Mapped[Campus] = relationship(back_populates="profiles")
 
 class User(Base): #User
 
@@ -52,6 +80,13 @@ class User(Base): #User
     # Password is not required as it is stored as hash in the hidden supabase password table
     photo: Mapped[str | None] #Allows for None, as we figure out how we want to store the photo.
 
+#Add a Platform Manager
+class PlatformMgr(User): #Admin, Child of User
+    __tablename__ = "pmanager"
+    __mapper_args__ = {"polymorphic_identity": "pmanager"}
+    
+    pmanagerID: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.userID"), primary_key = True)
+    role: Mapped[str]
 class Admin(User): #Admin, Child of User
     __tablename__ = "admins"
     __mapper_args__ = {"polymorphic_identity": "admin"}
@@ -163,6 +198,9 @@ class Courses(Base): #Student Courses
     courseCode: Mapped[str] = mapped_column(String(10))
 
     students: Mapped[list[Student]] = relationship(back_populates="course")
+    #Belongs to a Campus
+    campusID: Mapped[int] = mapped_column(ForeignKey("campus.campusID"))
+    campus:  Mapped[Campus] = relationship(back_populates="courses")
 
 class studentAngles(Base): #Student-Angles for AI Training?
     __tablename__ = "studentangles"
