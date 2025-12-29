@@ -342,9 +342,6 @@ export function AdminDashboard({
                 <TabsTrigger value="recent">
                   Recent Users
                 </TabsTrigger>
-                <TabsTrigger value="pending">
-                  Pending Approval
-                </TabsTrigger>
               </TabsList>
               <TabsContent value="recent">
                 <Table>
@@ -359,15 +356,8 @@ export function AdminDashboard({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recentU.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-4 text-gray-500">
-                          No users found.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                    recentU.map((user) => (
-                      <TableRow key={user.user_id}>
+                    {recentU.map((user) => (
+                      <TableRow key={user.id}>
                         <TableCell>{user.name}</TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
@@ -386,7 +376,7 @@ export function AdminDashboard({
                             {user.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>{user.joined_date}</TableCell>
+                        <TableCell>{user.joined}</TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
@@ -397,15 +387,9 @@ export function AdminDashboard({
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
+                    ))}
                   </TableBody>
                 </Table>
-              </TabsContent>
-              <TabsContent value="pending">
-                <div className="text-center py-8 text-gray-600">
-                  <p>No pending user approvals</p>
-                </div>
               </TabsContent>
             </Tabs>
           </CardContent>

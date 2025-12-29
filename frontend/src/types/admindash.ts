@@ -18,6 +18,8 @@ export interface CourseAttention {
 }
 
 export interface UserManagementItem {
+  joined: ReactNode;
+  id: Key | null | undefined;
   user_id: string;
   name: string;
   email: string;

@@ -37,6 +37,7 @@ import {
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
 import { useAuth } from "../cont/AuthContext"; 
+import { ClassAttendanceDetails } from "./ClassAttendanceDetails";
 import { timetableEntry, ClassesToday, CourseOverview, recentSessionsLog } from "../types/lecturerdash";
 import { 
   getLecturerProfile,
@@ -48,6 +49,7 @@ import {
   getrecentSessionsrecord,
   getrecentSessionslog} from "../services/api";
 import { Navbar } from "./Navbar";
+
 
 interface LecturerDashboardProps {
   onLogout: () => void;
@@ -78,7 +80,18 @@ export function LecturerDashboard({
   const [todaysClasses, setTodaysClasses] = useState<ClassesToday[]>([]);
   const [courseovw, setCourseovw] = useState<CourseOverview[]>([]);
   const [recentSessionsLog, setrecentSessionsLog] = useState<recentSessionsLog[]>([]);
+  const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
+    const handleViewDetails = (session: typeof recentSessionsLog[0]) => {
+    setSelectedSession(session);
+    setIsDetailsOpen(true);
+  };
+
+  const handleCloseDetails = () => {
+    setIsDetailsOpen(false);
+    setSelectedSession(null);
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () =>{
@@ -143,6 +156,7 @@ export function LecturerDashboard({
   const weeklySchedule = getWeeklySchedule();
   // Keys must match the backend's "strftime('%a')" format (Mon, Tue, Wed...)
   const dayOrder = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar title="Lecturer Portal" />
@@ -433,7 +447,11 @@ export function LecturerDashboard({
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewDetails(session)}
+                      >
                         View Details
                       </Button>
                     </TableCell>
@@ -445,6 +463,13 @@ export function LecturerDashboard({
           </CardContent>
         </Card>
       </main>
+
+      {/* Class Attendance Details Modal */}
+      <ClassAttendanceDetails
+        session={selectedSession}
+        open={isDetailsOpen}
+        onClose={handleCloseDetails}
+      />
     </div>
   );
 }
