@@ -36,6 +36,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
+import { useAuth } from "../cont/AuthContext";
+import { useEffect } from "react";
+import { getPlatforManagerDashboard } from "../services/api";
+import { PlatformManagerDash } from "../types/platformmanagerdash";
 
 interface PlatformManagerDashboardProps {
   onLogout: () => void;
@@ -91,10 +95,27 @@ export function PlatformManagerDashboard({
   onNavigateToInstitutionsProfile,
 }: PlatformManagerDashboardProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [platformManagerData, setPlatforManagerData] = useState<PlatformManagerDash | null>(null)
+
+  const { token } = useAuth()
+
+  useEffect(() => {
+    const fetchDashboardData = async (): Promise<void> => {
+      try {
+        const data = await getPlatforManagerDashboard(token || "")
+        setPlatforManagerData(data)
+      }
+      catch (e) {
+        console.error("Error while fetching platform manager dashboard: ", e)
+      }
+    }
+
+    fetchDashboardData()
+  }, [])
 
   // Filter subscriptions based on search
-  const filteredSubscriptions = recentSubscriptions.filter((subscription) =>
-    subscription.institutionName.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredSubscriptions = platformManagerData?.recent_subscriptions.filter((subscription) =>
+    subscription.universityName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -166,7 +187,7 @@ export function PlatformManagerDashboard({
               <Building2 className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl">8</div>
+              <div className="text-2xl">{platformManagerData?.stats.total_institutions}</div>
             </CardContent>
           </Card>
 
@@ -221,18 +242,27 @@ export function PlatformManagerDashboard({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredSubscriptions.length > 0 ? (
+                {filteredSubscriptions && filteredSubscriptions.length > 0 ? (
                   filteredSubscriptions.map((subscription, index) => (
-                    <TableRow key={subscription.id}>
+                    <TableRow key={subscription.universityID}>
                       <TableCell>{index + 1}</TableCell>
-                      <TableCell>{subscription.institutionName}</TableCell>
-                      <TableCell>{subscription.date}</TableCell>
+                      <TableCell>{subscription.universityName}</TableCell>
+                      <TableCell>{
+                        ((): string => {
+                          const dateObj = new Date(subscription.subscriptionDate)
+                          return dateObj.toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          })
+                        })()
+                      }</TableCell>
                       <TableCell>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            console.log(`View ${subscription.institutionName}`);
+                            console.log(`View ${subscription.universityName}`);
                           }}
                         >
                           View

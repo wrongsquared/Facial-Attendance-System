@@ -56,14 +56,12 @@ export const logoutUser = async (token: string) => {
 
 
 //Student Dashboard begin
-export const getStudentProfile = async (token: string) =>{
+export const getStudentProfile = async (token: string) => {
   return await fetchProtected('/student/my-profile', token);
 }
 
-
-
 export const getStudentTimetable = async (token: string) => {
-    return await fetchProtected("/student/timetable", token);
+  return await fetchProtected("/student/timetable", token);
 };
 
 
@@ -74,7 +72,7 @@ export const getOverallLessons = async (token: string) => {
 
 
 
-export const getTodaysLessons = async( token:string) => {
+export const getTodaysLessons = async (token: string) => {
   return await fetchProtected("/student/todayslesson", token);
 }
 
@@ -98,56 +96,56 @@ export const getWeeklyTimetable = async (token: string) => {
 //Student Routes End
 //Lecturer Routes Begin
 
-export const getLecturerProfile = async (token: string) =>{
+export const getLecturerProfile = async (token: string) => {
   return await fetchProtected('/lecturer/my-profile', token);
 }
 
 
 
-export const getLecturerModulesCount = async(token: string) =>{
+export const getLecturerModulesCount = async (token: string) => {
   return await fetchProtected("/lecturer/dashboard/summary", token);
 }
 
 
 
-export const getLecturertimetable = async(token: string) =>{
+export const getLecturertimetable = async (token: string) => {
   return await fetchProtected("/lecturer/dashboard/timetable", token);
 }
 
 
 
-export const getavgatt = async(token:string) =>{
+export const getavgatt = async (token: string) => {
   return await fetchProtected("/lecturer/dashboard/average-attendance", token);
 }
 
 
 
 
-export const getClassesToday = async(token:string) =>{
-  return await fetchProtected("/lecturer/dashboard/classes-today",token);
+export const getClassesToday = async (token: string) => {
+  return await fetchProtected("/lecturer/dashboard/classes-today", token);
 }
 
 
-export const getCourseOverview = async(token:string) =>{
-  return await fetchProtected("/lecturer/dashboard/my-courses-overview",token);
+export const getCourseOverview = async (token: string) => {
+  return await fetchProtected("/lecturer/dashboard/my-courses-overview", token);
 }
 
 
 
-export const getrecentSessionsrecord = async(token:string) =>{
-  return await fetchProtected("/lecturer/dashboard/recent-sessions-card",token);
+export const getrecentSessionsrecord = async (token: string) => {
+  return await fetchProtected("/lecturer/dashboard/recent-sessions-card", token);
 }
 
 
-    
-export const getrecentSessionslog = async(token:string) =>{
-  return await fetchProtected("/lecturer/dashboard/recent-sessions-log",token);
+
+export const getrecentSessionslog = async (token: string) => {
+  return await fetchProtected("/lecturer/dashboard/recent-sessions-log", token);
 }
 
 //Lecturer Routes End
 //Admin Routes Begin
 
-export const getAdminProfile = async (token: string) =>{
+export const getAdminProfile = async (token: string) => {
   return await fetchProtected('/admin/my-profile', token);
 }
 
@@ -168,3 +166,9 @@ export const getRecentUsers = async (token: string) => {
   return await fetchProtected("/admin/users/recent", token);
 };
 //Admin Routes end
+
+//Platform Manager Routes start
+export const getPlatforManagerDashboard = async (token: string) => {
+  return await fetchProtected('/platform-manager/dashboard', token)
+}
+//Platform Manager Routes end

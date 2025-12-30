@@ -1,6 +1,6 @@
 import './styles/globals.css';
 import { useState } from 'react';
-import { useAuth } from './cont/AuthContext'; 
+import { useAuth } from './cont/AuthContext';
 import { loginUser, LoginCredentials, } from './services/api';
 import { LoginPage } from './components/LoginPage';
 import { StudentDashboard } from './components/StudentDashboard';
@@ -108,7 +108,7 @@ export default function App() {
   // Attendance records state
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
 
-// Toast state
+  // Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (message: string) => {
@@ -121,8 +121,8 @@ export default function App() {
 
   // Function to update attendance record
   const updateAttendanceRecord = (userId: string, date: string, newStatus: string) => {
-    setAttendanceRecords(prev => 
-      prev.map(record => 
+    setAttendanceRecords(prev =>
+      prev.map(record =>
         record.userId === userId && record.date === date
           ? { ...record, status: newStatus }
           : record
@@ -138,9 +138,9 @@ export default function App() {
 
       // B. Optional: Check Role Mismatch
       // Ensure the backend role matches the tab the user selected
-      if (data.role_name.toLowerCase() !== selectedRole.toLowerCase()) {
-        throw new Error(`Account found, but you are a ${data.role_name}. Please select the ${data.role_name} tab.`);
-      }
+      //if (data.role_name.toLowerCase() !== selectedRole.toLowerCase()) {
+      // throw new Error(`Account found, but you are a ${data.role_name}. Please select the ${data.role_name} tab.`);
+      //}
 
       // C. Save to Context (Redirects automatically)
       login(data);
@@ -149,6 +149,8 @@ export default function App() {
       setLecturerView('dashboard');
       setAdminView('dashboard');
       setStudentView('dashboard');
+      setPlatformManagerView('dashboard');
+
 
     } catch (error: any) {
       console.error("Login Error:", error);
@@ -158,10 +160,10 @@ export default function App() {
 
   // 5. NEW LOGOUT LOGIC
   const handleLogout = () => {
-    
+
     // 1. Run the Context logic (Server call + Local cleanup)
-    logout(); 
-    
+    logout();
+
     // 2. Reset your local view states (Clean slate for next user)
     setLecturerView('dashboard');
     setAdminView('dashboard');
@@ -285,7 +287,7 @@ export default function App() {
       ...prev,
       [userId]: goal
     }));
-    
+
     // Update metadata when goal is created/updated
     const now = new Date();
     const dateTime = now.toLocaleString('en-AU', {
@@ -296,7 +298,7 @@ export default function App() {
       minute: '2-digit',
       hour12: true
     });
-    
+
     setGoalMetadata(prev => ({
       ...prev,
       [userId]: {
@@ -316,7 +318,7 @@ export default function App() {
   const handleUpdateUserProfile = (userId: string, profileData: Omit<UserProfileData, 'userId'>) => {
     // Store the old name before updating
     const oldName = userProfiles[userId]?.name;
-    
+
     setUserProfiles(prev => ({
       ...prev,
       [userId]: {
@@ -325,7 +327,7 @@ export default function App() {
         userId, // Ensure userId is preserved
       }
     }));
-    
+
     // Also update attendance records if name changed
     if (profileData.name && oldName !== profileData.name) {
       setAttendanceRecords(prevRecords =>
@@ -381,7 +383,7 @@ export default function App() {
     setStudentView('timetable');
   };
 
-      // 6. LOADING STATE (Prevent flashing login screen)
+  // 6. LOADING STATE (Prevent flashing login screen)
   if (loading) {
     return <div className="flex min-h-screen justify-center items-center">Loading...</div>;
   }
@@ -456,7 +458,7 @@ export default function App() {
     );
   }
 
-// 8. DETERMINE ROLE FOR RENDERING
+  // 8. DETERMINE ROLE FOR RENDERING
   // Normalize to lowercase to match your strict comparisons
   const userRole = user.role_name.toLowerCase();
 
@@ -464,7 +466,7 @@ export default function App() {
   return (
     <div className="flex flex-col min-h-screen">
       {userRole === 'student' && studentView === 'dashboard' && (
-        <StudentDashboard 
+        <StudentDashboard
           onLogout={handleLogout}
           onNavigateToAttendanceHistory={handleNavigateToAttendanceHistory}
           onNavigateToTimetable={handleNavigateToStudentTimetable}
@@ -473,34 +475,34 @@ export default function App() {
         />
       )}
       {userRole === 'student' && studentView === 'attendanceHistory' && (
-        <StudentAttendanceHistory 
+        <StudentAttendanceHistory
           onLogout={handleLogout}
           onBack={handleBackToStudentDashboard}
         />
       )}
       {userRole === 'student' && studentView === 'timetable' && (
-        <StudentTimetable 
+        <StudentTimetable
           onLogout={handleLogout}
           onBack={handleBackToStudentDashboard}
           onNavigateToProfile={handleNavigateToStudentProfile}
         />
       )}
       {userRole === 'student' && studentView === 'profile' && (
-        <StudentProfile 
+        <StudentProfile
           onLogout={handleLogout}
           onBack={handleBackToStudentDashboard}
         />
       )}
       {userRole === 'student' && studentView === 'progress' && (
-        <StudentProgressTracker 
+        <StudentProgressTracker
           onLogout={handleLogout}
           onBack={handleBackToStudentDashboard}
           onNavigateToProfile={handleNavigateToStudentProfile}
         />
       )}
       {userRole === 'lecturer' && lecturerView === 'dashboard' && (
-        <LecturerDashboard 
-          onLogout={handleLogout} 
+        <LecturerDashboard
+          onLogout={handleLogout}
           onNavigateToReports={handleNavigateToReports}
           onNavigateToProfile={handleNavigateToProfile}
           onNavigateToTimetable={handleNavigateToTimetable}
@@ -508,35 +510,35 @@ export default function App() {
         />
       )}
       {userRole === 'lecturer' && lecturerView === 'reports' && (
-        <AttendanceReports 
-          onLogout={handleLogout} 
+        <AttendanceReports
+          onLogout={handleLogout}
           onBack={handleBackToDashboard}
           onNavigateToProfile={handleNavigateToProfile}
         />
       )}
       {userRole === 'lecturer' && lecturerView === 'profile' && (
-        <UpdateProfile 
-          onLogout={handleLogout} 
+        <UpdateProfile
+          onLogout={handleLogout}
           onBack={handleBackToDashboard}
         />
       )}
       {userRole === 'lecturer' && lecturerView === 'timetable' && (
-        <LecturerTimetable 
-          onLogout={handleLogout} 
+        <LecturerTimetable
+          onLogout={handleLogout}
           onBack={handleBackToDashboard}
           onNavigateToProfile={handleNavigateToProfile}
         />
       )}
       {userRole === 'lecturer' && lecturerView === 'records' && (
-        <LecturerAttendanceRecords 
-          onLogout={handleLogout} 
+        <LecturerAttendanceRecords
+          onLogout={handleLogout}
           onBack={handleBackToDashboard}
           onNavigateToProfile={handleNavigateToProfile}
         />
       )}
       {userRole === 'admin' && adminView === 'dashboard' && (
-        <AdminDashboard 
-          onLogout={handleLogout} 
+        <AdminDashboard
+          onLogout={handleLogout}
           onNavigateToManageUsers={handleNavigateToManageUsers}
           onNavigateToManageUserProfile={handleNavigateToManageUserProfile}
           onNavigateToManageCustomGoals={handleNavigateToManageCustomGoals}
@@ -546,23 +548,23 @@ export default function App() {
         />
       )}
       {userRole === 'admin' && adminView === 'manageUsers' && (
-        <ManageUserAccounts 
-          onLogout={handleLogout} 
+        <ManageUserAccounts
+          onLogout={handleLogout}
           onBack={handleBackToAdminDashboard}
           onCreateUser={handleNavigateToCreateUser}
           onUpdateUser={handleNavigateToUpdateUser}
         />
       )}
       {userRole === 'admin' && adminView === 'createUser' && (
-        <CreateUser 
-          onLogout={handleLogout} 
+        <CreateUser
+          onLogout={handleLogout}
           onBack={handleBackToManageUsers}
           onCreateSuccess={handleBackToManageUsers}
         />
       )}
       {userRole === 'admin' && adminView === 'updateUser' && selectedUserData && (
-        <UpdateUser 
-          onLogout={handleLogout} 
+        <UpdateUser
+          onLogout={handleLogout}
           onBack={handleBackToManageUsers}
           onUpdateSuccess={handleBackToManageUsers}
           userData={selectedUserData}
@@ -570,8 +572,8 @@ export default function App() {
         />
       )}
       {userRole === 'admin' && adminView === 'manageUserProfile' && (
-        <ManageUserProfile 
-          onLogout={handleLogout} 
+        <ManageUserProfile
+          onLogout={handleLogout}
           onBack={handleBackToAdminDashboard}
           onNavigateToCreateCustomGoal={handleNavigateToCreateCustomGoalFromManageGoals}
           onNavigateToUpdateUserProfile={handleNavigateToUpdateUserProfile}
@@ -580,7 +582,7 @@ export default function App() {
         />
       )}
       {userRole === 'admin' && adminView === 'manageCustomGoals' && (
-        <ManageCustomGoals 
+        <ManageCustomGoals
           onBack={handleBackToAdminDashboard}
           onCreateGoal={handleUpdateUserGoal}
           onUpdateGoal={handleUpdateUserGoal}
@@ -592,8 +594,8 @@ export default function App() {
         />
       )}
       {userRole === 'admin' && adminView === 'updateUserProfile' && selectedBiometricUserData && (
-        <AdminUpdateUserProfile 
-          onLogout={handleLogout} 
+        <AdminUpdateUserProfile
+          onLogout={handleLogout}
           onBack={handleBackToManageUserProfile}
           onNavigateToBiometricProfile={handleNavigateToBiometricProfile}
           userData={selectedBiometricUserData}
@@ -604,7 +606,7 @@ export default function App() {
       )}
       {userRole === 'admin' && adminView === 'createCustomGoal' && selectedCustomGoalUserData && (
         <CreateCustomGoal
-          onLogout={handleLogout} 
+          onLogout={handleLogout}
           onBack={handleBackFromCustomGoal}
           userData={selectedCustomGoalUserData}
           onCreateGoal={handleUpdateUserGoal}
@@ -612,31 +614,31 @@ export default function App() {
         />
       )}
       {userRole === 'admin' && adminView === 'manageBiometric' && (
-        <ManageBiometricProfile 
-          onLogout={handleLogout} 
+        <ManageBiometricProfile
+          onLogout={handleLogout}
           onBack={handleBackToAdminDashboard}
           onNavigateToCreateBiometric={handleNavigateToCreateBiometric}
           onNavigateToUpdateBiometric={handleNavigateToUpdateBiometric}
         />
       )}
       {userRole === 'admin' && adminView === 'createBiometric' && selectedBiometricUserData && (
-        <CreateBiometricProfile 
-          onLogout={handleLogout} 
+        <CreateBiometricProfile
+          onLogout={handleLogout}
           onBack={handleBackToBiometricProfile}
           userData={selectedBiometricUserData}
         />
       )}
       {userRole === 'admin' && adminView === 'updateBiometric' && selectedBiometricUserData && (
-        <UpdateBiometricProfile 
-          onLogout={handleLogout} 
+        <UpdateBiometricProfile
+          onLogout={handleLogout}
           onBack={handleBackToBiometricProfile}
           userData={selectedBiometricUserData}
           showToast={showToast}
         />
       )}
       {userRole === 'admin' && adminView === 'attendanceRecords' && (
-        <AdminAttendanceRecords 
-          onLogout={handleLogout} 
+        <AdminAttendanceRecords
+          onLogout={handleLogout}
           onBack={handleBackToAdminDashboard}
           onNavigateToManualOverride={handleNavigateToManualOverride}
           attendanceRecords={attendanceRecords}
@@ -644,8 +646,8 @@ export default function App() {
         />
       )}
       {userRole === 'admin' && adminView === 'manualOverride' && selectedStudentData && (
-        <ManualOverride 
-          onLogout={handleLogout} 
+        <ManualOverride
+          onLogout={handleLogout}
           onBack={handleBackToAttendanceRecords}
           studentData={selectedStudentData}
           showToast={showToast}
@@ -653,19 +655,19 @@ export default function App() {
         />
       )}
       {userRole === 'admin' && adminView === 'adminReports' && (
-        <AdminAttendanceReports 
-          onLogout={handleLogout} 
+        <AdminAttendanceReports
+          onLogout={handleLogout}
           onBack={handleBackToAdminDashboard}
         />
       )}
-      {userRole === 'platformManager' && platformManagerView === 'dashboard' && (
-        <PlatformManagerDashboard 
+      {userRole === 'pmanager' && platformManagerView === 'dashboard' && (
+        <PlatformManagerDashboard
           onLogout={handleLogout}
           onNavigateToInstitutionsProfile={handleNavigateToInstitutionsProfile}
         />
       )}
-      {userRole === 'platformManager' && platformManagerView === 'manageInstitutions' && (
-        <ManageInstitutionsProfile 
+      {userRole === 'pmanager' && platformManagerView === 'manageInstitutions' && (
+        <ManageInstitutionsProfile
           onLogout={handleLogout}
           onBack={handleBackToPlatformManagerDashboard}
           onCreateProfile={handleNavigateToCreateProfile}
@@ -673,8 +675,8 @@ export default function App() {
           onUpdateInstitution={handleUpdateInstitution}
         />
       )}
-      {userRole === 'platformManager' && platformManagerView === 'viewInstitution' && selectedInstitutionData && (
-        <ViewInstitutionProfile 
+      {userRole === 'pmanager' && platformManagerView === 'viewInstitution' && selectedInstitutionData && (
+        <ViewInstitutionProfile
           onLogout={handleLogout}
           onBack={handleBackToManageInstitutions}
           onEditProfile={handleNavigateToEditInstitution}
@@ -682,8 +684,8 @@ export default function App() {
           onUpdateInstitution={handleUpdateInstitution}
         />
       )}
-      {userRole === 'platformManager' && platformManagerView === 'updateInstitution' && selectedInstitutionData && (
-        <UpdateInstitutionProfile 
+      {userRole === 'pmanager' && platformManagerView === 'updateInstitution' && selectedInstitutionData && (
+        <UpdateInstitutionProfile
           onLogout={handleLogout}
           onBack={handleBackToViewInstitution}
           institutionData={selectedInstitutionData}

@@ -41,7 +41,7 @@ def uniCampusSeed(dbSessionLocalInstance:Session, spbase: Client):
                 "campuses":[{"name":"UON Neverland", "address":"123 Joyful Avenue"}, {"name":"UON Canberra", "address":"146 Funland Road"}]}]
 
     for uni in twoUnis:
-        newuni = University(universityName = uni["name"], universityAddress = uni["address"])
+        newuni = University(universityName = uni["name"], universityAddress = uni["address"], subscriptionDate = Faker().date_this_decade())
         dbSessionLocalInstance.add(newuni)
 
         for campus in uni["campuses"]:

@@ -16,6 +16,8 @@ from sqlalchemy import (
 import datetime
 import enum
 
+from pydantic import BaseModel
+from typing import List
 
 class Base(DeclarativeBase):
     pass
@@ -26,6 +28,11 @@ class University(Base):
     universityID: Mapped[int] = mapped_column(primary_key = True)
     universityName: Mapped[str]
     universityAddress: Mapped[str] #University's main address
+
+    # Add a subscription date field
+    subscriptionDate: Mapped[datetime.datetime] = mapped_column( 
+        server_default=func.now() # Automatically set the date on creation
+    )
 
     #Has Campuses
     campus: Mapped[list["Campus"]] = relationship(back_populates="university")
