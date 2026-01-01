@@ -1,8 +1,5 @@
 
 import { LoginCredentials, AuthResponse } from "../types/auth";
-import { lessonInfo, TodaysLessons, AttendanceRecord, WeeklyLesson } from "../types/studentdash";
-import { ClassesToday, CourseOverview, timetableEntry } from "../types/lecturerdash";
-import { AdminStats, CourseAttention, UserManagementItem } from "../types/admindash";
 
 
 const API_URL = "http://127.0.0.1:8000"; // The FASTAPI URL
@@ -93,6 +90,31 @@ export const getWeeklyTimetable = async (token: string) => {
   return await fetchProtected("/student/timetable/weekly", token);
 };
 
+export const getStudentProgress = async (token: string) => {
+  return await fetchProtected("/student/progress/quarterly", token);
+}
+
+export const getFullAttendanceHistory = async (token: string) => {
+  return await fetchProtected("/student/history/all", token);
+};
+
+export const getTimetableRange = async (token: string, start: string, end: string) => {
+  // We use URLSearchParams to safely encode the dates
+  const params = new URLSearchParams({ 
+    start_date: start, 
+    end_date: end 
+  });
+  return await fetchProtected(`/student/timetable/range?${params.toString()}`, token);
+};
+
+export const getStudentFullProfile = async (token: string) => {
+  return await fetchProtected("/student/profile/details", token);
+};
+
+export const getNotifications = async (token: string) => {
+  return await fetchProtected("/student/notifications", token);
+};
+
 //Student Routes End
 //Lecturer Routes Begin
 
@@ -101,8 +123,7 @@ export const getLecturerProfile = async (token: string) => {
 }
 
 
-
-export const getLecturerModulesCount = async (token: string) => {
+export const getLecturerModulesCount = async(token: string) =>{
   return await fetchProtected("/lecturer/dashboard/summary", token);
 }
 
@@ -118,11 +139,8 @@ export const getavgatt = async (token: string) => {
   return await fetchProtected("/lecturer/dashboard/average-attendance", token);
 }
 
-
-
-
-export const getClassesToday = async (token: string) => {
-  return await fetchProtected("/lecturer/dashboard/classes-today", token);
+export const getClassesToday = async(token:string) =>{
+  return await fetchProtected("/lecturer/dashboard/classes-today",token);
 }
 
 

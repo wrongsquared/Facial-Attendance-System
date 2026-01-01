@@ -21,7 +21,7 @@ from schemas import (UserSignUp, #This was really long so I had to bracket it
 from dependencies.deps import get_current_user_id
 from client import supabase, supabase_adm
 import datetime
-from routers import adminDashboardRouter, studentDashboardRouter, lecturerDashboardRouter, PlatformManagerRouter
+from routers import adminDashboardRouter, studentDashboardRouter, lecturerDashboardRouter, PlatformManagerRouter, studentInnardsRouter
 
 
 app = FastAPI()
@@ -281,3 +281,4 @@ app.include_router(studentDashboardRouter.router, tags=['student'])
 app.include_router(adminDashboardRouter.router, tags=['admin'])
 app.include_router(lecturerDashboardRouter.router, tags=['lecturer'])
 app.include_router(PlatformManagerRouter.router)
+app.include_router(studentInnardsRouter.router, tags=['studentInnards'])
