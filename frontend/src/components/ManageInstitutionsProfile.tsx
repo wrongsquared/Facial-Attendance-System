@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -49,97 +49,21 @@ import {
 } from "./ui/alert-dialog";
 import { Badge } from "./ui/badge";
 import { toast } from "sonner";
+import { useAuth } from "../cont/AuthContext";
 
 interface ManageInstitutionsProfileProps {
   onLogout: () => void;
   onBack: () => void;
   onCreateProfile: () => void;
   onViewProfile: (institutionData: { institutionId: string; institutionName: string }) => void;
-  onUpdateInstitution: (updatedData: {
-    institutionId: string;
-    institutionName: string;
-    status: "Active" | "Inactive";
-  }) => void;
 }
 
-// Mock data for institutions
-const institutionsData = [
-  {
-    id: "INS001",
-    name: "University of Wollongong",
-    status: "Active",
-  },
-  {
-    id: "INS002",
-    name: "University of Sydney",
-    status: "Active",
-  },
-  {
-    id: "INS003",
-    name: "University of New South Wales",
-    status: "Active",
-  },
-  {
-    id: "INS004",
-    name: "Monash University",
-    status: "Active",
-  },
-  {
-    id: "INS005",
-    name: "University of Melbourne",
-    status: "Inactive",
-  },
-  {
-    id: "INS006",
-    name: "Australian National University",
-    status: "Active",
-  },
-  {
-    id: "INS007",
-    name: "University of Queensland",
-    status: "Active",
-  },
-  {
-    id: "INS008",
-    name: "University of Western Australia",
-    status: "Active",
-  },
-  {
-    id: "INS009",
-    name: "University of Adelaide",
-    status: "Inactive",
-  },
-  {
-    id: "INS010",
-    name: "Macquarie University",
-    status: "Active",
-  },
-  {
-    id: "INS011",
-    name: "Queensland University of Technology",
-    status: "Active",
-  },
-  {
-    id: "INS012",
-    name: "University of Technology Sydney",
-    status: "Active",
-  },
-  {
-    id: "INS013",
-    name: "RMIT University",
-    status: "Inactive",
-  },
-  {
-    id: "INS014",
-    name: "Curtin University",
-    status: "Active",
-  },
-  {
-    id: "INS015",
-    name: "Deakin University",
-    status: "Active",
-  },
-];
+interface InstitutionData {
+  universityID: number;
+  universityName: string;
+  subscriptionDate: string;
+  isActive: boolean;
+}
 
 export function ManageInstitutionsProfile({
   onLogout,
@@ -150,146 +74,110 @@ export function ManageInstitutionsProfile({
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [institutions, setInstitutions] = useState(institutionsData);
+  const [institutions, setInstitutions] = useState<InstitutionData[]>([]);
   const itemsPerPage = 10;
 
-  // Filter institutions based on search and status
+  const { token } = useAuth();
+
+  useEffect(() => {
+    const fetchAllInstitutions = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/platform-manager/institutions", {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+        const data: InstitutionData[] = await response.json();
+        setInstitutions(data);
+      } catch (err) {
+        console.error("Error while fetching:", err);
+      }
+    };
+    fetchAllInstitutions();
+  }, [token]);
+
+  // Date Formatter: "3 Aug 2022"
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  };
+
   const filteredInstitutions = institutions.filter((institution) => {
-    const matchesSearch = institution.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase()) ||
-      institution.id.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch =
+      institution.universityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      institution.universityID.toString().includes(searchQuery.toLowerCase());
     const matchesStatus =
-      statusFilter === "all" || institution.status.toLowerCase() === statusFilter.toLowerCase();
+      statusFilter === "all" ||
+      (statusFilter === "active" ? institution.isActive : !institution.isActive);
     return matchesSearch && matchesStatus;
   });
 
-  // Calculate pagination
   const totalPages = Math.ceil(filteredInstitutions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentInstitutions = filteredInstitutions.slice(startIndex, endIndex);
+  const currentInstitutions = filteredInstitutions.slice(startIndex, startIndex + itemsPerPage);
 
-  // Handle page change
   const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
   };
 
-  // Handle delete institution
-  const handleDeleteInstitution = (id: string) => {
-    setInstitutions(institutions.filter((inst) => inst.id !== id));
+  const handleDeleteInstitution = (id: number) => {
+    setInstitutions(institutions.filter((inst) => inst.universityID !== id));
     toast.success("Institution profile deleted successfully!");
-  };
-
-  // Handle view profile
-  const handleViewProfile = (institution: typeof institutionsData[0]) => {
-    onViewProfile({ institutionId: institution.id, institutionName: institution.name });
-  };
-
-  // Reset to first page when filters change
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value);
-    setCurrentPage(1);
-  };
-
-  const handleStatusChange = (value: string) => {
-    setStatusFilter(value);
-    setCurrentPage(1);
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
+            <div className="bg-blue-600 p-2 rounded-lg"><BookOpen className="h-6 w-6 text-white" /></div>
             <div>
-              <h1 className="text-2xl">Attendify</h1>
+              <h1 className="text-2xl font-bold">Attendify</h1>
               <p className="text-sm text-gray-600">Platform Manager Portal</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
             <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback>PM</AvatarFallback>
-              </Avatar>
+              <Avatar><AvatarFallback>PM</AvatarFallback></Avatar>
               <div className="hidden md:block">
-                <p>Platform Manager</p>
-                <p className="text-sm text-gray-600">System Manager</p>
+                <p className="font-medium">Platform Manager</p>
               </div>
             </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <Button variant="outline" onClick={onLogout}><LogOut className="h-4 w-4 mr-2" /> Logout</Button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
-        {/* Back Button */}
         <Button variant="ghost" onClick={onBack} className="mb-6">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Dashboard
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
         </Button>
 
         <Card>
           <CardHeader>
             <CardTitle>Manage Institutions Profile</CardTitle>
-            <CardDescription>
-              View and manage all institution profiles in the system
-            </CardDescription>
+            <CardDescription>View and manage all institution profiles in the system</CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Search Bar, Status Filter, and Create Button */}
             <div className="flex flex-col md:flex-row gap-4 mb-6">
-              {/* Search Bar */}
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search by institution name or ID..."
+                  placeholder="Search institutions..."
                   value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                   className="pl-10"
                 />
               </div>
-
-              {/* Status Filter */}
               <div className="w-full md:w-48">
-                <Select value={statusFilter} onValueChange={handleStatusChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
+                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
+                  <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
@@ -297,81 +185,59 @@ export function ManageInstitutionsProfile({
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Create Profile Button */}
-              <Button onClick={onCreateProfile} className="w-full md:w-auto">
-                Create Profile
-              </Button>
+              <Button onClick={onCreateProfile}>Create Profile</Button>
             </div>
 
-            {/* Institutions Table */}
             <div className="border rounded-lg">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID No.</TableHead>
+                    {/* Updated Header to "No." */}
+                    <TableHead className="w-[80px]">No.</TableHead>
                     <TableHead>Institution Name</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
+                    <TableHead className="text-right">Date</TableHead>
+                    <TableHead className="text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {currentInstitutions.length > 0 ? (
-                    currentInstitutions.map((institution) => (
-                      <TableRow key={institution.id}>
-                        <TableCell>{institution.id}</TableCell>
-                        <TableCell>{institution.name}</TableCell>
+                    currentInstitutions.map((institution, index) => (
+                      <TableRow key={institution.universityID}>
+                        {/* 1. Calculates Row Number: 1, 2, 3... */}
+                        <TableCell className="text-gray-600 font-medium">
+                          {(currentPage - 1) * itemsPerPage + index + 1}
+                        </TableCell>
+                        <TableCell className="font-medium">{institution.universityName}</TableCell>
                         <TableCell>
-                          <Badge
-                            variant={
-                              institution.status === "Active"
-                                ? "default"
-                                : "secondary"
-                            }
-                          >
-                            {institution.status}
+                          <Badge variant={institution.isActive ? "default" : "secondary"}>
+                            {institution.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewProfile(institution)}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View Profile
+                        {/* 2. Date Column right-aligned and formatted */}
+                        <TableCell className="text-right whitespace-nowrap">
+                          {formatDate(institution.subscriptionDate)}
+                        </TableCell>
+                        {/* 3. Action Column centered */}
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => onViewProfile({ institutionId: institution.universityID.toString(), institutionName: institution.universityName })}>
+                              <Eye className="h-4 w-4 mr-1" /> View Profile
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-red-600 hover:text-red-700"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-1" />
-                                  Delete Profile
+                                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                                  <Trash2 className="h-4 w-4 mr-1" /> Delete Profile
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Delete Institution Profile
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete this profile "{institution.id}"?
-                                  </AlertDialogDescription>
+                                  <AlertDialogTitle>Delete Institution Profile</AlertDialogTitle>
+                                  <AlertDialogDescription>Are you sure you want to delete "{institution.universityName}"?</AlertDialogDescription>
                                 </AlertDialogHeader>
-                                <AlertDialogFooter className="flex justify-center items-center gap-4">
+                                <AlertDialogFooter className="flex justify-center gap-4">
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() =>
-                                      handleDeleteInstitution(institution.id)
-                                    }
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
+                                  <AlertDialogAction onClick={() => handleDeleteInstitution(institution.universityID)} className="bg-red-600">Delete</AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
@@ -380,55 +246,19 @@ export function ManageInstitutionsProfile({
                       </TableRow>
                     ))
                   ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={4}
-                        className="text-center text-gray-500 py-8"
-                      >
-                        No institutions found
-                      </TableCell>
-                    </TableRow>
+                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-gray-500">No institutions found</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
             </div>
 
-            {/* Pagination */}
             {filteredInstitutions.length > 0 && (
               <div className="flex items-center justify-center gap-2 mt-6">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                    (page) => (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handlePageChange(page)}
-                        className="w-10"
-                      >
-                        {page}
-                      </Button>
-                    )
-                  )}
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+                <Button variant="outline" size="icon" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button key={page} variant={currentPage === page ? "default" : "outline"} size="sm" onClick={() => handlePageChange(page)} className="w-10">{page}</Button>
+                ))}
+                <Button variant="outline" size="icon" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}><ChevronRight className="h-4 w-4" /></Button>
               </div>
             )}
           </CardContent>

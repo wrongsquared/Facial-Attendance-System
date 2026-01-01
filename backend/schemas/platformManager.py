@@ -6,6 +6,7 @@ class UniversityDisplay(BaseModel):
     universityID: int
     universityName: str
     subscriptionDate: datetime.datetime
+    isActive: bool
 
     class Config:
         from_attributes = True # Helps Pydantic read data from ORM models
