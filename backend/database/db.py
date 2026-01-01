@@ -19,6 +19,8 @@ import enum
 from pydantic import BaseModel
 from typing import List
 
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -33,6 +35,9 @@ class University(Base):
     subscriptionDate: Mapped[datetime.datetime] = mapped_column( 
         server_default=func.now() # Automatically set the date on creation
     )
+
+    # --- ADD THIS NEW STATUS FIELD ---
+    isActive: Mapped[bool] = mapped_column(server_default=text("true")) # Active (true) or Inactive (false )
 
     #Has Campuses
     campus: Mapped[list["Campus"]] = relationship(back_populates="university")

@@ -1,13 +1,13 @@
  
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from typing import List
+from typing import List, Optional
 
 from database.db_config import get_db
 from dependencies.deps import get_current_user_id
 # Import the Pydantic schemas you just created
-from schemas import PlatformManagerDashboard, DashboardStats, UniversityDisplay
+from schemas import PlatformManagerDashboard, DashboardStats, UniversityDisplay, InstitutionProfile, InstitutionCreate, PaginatedInstitutionResponse
 # Import your SQLAlchemy model for University
 from database.db import University
 
@@ -75,3 +75,93 @@ def get_institution_details(
         )
         
     return institution
+
+@router.get("", response_model=PaginatedInstitutionResponse)
+def search_all_institution_profiles(
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+    search: str = "",
+    status_filter: Optional[bool] = Query(None, alias="status"),
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100)
+):
+    """
+    Get a paginated, searchable, and filterable list of all institution profiles.
+    """
+    query = db.query(University)
+
+    # Apply search filter for ID or Name
+    if search and len(search) > 0:
+        # Check if search term is for a formatted ID like "INS005"
+        query = query.filter(University.universityName.ilike(f"%{search}%"))
+
+    # Apply status filter
+    if status_filter:
+        query = query.filter(University.isActive == status_filter)
+
+    # Get total count for pagination
+    total = query.count()
+
+    # Apply pagination
+    query = query.offset((page - 1) * size).limit(size)
+    
+    institutions = query.all()
+
+    # Format the response data
+    formatted_items = [
+        InstitutionProfile(
+            universityID=uni.universityID,
+            universityAddress=uni.universityAddress,
+            subscriptionDate=uni.subscriptionDate,
+            universityName=uni.universityName,
+            status=uni.isActive
+        ) for uni in institutions
+    ]
+
+    return {
+        "total": total,
+        "page": page,
+        "size": size,
+        "institutions": formatted_items
+    }
+
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=InstitutionProfile)
+def create_institution_profile(
+    institution: InstitutionCreate,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Create a new institution profile.
+    """
+    new_university = University(
+        universityName=institution.universityName,
+        universityAddress=institution.universityAddress
+        # Status defaults to 'Active' as defined in the model
+    )
+    db.add(new_university)
+    db.commit()
+    db.refresh(new_university)
+
+    return InstitutionProfile(
+        id_no=f"INS{new_university.universityID:04}",
+        institutionName=new_university.universityName,
+        status=new_university.status
+    )
+
+@router.delete("/{university_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_institution_profile(
+    university_id: int,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Delete an institution profile.
+    """
+    university = db.query(University).filter(University.universityID == university_id).first()
+    if not university:
+        raise HTTPException(status_code=404, detail="Institution not found")
+    
+    db.delete(university)
+    db.commit()
+    return None
