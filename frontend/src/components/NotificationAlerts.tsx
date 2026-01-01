@@ -8,51 +8,25 @@ import {
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { AlertTriangle, XCircle } from "lucide-react";
+import { NotificationItem } from "../types/studentinnards";
+import { useAuth } from "../cont/AuthContext";
 
-interface AttendanceNotRecordedAlert {
-  type: "not_recorded";
-  studentId: string;
-  studentName: string;
-  module: string;
-  date: string;
-  attendanceStatus: string;
-  reason: string;
-  attendanceMethod: string;
-  cameraLocation: string;
-  timestamp: string;
-  suggestedAction: string;
-}
-
-interface AttendanceBelowThresholdAlert {
-  type: "below_threshold";
-  studentId: string;
-  studentName: string;
-  module: string;
-  date: string;
-  attendanceStatus: string;
-  currentAttendance: number;
-  threshold: number;
-  recentSessionsMissed: number;
-  totalRecentSessions: number;
-  impact: string;
-  suggestedAction: string;
-}
-
-type NotificationAlert = AttendanceNotRecordedAlert | AttendanceBelowThresholdAlert;
 
 interface NotificationAlertsProps {
   isOpen: boolean;
   onClose: () => void;
-  alerts: NotificationAlert[];
+  alerts: NotificationItem[];
+  onDismissAlert: (id: string) => void;
 }
 
 export function NotificationAlerts({
   isOpen,
   onClose,
   alerts,
+  onDismissAlert,
 }: NotificationAlertsProps) {
+  const { user } = useAuth();
   const handleCloseAlert = (index: number) => {
-    // In a real application, you would remove this specific alert
     console.log(`Close alert at index ${index}`);
   };
 
@@ -83,17 +57,17 @@ export function NotificationAlerts({
                           <div className="space-y-3">
                             <div>
                               <p className="text-sm text-gray-600">Student ID:</p>
-                              <p className="font-medium">{alert.studentId}</p>
+                              <p className="font-medium">{user?.studentNum}</p>
                             </div>
                             
                             <div>
                               <p className="text-sm text-gray-600">Student Name:</p>
-                              <p className="font-medium">{alert.studentName}</p>
+                              <p className="font-medium">{user?.name}</p>
                             </div>
                             
                             <div>
                               <p className="text-sm text-gray-600">Module:</p>
-                              <p className="font-medium">{alert.module}</p>
+                              <p className="font-medium">{alert.module_code} - {alert.module_name}</p>
                             </div>
                             
                             <div>
@@ -103,32 +77,32 @@ export function NotificationAlerts({
                             
                             <div className="pt-2 border-t">
                               <p className="text-sm text-gray-600">Attendance Status:</p>
-                              <p className="font-medium text-red-600">{alert.attendanceStatus}</p>
+                              <p className="font-medium text-red-600">{alert.type}</p>
                             </div>
                             
                             <div>
                               <p className="text-sm text-gray-600">Reason:</p>
-                              <p className="font-medium">{alert.reason}</p>
+                              <p className="font-medium">{alert.details?.reason}</p>
                             </div>
                             
                             <div>
                               <p className="text-sm text-gray-600">Attendance Method:</p>
-                              <p className="font-medium">{alert.attendanceMethod}</p>
+                              <p className="font-medium">Facial Detection</p>
                             </div>
                             
                             <div>
                               <p className="text-sm text-gray-600">Camera Location:</p>
-                              <p className="font-medium">{alert.cameraLocation}</p>
+                              <p className="font-medium">{alert.details?.cameraLocation}</p>
                             </div>
                             
                             <div>
                               <p className="text-sm text-gray-600">Timestamp:</p>
-                              <p className="font-medium">{alert.timestamp}</p>
+                              <p className="font-medium">{alert.details?.timestamp}</p>
                             </div>
                             
                             <div className="pt-2 border-t">
                               <p className="text-sm text-gray-600">Suggested Action:</p>
-                              <p className="font-medium">{alert.suggestedAction}</p>
+                              <p className="font-medium">Please re-attempt check-in or contact the administrator if you are in class.</p>
                             </div>
                           </div>
                         </div>
@@ -150,17 +124,17 @@ export function NotificationAlerts({
                           <div className="space-y-3">
                             <div>
                               <p className="text-sm text-gray-600">Student ID:</p>
-                              <p className="font-medium">{alert.studentId}</p>
+                              <p className="font-medium">{user?.studentNum}</p>
                             </div>
                             
                             <div>
                               <p className="text-sm text-gray-600">Student Name:</p>
-                              <p className="font-medium">{alert.studentName}</p>
+                              <p className="font-medium">{user?.name}</p>
                             </div>
                             
                             <div>
                               <p className="text-sm text-gray-600">Module:</p>
-                              <p className="font-medium">{alert.module}</p>
+                              <p className="font-medium">{alert.module_code} - {alert.module_name}</p>
                             </div>
                             
                             <div>
@@ -170,38 +144,38 @@ export function NotificationAlerts({
                             
                             <div className="pt-2 border-t">
                               <p className="text-sm text-gray-600">Attendance Status:</p>
-                              <p className="font-medium text-orange-600">{alert.attendanceStatus}</p>
+                              <p className="font-medium text-orange-600">{alert.details?.attendanceStatus}</p>
                             </div>
                             
                             <div>
                               <p className="text-sm text-gray-600">Current Attendance:</p>
                               <p className="font-medium">
-                                {alert.currentAttendance}% (Threshold: {alert.threshold}%)
+                                {alert.details?.currentAttendance}% (Threshold: {alert.details?.threshold}%)
                               </p>
                             </div>
                             
                             <div>
                               <p className="text-sm text-gray-600">Recent Sessions Missed:</p>
                               <p className="font-medium">
-                                {alert.recentSessionsMissed} of last {alert.totalRecentSessions}
+                                {alert.details?.recentSessionsMissed} of last {alert.details?.totalRecentSessions}
                               </p>
                             </div>
                             
                             <div>
                               <p className="text-sm text-gray-600">Impact:</p>
-                              <p className="font-medium">{alert.impact}</p>
+                              <p className="font-medium">You are at risk of not meeting the minimum attendance requirement.</p>
                             </div>
                             
                             <div className="pt-2 border-t">
                               <p className="text-sm text-gray-600">Suggested Action:</p>
-                              <p className="font-medium">{alert.suggestedAction}</p>
+                              <p className="font-medium">Attend upcoming classes.</p>
                             </div>
                           </div>
                         </div>
                       </div>
                       
                       <div className="flex justify-center pt-4 border-t">
-                        <Button onClick={() => handleCloseAlert(index)} variant="outline">
+                        <Button onClick={() => onDismissAlert(alert.id)} variant="outline">
                           Close
                         </Button>
                       </div>

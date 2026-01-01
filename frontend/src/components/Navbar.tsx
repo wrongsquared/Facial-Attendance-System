@@ -1,7 +1,6 @@
 import {
   BookOpen,
   Bell,
-  Settings,
   LogOut,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
@@ -18,12 +17,16 @@ import {
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
 import { useAuth } from "../cont/AuthContext";
+
+
 interface NavbarProps {
   // Optional: If you want to override the title manually
   title?: string; 
+  onNavigateToProfile: () => void;
+  onOpenNotifications?: () => void;
 }
 
-export function Navbar({ title }: NavbarProps) {
+export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: NavbarProps) {
   const { user, logout } = useAuth();
 
   const getPortalTitle = () => {
@@ -65,13 +68,13 @@ export function Navbar({ title }: NavbarProps) {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
+            {user?.role_name.toLowerCase() === "student" && onOpenNotifications && (
+              <Button variant="ghost" size="icon" onClick={onOpenNotifications}>
+                <Bell className="h-5 w-5" />
+              </Button>
+            )}
+            <div className="flex items-center gap-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
+                  onClick={onNavigateToProfile}>
               <Avatar>
                 <AvatarFallback>{getInitials()}</AvatarFallback>
               </Avatar>

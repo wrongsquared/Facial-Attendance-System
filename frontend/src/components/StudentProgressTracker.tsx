@@ -1,119 +1,81 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "./ui/card";
 import { Button } from "./ui/button";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Progress } from "./ui/progress";
 import {
-  BookOpen,
-  LogOut,
-  Bell,
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
 import { Navbar } from "./Navbar";
+import { useAuth } from "../cont/AuthContext"; 
+import { StudentProgressData } from "../types/studentinnards";
+import { getStudentProgress } from "../services/api";
 
-interface StudentProgressTrackerProps {
-  onLogout: () => void;
+interface Props {
   onBack: () => void;
   onNavigateToProfile: () => void;
+  onLogout: () => void;
+  onOpenNotifications:() => void;
 }
 
-type ModuleProgress = {
-  moduleCode: string;
-  moduleName: string;
-  progress: number;
-  goal: number;
-  status: "On Track" | "At Risk";
-};
+const MODS_PER_PAGE = 6; // 
 
-// Mock data for student progress
-const allModules: ModuleProgress[] = [
-  {
-    moduleCode: "CSCI334",
-    moduleName: "Database Systems",
-    progress: 92,
-    goal: 85,
-    status: "On Track",
-  },
-  {
-    moduleCode: "CSCI203",
-    moduleName: "Algorithms",
-    progress: 77,
-    goal: 85,
-    status: "At Risk",
-  },
-  {
-    moduleCode: "CSCI251",
-    moduleName: "Software Engineering",
-    progress: 100,
-    goal: 85,
-    status: "On Track",
-  },
-];
+export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigateToProfile }: Props) {
+  const { token } = useAuth();
 
-const MODULES_PER_PAGE = 3;
-
-export function StudentProgressTracker({
-  onLogout,
-  onBack,
-  onNavigateToProfile,
-}: StudentProgressTrackerProps) {
+  const [data, setData] = useState<StudentProgressData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Calculate overall progress
-  const overallProgress = Math.round(
-    allModules.reduce((sum, module) => sum + module.progress, 0) /
-      allModules.length
-  );
+    useEffect(() => {
+    const fetchData = async () => {
+      if (!token) return;
+      try {
+        const result = await getStudentProgress(token);
+        setData(result);
+      } catch (err) {
+        console.error("Failed to fetch progress", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [token]);
 
-  // Calculate overall goal (average of all module goals)
-  const overallGoal = Math.round(
-    allModules.reduce((sum, module) => sum + module.goal, 0) /
-      allModules.length
-  );
+  if (loading) return <div className="p-10 text-center">Loading progress...</div>;
+  if (!data) return <div className="p-10 text-center">No data available.</div>;
 
-  // Determine color for overall progress
-  const overallProgressColor =
-    overallProgress >= overallGoal ? "#22c55e" : "#ef4444"; // green or red
+  const overallProgress = data.overall_percentage;
+  const overallProgressColor = overallProgress >= 85 ? "#22c55e" : "#ef4444"; 
 
   // Pagination
-  const totalPages = Math.ceil(allModules.length / MODULES_PER_PAGE);
-  const startIndex = (currentPage - 1) * MODULES_PER_PAGE;
-  const endIndex = startIndex + MODULES_PER_PAGE;
-  const currentModules = allModules.slice(startIndex, endIndex);
+  const allModules = data.modules;
+  const totalPages = Math.ceil(allModules.length / MODS_PER_PAGE);
+  const startIndex = (currentPage - 1) * MODS_PER_PAGE;
 
+    // Map API data to the shape your JSX expects
+  const currentModules = allModules.slice(startIndex, startIndex + MODS_PER_PAGE).map(mod => ({
+    moduleCode: mod.module_code,
+    moduleName: mod.module_name,
+    progress: mod.attendance_percentage,
+    goal: mod.goal_percentage,
+    status: mod.status
+  }));
   const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
+    if (currentPage > 1) setCurrentPage(prev => prev - 1);
   };
 
   const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
+    if (currentPage < totalPages) setCurrentPage(prev => prev + 1);
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Navbar title= "Student Portal" />
+      <Navbar title= "Student Portal" onNavigateToProfile={onNavigateToProfile} onOpenNotifications={onOpenNotifications}/>
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
         {/* Back Button */}
@@ -163,6 +125,7 @@ export function StudentProgressTracker({
                       2 * Math.PI * 88 * (1 - overallProgress / 100)
                     }`}
                     strokeLinecap="round"
+                    style={{ transition: "stroke-dashoffset 0.5s ease-in-out" }}
                   />
                 </svg>
                 {/* Center text */}
@@ -176,7 +139,7 @@ export function StudentProgressTracker({
 
               {/* Quarter Display */}
               <p className="text-lg text-gray-700">
-                2025 Quarter (Oct - Dec)
+                {data.quarter_label}
               </p>
             </div>
 
@@ -184,15 +147,17 @@ export function StudentProgressTracker({
             <div className="mt-8">
               <h3 className="text-xl mb-6">Progress by Module</h3>
               <div className="space-y-6">
-                {currentModules.map((module) => {
-                  // Determine color for module progress: blue if above goal, red if below
-                  const moduleProgressColor =
-                    module.progress >= module.goal ? "#2563eb" : "#ef4444";
+                 {currentModules.map((module) => {
+                  
+                  // Determine color class for module progress
+                  // Note: Standard shadcn Progress uses classes, not hex codes in props usually
+                  const isSuccess = module.progress >= module.goal;
+                  const indicatorClass = isSuccess ? "bg-blue-600" : "bg-red-500";
 
                   return (
                     <div
                       key={module.moduleCode}
-                      className="border rounded-lg p-4"
+                      className="border rounded-lg p-4 bg-white shadow-sm"
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex-1">
@@ -216,11 +181,13 @@ export function StudentProgressTracker({
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <Progress
-                          value={module.progress}
-                          indicatorColor={moduleProgressColor}
-                          className="flex-1"
-                        />
+                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div 
+                                className={`h-full transition-all duration-500 ${indicatorClass}`}
+                                style={{ width: `${module.progress}%` }} 
+                            />
+                        </div>
+                        
                         <span className="text-sm font-medium min-w-[50px] text-right">
                           {module.progress}%
                         </span>

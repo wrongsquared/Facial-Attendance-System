@@ -6,16 +6,11 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Button } from "./ui/button";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import {
   Users,
-  BookOpen,
   TrendingUp,
-  LogOut,
-  Settings,
   UserPlus,
-  Bell,
   ClipboardCheck,
   UserX,
   Fingerprint,
@@ -35,21 +30,10 @@ import {
   TabsList,
   TabsTrigger,
 } from "./ui/tabs";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
 import { useAuth } from "../cont/AuthContext"; 
 import { useEffect, useState } from "react";
 import { AdminStats, CourseAttention, UserManagementItem } from "../types/admindash";
-import { getAdminProfile, 
+import {
         getAdminStats,
       getCoursesRequiringAttention,
       getRecentUsers } from "../services/api";
@@ -63,21 +47,21 @@ interface AdminDashboardProps {
   onNavigateToBiometricProfile: () => void;
   onNavigateToAttendanceRecords: () => void;
   onNavigateToReports: () => void;
+  onNavigateToProfile: ()=> void;
 }
 
 
 export function AdminDashboard({
-  onLogout,
   onNavigateToManageUsers,
   onNavigateToManageUserProfile,
   onNavigateToManageCustomGoals,
   onNavigateToBiometricProfile,
   onNavigateToAttendanceRecords,
+  onNavigateToProfile,
   onNavigateToReports,
 }: AdminDashboardProps) {
   const [loading, setLoading] = useState(true);
   const { token, user } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [recentU, setrecentU] = useState<UserManagementItem[]>([]);
 
@@ -88,17 +72,14 @@ export function AdminDashboard({
     
       try{
         const [
-          profileData,
           dbdata,
           attentionData,
           recentUs
         ] = await Promise.all([
-          getAdminProfile(token),
           getAdminStats(token),
           getCoursesRequiringAttention(token),
           getRecentUsers(token)
         ]);
-      setProfile(profileData);
       setStats(dbdata);
       setLowAttendanceCourses(attentionData);
       setrecentU(recentUs);
@@ -118,7 +99,7 @@ export function AdminDashboard({
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <Navbar title="Admin Portal" />
+      <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile}/>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">

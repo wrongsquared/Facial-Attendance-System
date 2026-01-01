@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 class StudentLessons(BaseModel):
@@ -58,5 +59,62 @@ class WeeklyLesson(BaseModel):
     start_time: datetime
     end_time: datetime
     location: str
+    class Config:
+        from_attributes = True
+
+# Progress Tracker
+class ModuleProgress(BaseModel):
+    module_code: str
+    module_name: str
+    attendance_percentage: int
+    goal_percentage: int
+    status: str 
+
+class StudentProgressResponse(BaseModel):
+    quarter_label: str     
+    overall_percentage: int
+    modules: List[ModuleProgress]
+
+#Attendance History
+class AttendanceLogItem(BaseModel):
+    lessonID: int
+    module_code: str
+    status: str       
+    start_time: datetime
+
+    class Config:
+        from_attributes = True
+
+# Profile Information
+class StudentProfileDetails(BaseModel):
+    name: str
+    email: str
+    studentNum: str
+    
+    # Optional fields (might be null in DB)
+    contactNumber: Optional[str] = None
+    address: Optional[str] = None
+    
+    # Emergency Contact
+    emergencyContactName: Optional[str] = None
+    emergencyContactRelationship: Optional[str] = None
+    emergencyContactNumber: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+#Notifications
+
+class NotificationItem(BaseModel):
+    id: str
+    type: str  # "not_recorded" or "below_threshold"
+    title: str
+    date: datetime
+    module_code: str
+    module_name: str
+    
+    # This dictionary holds the specific info like 'threshold', 'location', etc.
+    details: Dict[str, Any]
+
     class Config:
         from_attributes = True

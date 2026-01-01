@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -7,407 +7,174 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Button } from "./ui/button";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
   Calendar,
-  BookOpen,
-  LogOut,
   ArrowLeft,
-  Bell,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
+import { Navbar } from "./Navbar";
+import { getTimetableRange } from "../services/api";
+import { WeeklyLesson } from "../types/studentdash";
+import { useAuth } from "../cont/AuthContext";
 
-interface StudentTimetableProps {
-  onLogout: () => void;
-  onBack: () => void;
-  onNavigateToProfile: () => void;
-}
-
-type ViewMode = "daily" | "weekly" | "monthly";
-
-type MonthCell = {
-  date: Date;
-  isCurrentMonth: boolean;
-};
-
-type MonthEvent = {
-  date: Date;
-  label: string;
-  time: string;
-  location: string;
-};
-
-// Helper function to format date (daily view)
-const formatDate = (date: Date) => {
-  const days = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
-  const months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-
-  return `${days[date.getDay()]}, ${date.getDate()} ${
-    months[date.getMonth()]
-  } ${date.getFullYear()}`;
-};
-
-// Mock data for student timetable
-const dailySchedule = [
-  {
-    time: "8:30AM - 11:30AM",
-    courseCode: "CSCI334 - T01",
-    subject: "Database Systems",
-    room: "HQ BLK A | LAB A.5.17A/A.5.17B",
-  },
-  {
-    time: "2:00PM - 4:00PM",
-    courseCode: "CSCI203 - T02",
-    subject: "Algorithms",
-    room: "Building 1 | Room 310",
-  },
-];
-
-const weeklySchedule = [
-  {
-    day: "Monday",
-    classes: [
-      {
-        time: "9:00AM - 11:00AM",
-        courseCode: "CSCI334 - T01",
-        subject: "Database Systems",
-        room: "HQ BLK A | LAB A.517A/A.517B",
-      },
-    ],
-  },
-  {
-    day: "Tuesday",
-    classes: [
-      {
-        time: "2:00PM - 4:00PM",
-        courseCode: "CSCI203 - T02",
-        subject: "Algorithms",
-        room: "Building 1 | Room 310",
-      },
-    ],
-  },
-  {
-    day: "Wednesday",
-    classes: [
-      {
-        time: "9:00AM - 11:00AM",
-        courseCode: "CSCI334 - T01",
-        subject: "Database Systems",
-        room: "HQ BLK A | LAB A.517A/A.517B",
-      },
-      {
-        time: "1:00PM - 3:00PM",
-        courseCode: "ISIT312 - T01",
-        subject: "Big Data Management",
-        room: "Building 3 | Room 205",
-      },
-    ],
-  },
-  {
-    day: "Thursday",
-    classes: [
-      {
-        time: "2:00PM - 4:00PM",
-        courseCode: "CSCI203 - L01",
-        subject: "Algorithms",
-        room: "Building 1 | Room 310",
-      },
-    ],
-  },
-  {
-    day: "Friday",
-    classes: [
-      {
-        time: "11:00AM - 1:00PM",
-        courseCode: "ISIT312 - L01",
-        subject: "Big Data Management",
-        room: "HQ BLK A | Room A.G19",
-      },
-    ],
-  },
-];
-
-// Events for the monthly calendar
-const monthEvents: MonthEvent[] = [
-  {
-    date: new Date(2025, 10, 10), // 10 Nov 2025
-    label: "ISIT 312",
-    time: "2:00 PM – 4:00 PM",
-    location: "Building 3, Room 205",
-  },
-  {
-    date: new Date(2025, 10, 19),
-    label: "ISIT 312",
-    time: "2:00 PM – 4:00 PM",
-    location: "Building 3, Room 205",
-  },
-  {
-    date: new Date(2025, 10, 23),
-    label: "ISIT 312",
-    time: "2:00 PM – 4:00 PM",
-    location: "Building 3, Room 205",
-  },
-];
-
-const monthNames = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-const isSameDay = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate();
-
-const getMonthGrid = (monthDate: Date): MonthCell[] => {
-  const year = monthDate.getFullYear();
-  const month = monthDate.getMonth();
-
-  const firstDayOfMonth = new Date(year, month, 1);
-  const startingWeekday = firstDayOfMonth.getDay(); // 0 = Sun
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysInPrevMonth = new Date(year, month, 0).getDate();
-
-  const cells: MonthCell[] = [];
-
-  // Previous month days (to fill first row)
-  for (let i = startingWeekday - 1; i >= 0; i--) {
-    const day = daysInPrevMonth - i;
-    cells.push({
-      date: new Date(year, month - 1, day),
-      isCurrentMonth: false,
-    });
+  interface Props {
+    onBack: () => void;
+    onNavigateToProfile: () => void;
+    onLogout: () => void;
+    onOpenNotifications:() => void;
   }
+export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotifications } : Props) {
+    const { token } = useAuth();
+  
+  // State
+  const [viewMode, setViewMode] = useState<"daily" | "weekly" | "monthly">("daily");
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [lessons, setLessons] = useState<WeeklyLesson[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Current month days
-  for (let day = 1; day <= daysInMonth; day++) {
-    cells.push({
-      date: new Date(year, month, day),
-      isCurrentMonth: true,
-    });
-  }
+  const parseDateExact = (isoString: string) => {
+    if (!isoString) return new Date();
+    const [datePart, timePart] = isoString.split("T");
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour, minute] = timePart ? timePart.split(":").map(Number) : [0, 0];
 
-  // Next month days to fill remaining cells (multiple of 7)
-  const totalCells = Math.ceil(cells.length / 7) * 7;
-  for (let day = 1; cells.length < totalCells; day++) {
-    cells.push({
-      date: new Date(year, month + 1, day),
-      isCurrentMonth: false,
-    });
-  }
-
-  return cells;
-};
-
-export function StudentTimetable({
-  onLogout,
-  onBack,
-  onNavigateToProfile,
-}: StudentTimetableProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("daily");
-  const [currentDate, setCurrentDate] = useState<Date>(
-    new Date(2025, 11, 1), // December 1, 2025
-  );
-  const [currentWeekStart, setCurrentWeekStart] =
-    useState<Date>(
-      new Date(2025, 11, 1), // December 1, 2025
-    );
-  const [currentMonth, setCurrentMonth] = useState<Date>(
-    new Date(2025, 10, 1), // November 2025 for the screenshot-style view
-  );
-
-  const handlePreviousDay = () => {
-    const newDate = new Date(currentDate);
-    newDate.setDate(newDate.getDate() - 1);
-    setCurrentDate(newDate);
+    // Note: Month is 0-indexed in JS (Jan=0, Dec=11)
+    return new Date(year, month - 1, day, hour, minute);
   };
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!token) return;
+      setLoading(true);
+      try {
+        // Calculate range based on view
+        const range = getFetchRange();
+        
+        // Call API
+        const data = await getTimetableRange(token, range.start.toISOString(), range.end.toISOString());
+        setLessons(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [token, viewMode, currentDate, currentMonth]);
 
-  const handleNextDay = () => {
-    const newDate = new Date(currentDate);
-    newDate.setDate(newDate.getDate() + 1);
-    setCurrentDate(newDate);
-  };
+   const getFetchRange = () => {
+    const start = new Date();
+    const end = new Date();
 
-  const handlePreviousWeek = () => {
-    const newDate = new Date(currentWeekStart);
-    newDate.setDate(newDate.getDate() - 7);
-    setCurrentWeekStart(newDate);
-  };
-
-  const handleNextWeek = () => {
-    const newDate = new Date(currentWeekStart);
-    newDate.setDate(newDate.getDate() + 7);
-    setCurrentWeekStart(newDate);
-  };
-
-  // Weekly helpers (week starts on Sunday)
-  const getWeekDates = () => {
-    const dates: Date[] = [];
-    const weekStart = new Date(currentWeekStart);
-
-    // Adjust to Sunday (start of week)
-    const day = weekStart.getDay(); // 0 = Sunday
-    weekStart.setDate(weekStart.getDate() - day);
-
-    // Generate Sunday → Saturday (7 days)
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(weekStart);
-      date.setDate(weekStart.getDate() + i);
-      dates.push(date);
+    if (viewMode === "daily") {
+      start.setTime(currentDate.getTime());
+      start.setHours(0, 0, 0, 0);
+      end.setTime(currentDate.getTime());
+      end.setHours(23, 59, 59, 999);
+    } else if (viewMode === "weekly") {
+      const day = currentDate.getDay(); // 0 (Sun) - 6 (Sat)
+      start.setTime(currentDate.getTime());
+      start.setDate(currentDate.getDate() - day); // Go to Sunday
+      start.setHours(0, 0, 0, 0);
+      
+      end.setTime(start.getTime());
+      end.setDate(start.getDate() + 6); // Go to Saturday
+      end.setHours(23, 59, 59, 999);
+    } else {
+      // Monthly
+      start.setTime(currentMonth.getTime());
+      start.setDate(1); // 1st
+      start.setHours(0, 0, 0, 0);
+      
+      end.setTime(currentMonth.getTime());
+      end.setMonth(currentMonth.getMonth() + 1);
+      end.setDate(0); // Last day
+      end.setHours(23, 59, 59, 999);
     }
+    return { start, end };
+  };
 
+
+  const handleNext = () => {
+      if (viewMode === "daily") {
+        const next = new Date(currentDate);
+        next.setDate(currentDate.getDate() + 1);
+        setCurrentDate(next);
+      } else if (viewMode === "weekly") {
+        const next = new Date(currentDate);
+        next.setDate(currentDate.getDate() + 7);
+        setCurrentDate(next);
+      } else {
+        const next = new Date(currentMonth);
+        next.setMonth(currentMonth.getMonth() + 1);
+        setCurrentMonth(next);
+      }
+    };
+    const handlePrev = () => {
+    if (viewMode === "daily") {
+      const prev = new Date(currentDate);
+      prev.setDate(currentDate.getDate() - 1);
+      setCurrentDate(prev);
+    } else if (viewMode === "weekly") {
+      const prev = new Date(currentDate);
+      prev.setDate(currentDate.getDate() - 7);
+      setCurrentDate(prev);
+    } else {
+      const prev = new Date(currentMonth);
+      prev.setMonth(currentMonth.getMonth() - 1);
+      setCurrentMonth(prev);
+    }
+  };
+  const formatTime = (isoString: string) => {
+    // Use the helper to prevent +8 hours shift
+    const date = parseDateExact(isoString);
+    
+    return date.toLocaleTimeString([], {
+      hour: 'numeric', 
+      minute:'2-digit', 
+      hour12: true
+    });
+  };
+  const getMonthGrid = () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    const grid = [];
+    // Previous month filler
+    for (let i = 0; i < firstDay; i++) grid.push({ date: null, isCurrent: false });
+    // Current month days
+    for (let i = 1; i <= daysInMonth; i++) {
+      grid.push({ 
+        date: new Date(year, month, i), 
+        isCurrent: true 
+      });
+    }
+    return grid;
+  };
+
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+  // Helper for Weekly View Dates
+  const getWeekDates = () => {
+    const dates = [];
+    const start = new Date(currentDate);
+    const day = start.getDay();
+    start.setDate(start.getDate() - day); // Sunday
+    
+    for (let i = 0; i < 7; i++) {
+      dates.push(new Date(start));
+      start.setDate(start.getDate() + 1);
+    }
     return dates;
   };
 
-  const formatWeekRange = () => {
-    const dates = getWeekDates();
-    const firstDay = dates[0];
-    const lastDay = dates[6];
-
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-
-    return `Week: ${firstDay.getDate()} ${
-      months[firstDay.getMonth()]
-    } ${firstDay.getFullYear()} - ${lastDay.getDate()} ${
-      months[lastDay.getMonth()]
-    } ${lastDay.getFullYear()}`;
-  };
-
-  const getDayName = (date: Date) => {
-    const days = [
-      "Sunday",
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-    ];
-    return days[date.getDay()];
-  };
-
-  const getClassesForDay = (dayName: string) => {
-    const dayData = weeklySchedule.find(
-      (d) => d.day === dayName,
-    );
-    return dayData ? dayData.classes : [];
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">
-                Student Portal
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <div
-              className="flex items-center gap-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
-              onClick={onNavigateToProfile}
-            >
-              <Avatar>
-                <AvatarFallback>JS</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>John Smith</p>
-                <p className="text-sm text-gray-600">
-                  Student ID: 7891011
-                </p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
+      <Navbar title="Student Portal" onNavigateToProfile={onNavigateToProfile} onOpenNotifications={onOpenNotifications} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -432,100 +199,55 @@ export function StudentTimetable({
               <CardDescription className="mt-2">
                 View your class schedule
               </CardDescription>
+              
+              {/* VIEW TABS */}
               <div className="flex gap-2 mt-4">
-                {/* Daily */}
-                <Button
-                  type="button"
-                  size="sm"
-                  className={`rounded-xl px-6 text-sm font-medium border !border-blue-600
-      ${
-        viewMode === "daily"
-          ? "bg-blue-600 text-white hover:bg-blue-700"
-          : "bg-white text-blue-600 hover:bg-blue-50"
-      }
-    `}
-                  onClick={() => setViewMode("daily")}
-                >
-                  Daily
-                </Button>
-
-                {/* Weekly */}
-                <Button
-                  type="button"
-                  size="sm"
-                  className={`rounded-xl px-6 text-sm font-medium border !border-blue-600
-      ${
-        viewMode === "weekly"
-          ? "bg-blue-600 text-white hover:bg-blue-700"
-          : "bg-white text-blue-600 hover:bg-blue-50"
-      }
-    `}
-                  onClick={() => setViewMode("weekly")}
-                >
-                  Weekly
-                </Button>
-
-                {/* Monthly */}
-                <Button
-                  type="button"
-                  size="sm"
-                  className={`rounded-xl px-6 text-sm font-medium border !border-blue-600
-      ${
-        viewMode === "monthly"
-          ? "bg-blue-600 text-white hover:bg-blue-700"
-          : "bg-white text-blue-600 hover:bg-blue-50"
-      }
-    `}
-                  onClick={() => setViewMode("monthly")}
-                >
-                  Monthly
-                </Button>
+                {["daily", "weekly", "monthly"].map((mode) => (
+                  <Button
+                    key={mode}
+                    size="sm"
+                    className={`rounded-xl px-6 text-sm font-medium border !border-blue-600 capitalize
+                      ${viewMode === mode 
+                        ? "bg-blue-600 text-white hover:bg-blue-700" 
+                        : "bg-white text-blue-600 hover:bg-blue-50"}`}
+                    onClick={() => setViewMode(mode as any)}
+                  >
+                    {mode}
+                  </Button>
+                ))}
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            {/* Daily View */}
+            {/* DAILY VIEW */}
             {viewMode === "daily" && (
               <div>
                 <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center justify-between">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handlePreviousDay}
-                  >
+                  <Button variant="ghost" size="sm" onClick={handlePrev}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <p className="text-sm">
-                    {formatDate(currentDate)}
+                  <p className="text-sm font-medium">
+                    {currentDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleNextDay}
-                  >
+                  <Button variant="ghost" size="sm" onClick={handleNext}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
                 <div className="space-y-4">
-                  {dailySchedule.map((classItem, index) => (
-                    <div
-                      key={index}
-                      className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <p className="font-medium">
-                        {classItem.courseCode}
-                      </p>
-                      <p className="text-sm text-gray-700 mt-1">
-                        {classItem.subject}
-                      </p>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {classItem.time}
-                      </p>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {classItem.room}
-                      </p>
-                    </div>
-                  ))}
+                  {lessons.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">No classes scheduled.</div>
+                  ) : (
+                    lessons.map((lesson) => (
+                      <div key={lesson.lessonID} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                        <p className="font-bold text-gray-900">{lesson.module_code} - {lesson.lesson_type}</p>
+                        <p className="text-sm text-gray-700 mt-1">{lesson.module_name}</p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {formatTime(lesson.start_time)} - {formatTime(lesson.end_time)}
+                        </p>
+                        <p className="text-sm text-gray-600 mt-1 uppercase">{lesson.location || "TBD"}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}
@@ -534,167 +256,113 @@ export function StudentTimetable({
             {viewMode === "weekly" && (
               <div>
                 <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center justify-between">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handlePreviousWeek}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <p className="text-sm">{formatWeekRange()}</p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleNextWeek}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handlePrev}><ChevronLeft className="h-4 w-4" /></Button>
+                  <p className="text-sm font-medium">
+                    Week: {getWeekDates()[0].toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - {getWeekDates()[6].toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                  <Button variant="ghost" size="sm" onClick={handleNext}><ChevronRight className="h-4 w-4" /></Button>
                 </div>
+                
                 <div className="space-y-6">
                   {getWeekDates().map((date) => {
-                    const dayName = getDayName(date);
-                    const classes = getClassesForDay(dayName);
-                    const dayAbbreviation = dayName.slice(0, 3);
+                    // Filter lessons for this specific day in the loop
+                    const dayLessons = lessons.filter(l => {
+                      // Get the raw date string from API (e.g. "2025-12-31")
+                      const lessonDateStr = l.start_time.split("T")[0];
+                    
+                      // Build the column's date string manually (YYYY-MM-DD)
+                      // This avoids timezone shifts entirely
+                      const year = date.getFullYear();
+                      const month = String(date.getMonth() + 1).padStart(2, '0');
+                      const day = String(date.getDate()).padStart(2, '0');
+                      const columnDateStr = `${year}-${month}-${day}`;
+                    
+                      return lessonDateStr === columnDateStr;
+                    });
+                    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+                    const dayAbbr = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
 
                     return (
-                      <div key={dayName} className="flex items-start gap-4">
+                      <div key={date.toISOString()} className="flex items-start gap-4">
+                        {/* Date Bubble */}
                         <div className="flex items-center justify-center w-14 h-14 rounded-full bg-blue-600 text-white flex-shrink-0">
                           <div className="text-center">
-                            <div className="text-xs">
-                              {dayAbbreviation}
-                            </div>
-                            <div className="font-medium">
-                              {date.getDate()}
-                            </div>
+                            <div className="text-xs">{dayAbbr}</div>
+                            <div className="font-medium">{date.getDate()}</div>
                           </div>
                         </div>
 
-                        {classes.length > 0 ? (
-                          <div className="flex-1 space-y-3">
-                            {classes.map((classItem, idx) => (
-                              <div
-                                key={idx}
-                                className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                              >
-                                <p className="font-medium">
-                                  {classItem.courseCode}
-                                </p>
-                                <p className="text-sm text-gray-700 mt-1">
-                                  {classItem.subject}
-                                </p>
+                        {/* Content */}
+                        <div className="flex-1 space-y-3">
+                          {dayLessons.length > 0 ? (
+                            dayLessons.map((lesson) => (
+                              <div key={lesson.lessonID} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                                <p className="font-bold text-gray-900">{lesson.module_code} - {lesson.lesson_type}</p>
+                                <p className="text-sm text-gray-700 mt-1">{lesson.module_name}</p>
                                 <p className="text-sm text-gray-600 mt-1">
-                                  {classItem.time}
+                                  {formatTime(lesson.start_time)} - {formatTime(lesson.end_time)}
                                 </p>
-                                <p className="text-sm text-gray-600 mt-1">
-                                  {classItem.room}
-                                </p>
+                                <p className="text-sm text-gray-600 mt-1 uppercase">{lesson.location || "TBD"}</p>
                               </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="flex-1 p-4 border rounded-lg bg-gray-50">
-                            <p className="text-sm text-gray-600">
-                              {dayName === "Sunday"
-                                ? "No school on Sunday"
-                                : "No Classes Scheduled"}
-                            </p>
-                          </div>
-                        )}
+                            ))
+                          ) : (
+                            <div className="p-4 border rounded-lg bg-gray-50">
+                              <p className="text-sm text-gray-600">
+                                {dayName === "Sunday" ? "No school on Sunday" : "No Classes Scheduled"}
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
                 </div>
               </div>
             )}
-
+            
             {/* Monthly View */}
             {viewMode === "monthly" && (
               <div>
-                {/* Month header with arrows */}
                 <div className="mb-4 flex items-center justify-between">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() =>
-                      setCurrentMonth(
-                        new Date(
-                          currentMonth.getFullYear(),
-                          currentMonth.getMonth() - 1,
-                          1,
-                        ),
-                      )
-                    }
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-
-                  <p className="font-medium">
-                    {monthNames[currentMonth.getMonth()]}{" "}
-                    {currentMonth.getFullYear()}
-                  </p>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() =>
-                      setCurrentMonth(
-                        new Date(
-                          currentMonth.getFullYear(),
-                          currentMonth.getMonth() + 1,
-                          1,
-                        ),
-                      )
-                    }
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                  <Button variant="ghost" size="icon" onClick={handlePrev}><ChevronLeft className="h-4 w-4" /></Button>
+                  <p className="font-medium">{monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}</p>
+                  <Button variant="ghost" size="icon" onClick={handleNext}><ChevronRight className="h-4 w-4" /></Button>
                 </div>
 
                 <div className="border rounded-lg p-4">
-                  {/* Weekday header */}
                   <div className="grid grid-cols-7 text-xs font-medium text-gray-500 mb-4 text-center">
-                    {[
-                      "SUN",
-                      "MON",
-                      "TUE",
-                      "WED",
-                      "THU",
-                      "FRI",
-                      "SAT",
-                    ].map((d) => (
-                      <div key={d}>{d}</div>
-                    ))}
+                    {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map(d => <div key={d}>{d}</div>)}
                   </div>
 
-                  {/* Days grid */}
                   <div className="grid grid-cols-7 gap-y-6 text-sm">
-                    {getMonthGrid(currentMonth).map((cell) => {
-                      const { date, isCurrentMonth } = cell;
-                      const events = monthEvents.filter((e) =>
-                        isSameDay(e.date, date),
-                      );
+                    {getMonthGrid().map((cell, idx) => {
+                      if (!cell.date) return <div key={idx}></div>;
+                      
+                      const dayLessons = lessons.filter(l => {
+                        if (!cell.date) return false;
+                                            
+                        // Raw API Date
+                        const lessonDateStr = l.start_time.split("T")[0];
+                                            
+                        // Raw Grid Cell Date
+                        const year = cell.date.getFullYear();
+                        const month = String(cell.date.getMonth() + 1).padStart(2, '0');
+                        const day = String(cell.date.getDate()).padStart(2, '0');
+                        const cellDateStr = `${year}-${month}-${day}`;
+                                            
+                        return lessonDateStr === cellDateStr;
+                      });
 
                       return (
-                        <div
-                          key={date.toISOString()}
-                          className="flex flex-col items-center gap-1"
-                        >
-                          <span
-                            className={`text-sm ${
-                              isCurrentMonth
-                                ? "text-gray-900"
-                                : "text-gray-300"
-                            }`}
-                          >
-                            {date.getDate()}
+                        <div key={idx} className="flex flex-col items-center gap-1 min-h-[60px]">
+                          <span className={`text-sm ${cell.isCurrent ? "text-gray-900" : "text-gray-300"}`}>
+                            {cell.date.getDate()}
                           </span>
-
-                          {events.map((event, idx) => (
-                            <div
-                              key={idx}
-                              className="px-3 py-1 rounded-full bg-blue-600 text-white text-xs leading-tight text-center font-semibold"
-                            >
-                              {event.label}
+                          
+                          {/* Badges for classes */}
+                          {dayLessons.map(l => (
+                            <div key={l.lessonID} className="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] w-full text-center truncate">
+                              {l.module_code}
                             </div>
                           ))}
                         </div>
@@ -704,6 +372,7 @@ export function StudentTimetable({
                 </div>
               </div>
             )}
+
           </CardContent>
         </Card>
       </main>

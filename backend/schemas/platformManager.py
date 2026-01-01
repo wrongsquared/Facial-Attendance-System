@@ -8,7 +8,7 @@ class UniversityDisplay(BaseModel):
     subscriptionDate: datetime.datetime
 
     class Config:
-        orm_mode = True # Helps Pydantic read data from ORM models
+        from_attributes = True # Helps Pydantic read data from ORM models
 
 # Schema for the dashboard statistics card
 class DashboardStats(BaseModel):
@@ -34,7 +34,7 @@ class InstitutionProfile(BaseModel):
     status: bool
 
     class Config:
-        orm_mode = True 
+        from_attributes = True 
 # Helps Pydantic read data from ORM models    
 
 # Schema for paginated institution responses
@@ -45,4 +45,4 @@ class PaginatedInstitutionResponse(BaseModel):
     institutions: List[InstitutionProfile] 
 
     class Config:
-        orm_mode = True
+        from_attributes = True

@@ -6,7 +6,6 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Button } from "./ui/button";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { useEffect, useState } from "react";
 import {
@@ -14,8 +13,6 @@ import {
   Users,
   BookOpen,
   ClipboardCheck,
-  LogOut,
-  Bell,
 } from "lucide-react";
 import {
   Table,
@@ -25,22 +22,11 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
+
 import { useAuth } from "../cont/AuthContext"; 
 import { ClassAttendanceDetails } from "./ClassAttendanceDetails";
 import { timetableEntry, ClassesToday, CourseOverview, recentSessionsLog } from "../types/lecturerdash";
-import { 
-  getLecturerProfile,
+import {
   getLecturerModulesCount,
   getLecturertimetable,
   getavgatt,
@@ -61,7 +47,6 @@ interface LecturerDashboardProps {
 
 
 export function LecturerDashboard({
-  onLogout,
   onNavigateToReports,
   onNavigateToProfile,
   onNavigateToTimetable,
@@ -71,7 +56,7 @@ export function LecturerDashboard({
 
   const [, setLoading] = useState(true);
   const { token } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
+
   const [totalModules, settotalModules] = useState(0);
   const [avgattM, setavgattM] = useState(0);
   const [reportCount, setreportCount] = useState(0);
@@ -99,7 +84,6 @@ export function LecturerDashboard({
     
       try{
         const [
-          profileData,
           ModulesCount,
           timetable,
           avgAttM,
@@ -108,7 +92,6 @@ export function LecturerDashboard({
           reportCount,
           recentSessionsLog
         ] = await Promise.all([
-          getLecturerProfile(token),
           getLecturerModulesCount(token),
           getLecturertimetable(token),
           getavgatt(token),
@@ -117,7 +100,6 @@ export function LecturerDashboard({
           getrecentSessionsrecord(token),
           getrecentSessionslog(token)
         ]);
-      setProfile(profileData);
       settotalModules(ModulesCount.total_modules);
       settimetable(timetable);
       setavgattM(avgAttM.Average_attendance);
@@ -159,7 +141,7 @@ export function LecturerDashboard({
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Navbar title="Lecturer Portal" />
+      <Navbar title="Lecturer Portal" onNavigateToProfile={onNavigateToProfile} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">

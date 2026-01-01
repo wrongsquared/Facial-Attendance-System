@@ -77,7 +77,7 @@ def seedCoursesOSS(dbSessionLocalInstance: Session, spbase: Client):
 def userProfileSeeder(dbSessionLocalInstance: Session, spbase: Client): 
     print(f"Seeding User Profiles: \n")
     campuses = dbSessionLocalInstance.query(Campus).all()
-    profileTypeList = ['PManager', 'Admin', 'Student', 'Lecturer']
+    profileTypeList = ['Pmanager', 'Admin', 'Student', 'Lecturer']
     for campus in campuses:
         print(f"  - Creating profiles for {campus.campusName}...")
         
@@ -204,7 +204,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
                 studNums.append(studNumGenstr)
                 break
         if not user_uuid:
-            print(f"❌ Skipping {name} ({email}): Auth creation failed (User might exist or error).")
+            print(f" Skipping {name} ({email}): Auth creation failed (User might exist or error).")
             continue # Skip to next loop iteration, DO NOT try to insert into DB
         dbSessionLocalInstance.add(Student(
                                         userID = user_uuid,
@@ -491,7 +491,7 @@ def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
     
     return None
 
-if __name__ == "__main__":
+if __name__ == "__main__":  
     db_session: Session = SessionLocal()
 
     try:

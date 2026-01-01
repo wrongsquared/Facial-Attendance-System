@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -6,75 +6,81 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-import { Button } from "./ui/button";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Button } from "./ui/button"; 
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import {
-  BookOpen,
-  LogOut,
-  Bell,
-  ArrowLeft,
+  ArrowLeft
 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
+import { Navbar } from "./Navbar";
+import { useAuth } from "../cont/AuthContext";
+import { StudentProfileData } from "../types/studentinnards";
+import { getStudentFullProfile } from "../services/api";
 
 interface StudentProfileProps {
   onLogout: () => void;
   onBack: () => void;
+  onNavigateToProfile: () => void;
+  onOpenNotifications:() => void;
 }
 
 export function StudentProfile({
-  onLogout,
+  onNavigateToProfile,
   onBack,
+  onOpenNotifications
 }: StudentProfileProps) {
+    const { token } = useAuth();
+  const [loading, setLoading] = useState(true);
+
+  // Form State
+  const [formData, setFormData] = useState<StudentProfileData>({
+    name: "",
+    email: "",
+    studentNum: "",
+    contactNumber: "",
+    address: "",
+    emergencyContactName: "",
+    emergencyContactRelationship: "",
+    emergencyContactNumber: ""
+  });
+
+  // Fetch Data on Mount
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!token) return;
+      try {
+        const data = await getStudentFullProfile(token);
+        // Populate Form
+        // We use || "" to ensure inputs don't become uncontrolled if value is null
+        setFormData({
+          name: data.name || "",
+          email: data.email || "",
+          studentNum: data.studentNum || "",
+          contactNumber: data.contactNumber || "",
+          address: data.address || "",
+          emergencyContactName: data.emergencyContactName || "",
+          emergencyContactRelationship: data.emergencyContactRelationship || "",
+          emergencyContactNumber: data.emergencyContactNumber || ""
+        });
+      } catch (err) {
+        console.error("Failed to load profile", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [token]);
+
+  // Handle Input Changes
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.id]: e.target.value });
+  };
+
+
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
 
   // Personal Information
-  const [name, setName] = useState("John Smith");
-  const [studentId, setStudentId] = useState("7891011");
-  const [email, setEmail] = useState("js123@uowmail.edu.au");
-  const [contactNumber, setContactNumber] = useState(
-    "+61 412 345 678",
-  );
-  const [address, setAddress] = useState(
-    "123 Main Street, Wollongong NSW 2500",
-  );
-
-  // Emergency Contact
-  const [emergencyName, setEmergencyName] =
-    useState("Sarah Smith");
-  const [relationship, setRelationship] = useState("Mother");
-  const [emergencyContact, setEmergencyContact] = useState(
-    "+61 423 456 789",
-  );
-
-  const handleSave = () => {
-    // Mock save logic
-    console.log("Saving profile:", {
-      name,
-      studentId,
-      email,
-      contactNumber,
-      address,
-      emergencyName,
-      relationship,
-      emergencyContact,
-    });
-    alert("Profile updated successfully!");
-    setIsEditMode(false);
-  };
-
   const handleCancel = () => {
     setIsEditMode(false);
   };
@@ -82,63 +88,10 @@ export function StudentProfile({
   const handleUpdateProfile = () => {
     setIsEditMode(true);
   };
-
+  if (loading) return <div className="p-10 text-center">Loading profile...</div>;
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">
-                Student Portal
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback>JS</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>John Smith</p>
-                <p className="text-sm text-gray-600">
-                  Student ID: 7891011
-                </p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
+      <Navbar title="Student Profile" onNavigateToProfile={onNavigateToProfile} onOpenNotifications={onOpenNotifications}/>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -178,10 +131,9 @@ export function StudentProfile({
                 <Input
                   id="name"
                   type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={formData.name}
                   className="h-12"
-                  disabled={!isEditMode}
+                  disabled // Shouldn't be allowed to change
                 />
               </div>
 
@@ -190,10 +142,9 @@ export function StudentProfile({
                 <Input
                   id="studentId"
                   type="text"
-                  value={studentId}
-                  onChange={(e) => setStudentId(e.target.value)}
+                  value={formData.studentNum}
                   className="h-12"
-                  disabled={true}
+                  disabled // Shouldn't be allowed to change
                 />
               </div>
 
@@ -202,10 +153,9 @@ export function StudentProfile({
                 <Input
                   id="email"
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={formData.email}
                   className="h-12"
-                  disabled={!isEditMode}
+                  disabled // Shouldn't be allowed to change
                 />
               </div>
 
@@ -216,12 +166,9 @@ export function StudentProfile({
                 <Input
                   id="contactNumber"
                   type="tel"
-                  value={contactNumber}
-                  onChange={(e) =>
-                    setContactNumber(e.target.value)
-                  }
+                  value={formData.contactNumber}
                   className="h-12"
-                  disabled={!isEditMode}
+                  disabled = {!isEditMode}
                 />
               </div>
 
@@ -230,8 +177,7 @@ export function StudentProfile({
                 <Input
                   id="address"
                   type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  value={formData.address}
                   className="h-12"
                   disabled={!isEditMode}
                 />
@@ -255,10 +201,7 @@ export function StudentProfile({
                 <Input
                   id="emergencyName"
                   type="text"
-                  value={emergencyName}
-                  onChange={(e) =>
-                    setEmergencyName(e.target.value)
-                  }
+                  value={formData.emergencyContactName}
                   className="h-12"
                   disabled={!isEditMode}
                 />
@@ -271,10 +214,7 @@ export function StudentProfile({
                 <Input
                   id="relationship"
                   type="text"
-                  value={relationship}
-                  onChange={(e) =>
-                    setRelationship(e.target.value)
-                  }
+                  value={formData.emergencyContactRelationship}
                   className="h-12"
                   disabled={!isEditMode}
                 />
@@ -287,10 +227,7 @@ export function StudentProfile({
                 <Input
                   id="emergencyContact"
                   type="tel"
-                  value={emergencyContact}
-                  onChange={(e) =>
-                    setEmergencyContact(e.target.value)
-                  }
+                  value={formData.emergencyContactNumber}
                   className="h-12"
                   disabled={!isEditMode}
                 />
@@ -312,7 +249,7 @@ export function StudentProfile({
 
               <Button
                 size="lg"
-                onClick={handleSave}
+                onClick={handleChange}
                 className="w-40 bg-blue-600 text-white hover:bg-blue-700"
               >
                 Save Changes

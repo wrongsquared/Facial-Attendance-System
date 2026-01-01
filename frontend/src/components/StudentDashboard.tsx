@@ -7,29 +7,14 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Button } from "./ui/button";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import {
   Calendar,
-  Clock,
-  BookOpen,
   CheckCircle2,
   XCircle,
-  LogOut,
-  Bell,
+
 } from "lucide-react";
 import { Progress } from "./ui/progress";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
 import { NotificationAlerts } from "./NotificationAlerts";
 import { useAuth } from "../cont/AuthContext"; 
 import { lessonInfo, TodaysLessons, AttendanceRecord, WeeklyLesson, OverallLessonsStat,ModuleStat } from "../types/studentdash";
@@ -40,8 +25,10 @@ import {
   getOverallLessons, 
   getStatsByModule,
   getRecentHistory,
-  getWeeklyTimetable} from "../services/api";
+  getWeeklyTimetable,
+  getNotifications} from "../services/api";
   import { Navbar } from "./Navbar";
+import { NotificationItem } from "../types/studentinnards";
 
 interface StudentDashboardProps {
   onLogout: () => void;
@@ -49,6 +36,7 @@ interface StudentDashboardProps {
   onNavigateToTimetable: () => void;
   onNavigateToProfile: () => void;
   onNavigateToProgress: () => void;
+  onOpenNotifications:() => void;
 }
 
 export function StudentDashboard({
@@ -57,6 +45,7 @@ export function StudentDashboard({
   onNavigateToTimetable,
   onNavigateToProfile,
   onNavigateToProgress,
+  onOpenNotifications
 }: StudentDashboardProps) {
   const today = new Date();
   const todaysdate = today.toLocaleDateString('en-GB',{
@@ -66,38 +55,7 @@ export function StudentDashboard({
   })
 
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-
-  const notificationAlerts = [
-    {
-      type: "not_recorded" as const,
-      studentId: "7654321",
-      studentName: "John Smith",
-      module: "CSCI334 - Database Systems",
-      date: "2025-12-09",
-      attendanceStatus: "Not Recorded",
-      reason: "No successful facial recognition check-in detected",
-      attendanceMethod: "Facial Recognition",
-      cameraLocation: "Building 3, Room 205",
-      timestamp: "2025-12-09 09:15:30",
-      suggestedAction:
-        "Please re-attempt check-in or contact the administrator if you are in class.",
-    },
-    {
-      type: "below_threshold" as const,
-      studentId: "7654321",
-      studentName: "John Smith",
-      module: "CSCI203 - Algorithms",
-      date: "2025-12-09",
-      attendanceStatus: "At Risk",
-      currentAttendance: 77,
-      threshold: 85,
-      recentSessionsMissed: 3,
-      totalRecentSessions: 13,
-      impact:
-        "You are at risk of not meeting the minimum attendance requirement.",
-      suggestedAction: "Attend upcoming classes.",
-    },
-  ];
+  const [notificationAlerts, setNotificationAlerts] = useState<NotificationItem[]>([]);
 
   const { token, user } = useAuth();
 
@@ -124,9 +82,10 @@ useEffect(() => {
           profileData, 
           todaysData, 
           overallLessonsData,
-          moduleStatsData ,
+          moduleStatsData,
           historyData,
-          weeklyData
+          weeklyData,
+          notifData
         ] = await Promise.all([
           getStudentTimetable(token),
           getStudentProfile(token),
@@ -134,7 +93,8 @@ useEffect(() => {
           getOverallLessons(token),
           getStatsByModule(token),
           getRecentHistory(token),
-          getWeeklyTimetable(token)
+          getWeeklyTimetable(token),
+          getNotifications(token)
         ]);
 
         //Set all states at once
@@ -145,6 +105,7 @@ useEffect(() => {
         setSubjectStats(moduleStatsData);
         setRecentHistory(historyData);
         setWeeklyLessons(weeklyData);
+        setNotificationAlerts(notifData);
 
       } catch (err) {
         console.error("Failed to load dashboard:", err);
@@ -185,7 +146,7 @@ useEffect(() => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       
-      <Navbar title="Student Portal" />
+      <Navbar title="Student Portal" onNavigateToProfile={onNavigateToProfile} onOpenNotifications={onOpenNotifications}  />
 
 
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -426,12 +387,6 @@ useEffect(() => {
         </div>
       </main>
 
-      {/* Notification Alerts Dialog */}
-      <NotificationAlerts
-        isOpen={isNotificationOpen}
-        onClose={() => setIsNotificationOpen(false)}
-        alerts={notificationAlerts}
-      />
     </div>
   );
 }

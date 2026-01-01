@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -8,13 +8,10 @@ import {
 } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+
 import { Badge } from "./ui/badge";
 import {
-  BookOpen,
-  LogOut,
   ArrowLeft,
-  Bell,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -40,206 +37,102 @@ import {
   PopoverTrigger,
 } from "./ui/popover";
 import { Calendar } from "./ui/calendar";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
+import { Navbar } from "./Navbar";
+import { useAuth } from "../cont/AuthContext";
+import { AttendanceLog } from "../types/studentinnards";
+import { getFullAttendanceHistory } from "../services/api";
 
-interface StudentAttendanceHistoryProps {
-  onLogout: () => void;
+interface Props {
+  onNavigateToProfile: () => void;
   onBack: () => void;
+  onLogout: () => void; // Kept for prop compatibility, though Navbar handles it
+  onOpenNotifications:() => void;
 }
-
+const ITEMS_PER_PAGE = 10;
 // Mock data for attendance history
-const attendanceRecords = [
-  {
-    id: 1,
-    module: "CSCI334",
-    status: "Present",
-    date: "01 Dec 2025",
-    time: "09:00 AM",
-  },
-  {
-    id: 2,
-    module: "CSCI251",
-    status: "Present",
-    date: "01 Dec 2025",
-    time: "02:00 PM",
-  },
-  {
-    id: 3,
-    module: "CSCI203",
-    status: "Present",
-    date: "30 Nov 2025",
-    time: "10:00 AM",
-  },
-  {
-    id: 4,
-    module: "CSCI334",
-    status: "Absent",
-    date: "30 Nov 2025",
-    time: "09:00 AM",
-  },
-  {
-    id: 5,
-    module: "CSCI251",
-    status: "Present",
-    date: "29 Nov 2025",
-    time: "02:00 PM",
-  },
-  {
-    id: 6,
-    module: "CSCI203",
-    status: "Present",
-    date: "29 Nov 2025",
-    time: "10:00 AM",
-  },
-  {
-    id: 7,
-    module: "CSCI334",
-    status: "Late",
-    date: "28 Nov 2025",
-    time: "09:15 AM",
-  },
-  {
-    id: 8,
-    module: "CSCI251",
-    status: "Present",
-    date: "28 Nov 2025",
-    time: "02:00 PM",
-  },
-  {
-    id: 9,
-    module: "CSCI203",
-    status: "Present",
-    date: "27 Nov 2025",
-    time: "10:00 AM",
-  },
-  {
-    id: 10,
-    module: "CSCI334",
-    status: "Present",
-    date: "27 Nov 2025",
-    time: "09:00 AM",
-  },
-];
 
-const ITEMS_PER_PAGE = 8;
 
-export function StudentAttendanceHistory({
-  onLogout,
-  onBack,
-}: StudentAttendanceHistoryProps) {
+export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNotifications}: Props) {
+  const { token } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [historyData, setHistoryData] = useState<AttendanceLog[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedModule, setSelectedModule] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const formatDate = (date: Date) => {
-    const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    ];
-    return `${date.getDate().toString().padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
-  };
+    useEffect(() => {
+    const fetchData = async () => {
+      if (!token) return;
+      try {
+        const data = await getFullAttendanceHistory(token);
+        setHistoryData(data);
+      } catch (err) {
+        console.error("Failed to load history", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [token]);
+    // 1. Get Unique Modules for Dropdown
+  const uniqueModules = Array.from(new Set(historyData.map(item => item.module_code)));
 
-  // Filter records
-  const filteredRecords = attendanceRecords.filter((record) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      record.module.toLowerCase().includes(searchQuery.toLowerCase());
+  // 2. Filter Logic
+  const filteredRecords = historyData.filter((record) => {
+    // A. Search
+    const matchesSearch = record.module_code.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesModule =
-      selectedModule === "all" || record.module === selectedModule;
+    // B. Module Dropdown
+    const matchesModule = selectedModule === "all" || record.module_code === selectedModule;
     
-    const matchesStatus =
-      selectedStatus === "all" || record.status === selectedStatus;
+    // C. Status Dropdown
+    const matchesStatus = selectedStatus === "all" || record.status === selectedStatus;
     
-    const matchesDate =
-      !selectedDate || record.date === formatDate(selectedDate);
+    // D. Date Picker
+    let matchesDate = true;
+    if (selectedDate) {
+      const recordDate = new Date(record.start_time).toDateString();
+      const filterDate = selectedDate.toDateString();
+      matchesDate = recordDate === filterDate;
+    }
 
     return matchesSearch && matchesModule && matchesStatus && matchesDate;
   });
 
-  // Pagination
   const totalPages = Math.ceil(filteredRecords.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const currentRecords = filteredRecords.slice(startIndex, endIndex);
+  const currentRecords = filteredRecords.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedModule, selectedStatus, selectedDate]);
+
+  // --- HELPERS ---
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Present":
-        return "bg-green-100 text-green-700 hover:bg-green-100";
-      case "Absent":
-        return "bg-red-100 text-red-700 hover:bg-red-100";
-      case "Late":
-        return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
-      default:
-        return "bg-gray-100 text-gray-700 hover:bg-gray-100";
+      case "Present": return "bg-green-100 text-green-800 hover:bg-green-100";
+      case "Absent": return "bg-red-100 text-red-800 hover:bg-red-100";
+      case "Late": return "bg-yellow-100 text-yellow-800 hover:bg-yellow-100";
+      default: return "bg-gray-100 text-gray-800";
     }
   };
 
+  if (loading) return <div className="p-10 text-center">Loading history...</div>;
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">Student Portal</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback>JS</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>John Smith</p>
-                <p className="text-sm text-gray-600">Student ID: 7654321</p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
+      <Navbar title="Student Portal" onNavigateToProfile={onNavigateToProfile} onOpenNotifications={onOpenNotifications}/>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -278,9 +171,9 @@ export function StudentAttendanceHistory({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Modules</SelectItem>
-                  <SelectItem value="CSCI334">CSCI334</SelectItem>
-                  <SelectItem value="CSCI251">CSCI251</SelectItem>
-                  <SelectItem value="CSCI203">CSCI203</SelectItem>
+                  {uniqueModules.map((code) => (
+                    <SelectItem key={code} value={code}>{code}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
@@ -340,18 +233,20 @@ export function StudentAttendanceHistory({
                 </TableHeader>
                 <TableBody>
                   {currentRecords.length > 0 ? (
-                    currentRecords.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell>{record.module}</TableCell>
+                    currentRecords.map((record) => { 
+                      const dateObj = new Date(record.start_time);
+                      return (
+                      <TableRow key={record.lessonID}>
+                        <TableCell>{record.module_code}</TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(record.status)}>
                             {record.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>{record.date}</TableCell>
-                        <TableCell>{record.time}</TableCell>
-                      </TableRow>
-                    ))
+                        <TableCell>{dateObj.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</TableCell>
+                        <TableCell>{dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</TableCell>
+                      </TableRow>);
+                    })
                   ) : (
                     <TableRow>
                       <TableCell

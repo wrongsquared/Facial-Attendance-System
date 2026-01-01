@@ -1,7 +1,8 @@
 import './styles/globals.css';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from './cont/AuthContext';
-import { loginUser, LoginCredentials, } from './services/api';
+import { loginUser, getNotifications, } from './services/api';
+import { LoginCredentials } from './types/auth';
 import { LoginPage } from './components/LoginPage';
 import { StudentDashboard } from './components/StudentDashboard';
 import { LecturerDashboard } from './components/LecturerDashboard';
@@ -34,6 +35,8 @@ import { UpdateUser } from './components/UpdateUser';
 import { Toast } from './components/Toast';
 import { Footer } from './components/Footer';
 import type { AttendanceRecord } from './components/Attendance';
+import { NotificationAlerts } from "./components/NotificationAlerts"; 
+import { NotificationItem } from './types/studentinnards';
 
 // User profile data type
 interface UserProfileData {
@@ -57,7 +60,7 @@ type StudentView = 'dashboard' | 'attendanceHistory' | 'timetable' | 'profile' |
 type PlatformManagerView = 'dashboard' | 'manageInstitutions' | 'viewInstitution' | 'updateInstitution';
 
 export default function App() {
-  const { user, login, logout, loading } = useAuth();
+  const { user, login, logout, loading, token } = useAuth(); 
   const [lecturerView, setLecturerView] = useState<LecturerView>('dashboard');
   const [adminView, setAdminView] = useState<AdminView>('dashboard');
   const [studentView, setStudentView] = useState<StudentView>('dashboard');
@@ -89,7 +92,9 @@ export default function App() {
     role: string;
     currentGoal: number | null;
   } | null>(null);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
+  const [notificationAlerts, setNotificationAlerts] = useState<NotificationItem[]>([]);
   // User goals state - mapping userId to goal percentage (null means deleted/no goal)
   const [userGoals, setUserGoals] = useState<Record<string, number | null>>({
   });
@@ -110,7 +115,20 @@ export default function App() {
 
   // Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      // Only fetch if user is logged in AND is a student
+      if (token && user?.role_name.toLowerCase() === 'student') {
+        try {
+          const data = await getNotifications(token);
+          setNotificationAlerts(data); 
+        } catch (err) {
+          console.error("Failed to load notifications", err);
+        }
+      }
+    };
+    fetchAlerts();
+  }, [token, user]);
   const showToast = (message: string) => {
     setToastMessage(message);
   };
@@ -130,22 +148,22 @@ export default function App() {
     );
   };
 
-  // 4. NEW LOGIN LOGIC: Connects to Backend
+  // Login Logic
   const handleLogin = async (creds: LoginCredentials, selectedRole: string) => {
     try {
-      // A. Call the API
+      // Call the API
       const data = await loginUser(creds);
 
-      // B. Optional: Check Role Mismatch
+      // Optional: Check Role Mismatch
       // Ensure the backend role matches the tab the user selected
       //if (data.role_name.toLowerCase() !== selectedRole.toLowerCase()) {
       // throw new Error(`Account found, but you are a ${data.role_name}. Please select the ${data.role_name} tab.`);
       //}
 
-      // C. Save to Context (Redirects automatically)
+      // Save to Context (Redirects automatically)
       login(data);
 
-      // D. Reset views to default
+      // Reset views to default
       setLecturerView('dashboard');
       setAdminView('dashboard');
       setStudentView('dashboard');
@@ -158,13 +176,13 @@ export default function App() {
     }
   };
 
-  // 5. NEW LOGOUT LOGIC
+  // NEW LOGOUT LOGIC
   const handleLogout = () => {
 
-    // 1. Run the Context logic (Server call + Local cleanup)
+    // Run the Context logic (Server call + Local cleanup)
     logout();
 
-    // 2. Reset your local view states (Clean slate for next user)
+    // Reset your local view states (Clean slate for next user)
     setLecturerView('dashboard');
     setAdminView('dashboard');
     setStudentView('dashboard');
@@ -307,7 +325,9 @@ export default function App() {
       }
     }));
   };
-
+  const handleDismissAlert = (alertId: string) => {
+    setNotificationAlerts((prev) => prev.filter((alert) => alert.id !== alertId));
+  };
   const handleDeleteUserGoal = (userId: string) => {
     setUserGoals(prev => ({
       ...prev,
@@ -383,10 +403,6 @@ export default function App() {
     setStudentView('timetable');
   };
 
-  // 6. LOADING STATE (Prevent flashing login screen)
-  if (loading) {
-    return <div className="flex min-h-screen justify-center items-center">Loading...</div>;
-  }
 
   const handleNavigateToStudentProfile = () => {
     setStudentView('profile');
@@ -428,16 +444,18 @@ export default function App() {
   const handleBackToViewInstitution = () => {
     setPlatformManagerView('viewInstitution');
   };
-
+  const handleOpenNotifications = () => {
+    setIsNotificationOpen(true);
+  };
   const handleUpdateInstitution = (updatedData: {
     institutionId: string;
     institutionName: string;
-    institutionType: string;
-    address: string;
-    status: "Active" | "Inactive";
-    adminFullName: string;
-    adminEmail: string;
-    adminPhone: string;
+    institutionType?: string;
+    address?: string;
+    status?: "Active" | "Inactive";
+    adminFullName?: string;
+    adminEmail?: string;
+    adminPhone?: string;
   }) => {
     // Update the selected institution data
     setSelectedInstitutionData({
@@ -458,10 +476,13 @@ export default function App() {
     );
   }
 
-  // 8. DETERMINE ROLE FOR RENDERING
   // Normalize to lowercase to match your strict comparisons
   const userRole = user.role_name.toLowerCase();
 
+
+  if (loading) {
+    return <div className="flex min-h-screen justify-center items-center">Loading...</div>;
+  }
   // Show appropriate dashboard based on user type
   return (
     <div className="flex flex-col min-h-screen">
@@ -472,12 +493,15 @@ export default function App() {
           onNavigateToTimetable={handleNavigateToStudentTimetable}
           onNavigateToProfile={handleNavigateToStudentProfile}
           onNavigateToProgress={handleNavigateToStudentProgress}
+          onOpenNotifications={handleOpenNotifications}
         />
       )}
       {userRole === 'student' && studentView === 'attendanceHistory' && (
         <StudentAttendanceHistory
           onLogout={handleLogout}
           onBack={handleBackToStudentDashboard}
+          onNavigateToProfile={handleNavigateToStudentProfile}
+          onOpenNotifications={handleOpenNotifications}
         />
       )}
       {userRole === 'student' && studentView === 'timetable' && (
@@ -485,12 +509,15 @@ export default function App() {
           onLogout={handleLogout}
           onBack={handleBackToStudentDashboard}
           onNavigateToProfile={handleNavigateToStudentProfile}
+          onOpenNotifications={handleOpenNotifications}
         />
       )}
       {userRole === 'student' && studentView === 'profile' && (
         <StudentProfile
           onLogout={handleLogout}
           onBack={handleBackToStudentDashboard}
+          onNavigateToProfile={handleNavigateToStudentProfile}
+          onOpenNotifications={handleOpenNotifications}
         />
       )}
       {userRole === 'student' && studentView === 'progress' && (
@@ -498,6 +525,7 @@ export default function App() {
           onLogout={handleLogout}
           onBack={handleBackToStudentDashboard}
           onNavigateToProfile={handleNavigateToStudentProfile}
+          onOpenNotifications={handleOpenNotifications}
         />
       )}
       {userRole === 'lecturer' && lecturerView === 'dashboard' && (
@@ -545,6 +573,7 @@ export default function App() {
           onNavigateToBiometricProfile={handleNavigateToBiometricProfile}
           onNavigateToAttendanceRecords={handleNavigateToAdminAttendanceRecords}
           onNavigateToReports={handleNavigateToAdminReports}
+          onNavigateToProfile={handleNavigateToProfile}
         />
       )}
       {userRole === 'admin' && adminView === 'manageUsers' && (
@@ -693,6 +722,12 @@ export default function App() {
         />
       )}
       <Toast message={toastMessage} onClose={hideToast} />
+      <NotificationAlerts 
+        isOpen={isNotificationOpen}
+        onClose={() => setIsNotificationOpen(false)}
+        alerts={notificationAlerts}
+        onDismissAlert = {handleDismissAlert}
+      />
     </div>
   );
 }

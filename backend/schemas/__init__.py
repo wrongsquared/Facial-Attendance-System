@@ -8,6 +8,11 @@ from .student import (StudentLessons,
                       AttendancePerModule,
                       PreviousAttendances,
                       WeeklyLesson,
+                      ModuleProgress,
+                      StudentProgressResponse,
+                      AttendanceLogItem,
+                      StudentProfileDetails,
+                      NotificationItem
                       )
 from .lecturer import( timetableEntry, 
                         AttendanceOverviewCard, 
@@ -25,7 +30,8 @@ from .lecturer import( timetableEntry,
                         Weeklytimetable,
                         MonthlyTimetable,
                         AttendanceDetailRow,
-                        OverallClassAttendanceDetails)
+                        OverallClassAttendanceDetails,
+                        )
 from .admin import (AdminDashboardStats, 
                     CourseAttentionItem, 
                     UserManagementItem)
