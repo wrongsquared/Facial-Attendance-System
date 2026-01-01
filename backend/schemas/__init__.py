@@ -31,4 +31,7 @@ from .admin import (AdminDashboardStats,
                     UserManagementItem)
 from .platformManager import (PlatformManagerDashboard, 
                               DashboardStats, 
-                              UniversityDisplay)
+                              UniversityDisplay, 
+                              InstitutionProfile,
+                              InstitutionCreate,
+                              PaginatedInstitutionResponse)
