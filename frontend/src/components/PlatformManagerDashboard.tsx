@@ -237,8 +237,8 @@ export function PlatformManagerDashboard({
                 <TableRow>
                   <TableHead>No.</TableHead>
                   <TableHead>Institution Name</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Action</TableHead>
+                  <TableHead className="text-center">Date</TableHead>
+                  <TableHead className="text-center">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -247,7 +247,7 @@ export function PlatformManagerDashboard({
                     <TableRow key={subscription.universityID}>
                       <TableCell>{index + 1}</TableCell>
                       <TableCell>{subscription.universityName}</TableCell>
-                      <TableCell>{
+                      <TableCell className="text-center whitespace-nowrap">{
                         ((): string => {
                           const dateObj = new Date(subscription.subscriptionDate)
                           return dateObj.toLocaleDateString('en-GB', {
@@ -257,7 +257,7 @@ export function PlatformManagerDashboard({
                           })
                         })()
                       }</TableCell>
-                      <TableCell>
+                      <TableCell className="text-center">
                         <Button
                           variant="outline"
                           size="sm"

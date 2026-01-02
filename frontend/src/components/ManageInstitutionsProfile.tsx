@@ -196,7 +196,7 @@ export function ManageInstitutionsProfile({
                     <TableHead className="w-[80px]">No.</TableHead>
                     <TableHead>Institution Name</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Date</TableHead>
+                    <TableHead className="text-center">Date</TableHead>
                     <TableHead className="text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -215,7 +215,7 @@ export function ManageInstitutionsProfile({
                           </Badge>
                         </TableCell>
                         {/* 2. Date Column right-aligned and formatted */}
-                        <TableCell className="text-right whitespace-nowrap">
+                        <TableCell className="text-center whitespace-nowrap">
                           {formatDate(institution.subscriptionDate)}
                         </TableCell>
                         {/* 3. Action Column centered */}
