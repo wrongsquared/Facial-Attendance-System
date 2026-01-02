@@ -212,12 +212,13 @@ export function ViewInstitutionProfile({
                 </div>
 
                 {/* Update Button - Centered */}
-                <div className="flex justify-center items-center mt-8">
+                <div className="mt-10 border-t pt-8">
                   <Button 
                     onClick={onEditProfile} 
                     size="lg"
+                    className="w-full text-lg h-14 font-bold shadow-md hover:shadow-lg transition-all"
                   >
-                    Update
+                    Update Profile
                   </Button>
                 </div>
               </CardContent>

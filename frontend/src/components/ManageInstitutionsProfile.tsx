@@ -126,10 +126,32 @@ export function ManageInstitutionsProfile({
     if (page >= 1 && page <= totalPages) setCurrentPage(page);
   };
 
-  const handleDeleteInstitution = (id: number) => {
-    setInstitutions(institutions.filter((inst) => inst.universityID !== id));
-    toast.success("Institution profile deleted successfully!");
-  };
+  const handleDeleteInstitution = async (id: number) => {
+  try {
+    const response = await fetch(`http://localhost:8000/platform-manager/institutions/${id}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`, // Ensure token is available from useAuth()
+      },
+    });
+
+    if (response.ok) {
+      // 1. Update the local state to remove the item from the UI
+      setInstitutions((prev) => prev.filter((inst) => inst.universityID !== id));
+      
+      // 2. Show success message
+      toast.success("Institution profile deleted successfully!");
+    } else {
+      // Handle server-side errors (e.g., 404 or 401)
+      const errorData = await response.json();
+      toast.error(errorData.detail || "Failed to delete the institution.");
+    }
+  } catch (err) {
+    console.error("Error while deleting:", err);
+    toast.error("An error occurred while trying to delete the profile.");
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
