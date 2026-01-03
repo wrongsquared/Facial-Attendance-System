@@ -235,7 +235,7 @@ export function PlatformManagerDashboard({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>No.</TableHead>
+                  <TableHead>ID</TableHead>
                   <TableHead>Institution Name</TableHead>
                   <TableHead className="text-center">Date</TableHead>
                   <TableHead className="text-center">Action</TableHead>
@@ -245,7 +245,8 @@ export function PlatformManagerDashboard({
                 {filteredSubscriptions && filteredSubscriptions.length > 0 ? (
                   filteredSubscriptions.map((subscription, index) => (
                     <TableRow key={subscription.universityID}>
-                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>#{subscription.universityID}</TableCell>
+
                       <TableCell>{subscription.universityName}</TableCell>
                       <TableCell className="text-center whitespace-nowrap">{
                         ((): string => {

@@ -89,7 +89,13 @@ export function ManageInstitutionsProfile({
           },
         });
         const data: InstitutionData[] = await response.json();
-        setInstitutions(data);
+
+        // FIX: Sort Latest (2026) to Earliest (2021)
+        const sortedData = [...data].sort((a, b) => {
+          return new Date(b.subscriptionDate).getTime() - new Date(a.subscriptionDate).getTime();
+        });
+
+        setInstitutions(sortedData);
       } catch (err) {
         console.error("Error while fetching:", err);
       }
@@ -127,31 +133,33 @@ export function ManageInstitutionsProfile({
   };
 
   const handleDeleteInstitution = async (id: number) => {
-  try {
-    const response = await fetch(`http://localhost:8000/platform-manager/institutions/${id}`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`, // Ensure token is available from useAuth()
-      },
-    });
+    try {
+      const response = await fetch(`http://localhost:8000/platform-manager/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`, // Ensure token is available from useAuth()
+        },
+      });
 
-    if (response.ok) {
-      // 1. Update the local state to remove the item from the UI
-      setInstitutions((prev) => prev.filter((inst) => inst.universityID !== id));
-      
-      // 2. Show success message
-      toast.success("Institution profile deleted successfully!");
-    } else {
-      // Handle server-side errors (e.g., 404 or 401)
-      const errorData = await response.json();
-      toast.error(errorData.detail || "Failed to delete the institution.");
+      if (response.ok) {
+        // 1. Update the local state to remove the item from the UI
+        setInstitutions((prev) =>
+          prev.filter((inst) => String(inst.universityID) !== String(id))
+        );
+
+        // 2. Show success message
+        toast.success("Institution profile deleted successfully!");
+      } else {
+        // Handle server-side errors (e.g., 404 or 401)
+        const errorData = await response.json();
+        toast.error(errorData.detail || "Failed to delete the institution.");
+      }
+    } catch (err) {
+      console.error("Error while deleting:", err);
+      toast.error("An error occurred while trying to delete the profile.");
     }
-  } catch (err) {
-    console.error("Error while deleting:", err);
-    toast.error("An error occurred while trying to delete the profile.");
-  }
-};
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -215,7 +223,7 @@ export function ManageInstitutionsProfile({
                 <TableHeader>
                   <TableRow>
                     {/* Updated Header to "No." */}
-                    <TableHead className="w-[80px]">No.</TableHead>
+                    <TableHead className="w-[80px]">ID</TableHead>
                     <TableHead>Institution Name</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-center">Date</TableHead>
@@ -228,7 +236,7 @@ export function ManageInstitutionsProfile({
                       <TableRow key={institution.universityID}>
                         {/* 1. Calculates Row Number: 1, 2, 3... */}
                         <TableCell className="text-gray-600 font-medium">
-                          {(currentPage - 1) * itemsPerPage + index + 1}
+                           #{institution.universityID}
                         </TableCell>
                         <TableCell className="font-medium">{institution.universityName}</TableCell>
                         <TableCell>
