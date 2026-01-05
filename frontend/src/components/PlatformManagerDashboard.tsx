@@ -203,7 +203,7 @@ export function PlatformManagerDashboard({
                 className="w-full"
                 onClick={onNavigateToInstitutionsProfile}
               >
-                View Institutions Profile
+                View Institutions Account
               </Button>
             </CardContent>
           </Card>

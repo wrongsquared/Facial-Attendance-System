@@ -168,7 +168,7 @@ export function ManageInstitutionsProfile({
           <div className="flex items-center gap-3">
             <div className="bg-blue-600 p-2 rounded-lg"><BookOpen className="h-6 w-6 text-white" /></div>
             <div>
-              <h1 className="text-2xl font-bold">Attendify</h1>
+              <h1 className="text-2xl">Attendify</h1>
               <p className="text-sm text-gray-600">Platform Manager Portal</p>
             </div>
           </div>
@@ -191,8 +191,8 @@ export function ManageInstitutionsProfile({
 
         <Card>
           <CardHeader>
-            <CardTitle>Manage Institutions Profile</CardTitle>
-            <CardDescription>View and manage all institution profiles in the system</CardDescription>
+            <CardTitle>Manage Institutions Account</CardTitle>
+            <CardDescription>View and manage all institution accounts in the system</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -215,7 +215,7 @@ export function ManageInstitutionsProfile({
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={onCreateProfile}>Create Profile</Button>
+              <Button onClick={onCreateProfile}>Create Account</Button>
             </div>
 
             <div className="border rounded-lg">
@@ -252,17 +252,17 @@ export function ManageInstitutionsProfile({
                         <TableCell>
                           <div className="flex items-center justify-center gap-2">
                             <Button variant="outline" size="sm" onClick={() => onViewProfile({ institutionId: institution.universityID.toString(), institutionName: institution.universityName })}>
-                              <Eye className="h-4 w-4 mr-1" /> View Profile
+                              <Eye className="h-4 w-4 mr-1" /> View Account
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                                  <Trash2 className="h-4 w-4 mr-1" /> Delete Profile
+                                  <Trash2 className="h-4 w-4 mr-1" /> Delete Account
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Institution Profile</AlertDialogTitle>
+                                  <AlertDialogTitle>Delete Institution Account</AlertDialogTitle>
                                   <AlertDialogDescription>Are you sure you want to delete "{institution.universityName}"?</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter className="flex justify-center gap-4">
