@@ -13,6 +13,11 @@ import {
   Bell,
   Settings,
   ArrowLeft,
+  Users,
+  Mail,
+  Phone,
+  ShieldCheck,
+  MapPin
 } from "lucide-react";
 import {
   AlertDialog,
@@ -27,6 +32,9 @@ import {
 } from "./ui/alert-dialog";
 import { Badge } from "./ui/badge";
 
+import { useEffect, useState } from "react";
+import { useAuth } from "../cont/AuthContext";
+
 interface ViewInstitutionProfileProps {
   onLogout: () => void;
   onBack: () => void;
@@ -35,16 +43,39 @@ interface ViewInstitutionProfileProps {
     institutionId: string;
     institutionName: string;
   };
-  onUpdateInstitution: (updatedData: {
-    institutionId: string;
-    institutionName: string;
-    institutionType: string;
-    address: string;
-    status: "Active" | "Inactive";
-    adminFullName: string;
-    adminEmail: string;
-    adminPhone: string;
-  }) => void;
+}
+
+// 1. Represents an Administrative User (linked via UserProfile -> Campus)
+export interface AdminUser {
+  userID: string;       // UUID from your backend
+  name: string;
+  email: string;
+  phone: string | null; // mapped from 'contactNumber' in your DB
+  type: string;         // 'admin'
+  status: string;       // Usually hardcoded as "Active" or mapped from isActive
+}
+
+// 2. Represents the University details
+export interface UniversityDetails {
+  campusID: number;
+  campusName: string;
+  campusAddress: string;
+  subscriptionDate: string; // Date string from ISO format
+  isActive: boolean;
+}
+
+// 3. The final response structure from your FastAPI /institution/{id} call
+export interface InstitutionFullProfile {
+  details: UniversityDetails;
+  admins: AdminUser[];
+}
+
+// 4. (Optional) If you ever fetch just the list of campuses for a university
+export interface Campus {
+  campusID: number;
+  campusName: string;
+  campusAddress: string;
+  universityID: number;
 }
 
 export function ViewInstitutionProfile({
@@ -53,14 +84,54 @@ export function ViewInstitutionProfile({
   onEditProfile,
   institutionData,
 }: ViewInstitutionProfileProps) {
-  // Mock data for display (in a real app, this would come from props or API)
-  const currentStatus = "Active";
-  const institutionType = "University";
-  const name = institutionData.institutionName;
-  const address = "Northfields Avenue, Wollongong NSW 2522";
-  const adminFullName = "Dr. Sarah Williams";
-  const adminEmail = "sarah.williams@uow.edu.au";
-  const adminPhone = "+61 2 4221 3555";
+  
+
+  // 1. Define a state at the top of your component to hold the data
+  const [profileData, setProfileData] = useState<InstitutionFullProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const { token } = useAuth()
+
+  useEffect(() => {
+    const fetchInstitutionProfile = async () => {
+      // Ensure we have a token and an ID before fetching
+      if (!token || !institutionData.institutionId) return;
+
+      try {
+        setLoading(true);
+
+        // We call the specific institution endpoint using the ID from props
+        const response = await fetch(
+          `http://localhost:8000/platform-manager/institution/${institutionData.institutionId}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch institution profile");
+        }
+
+        const data = await response.json();
+
+        // This 'data' now contains:
+        // data.details -> University info (Name, Address, etc.)
+        // data.admins  -> The list of Daniel, James, etc.
+        setProfileData(data);
+
+      } catch (err) {
+        console.error("Error while fetching profile:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInstitutionProfile();
+  }, [token, institutionData.institutionId]); // Re-run if token or selected ID changes
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -77,16 +148,10 @@ export function ViewInstitutionProfile({
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
+            <Button variant="ghost" size="icon"><Bell className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon"><Settings className="h-5 w-5" /></Button>
             <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback>PM</AvatarFallback>
-              </Avatar>
+              <Avatar><AvatarFallback>PM</AvatarFallback></Avatar>
               <div className="hidden md:block">
                 <p>Platform Manager</p>
                 <p className="text-sm text-gray-600">System Manager</p>
@@ -94,22 +159,15 @@ export function ViewInstitutionProfile({
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
+                <Button variant="outline" size="sm"><LogOut className="h-4 w-4 mr-2" />Logout</Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
+                  <AlertDialogDescription>Are you sure?</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
+                  <AlertDialogAction onClick={onLogout}>Logout</AlertDialogAction>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -118,121 +176,93 @@ export function ViewInstitutionProfile({
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 flex-1">
-        {/* Back Button */}
+      <main className="container mx-auto px-4 py-8 flex-1 max-w-6xl">
         <Button variant="ghost" onClick={onBack} className="mb-6">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Manage Institutions
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Manage Institutions
         </Button>
 
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl mb-2">View Institution Profile</h2>
-          <p className="text-gray-600 mb-8">
-            Review institution and administrator information
-          </p>
+        <div className="space-y-6">
+          {/* 1. HERO SECTION */}
+          <Card className="border-none shadow-sm bg-white overflow-hidden">
+            <div className="h-1.5 bg-blue-600 w-full" />
+            <CardContent className="p-8">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="space-y-4 w-full">
+                  <h2 className="text-3xl font-bold text-gray-900">{institutionData.institutionName}</h2>
 
-          <div className="space-y-6">
-            {/* Current Status Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Current Status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Badge
-                  variant={currentStatus === "Active" ? "default" : "secondary"}
-                  className="text-base px-4 py-2"
-                >
-                  {currentStatus}
-                </Badge>
-              </CardContent>
-            </Card>
+                  {/* Fixed Spacing for ID, Address, and Badge */}
+                  <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-gray-500">
+                    <span className="text-sm font-bold text-black">ID: {institutionData.institutionId}</span>
 
-            {/* Institution and Administrator Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Profile Information</CardTitle>
-                <CardDescription>
-                  Institution and administrator details
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* Left Column - Institution Details */}
-                  <div className="space-y-6">
-                    <h3 className="font-semibold text-lg">Institution Details</h3>
-
-                    {/* Institution ID */}
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-600">Institution ID</p>
-                      <p className="text-base">{institutionData.institutionId}</p>
+                    <div className="flex items-center">
+                      <MapPin className="h-5 w-5 text-gray-400" />
+                      <span className="text-sm font-bold text-gray-600">{profileData ? profileData.details.campusAddress : profileData}</span>
                     </div>
 
-                    {/* Institution Type */}
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-600">Institution Type</p>
-                      <p className="text-base">{institutionType}</p>
-                    </div>
 
-                    {/* Institution Name */}
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-600">Institution Name</p>
-                      <p className="text-base">{name}</p>
-                    </div>
 
-                    {/* Address */}
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-600">Address</p>
-                      <p className="text-base">{address}</p>
-                    </div>
-                  </div>
-
-                  {/* Right Column - Administrator Details */}
-                  <div className="space-y-6">
-                    <h3 className="font-semibold text-lg">Administrator Details</h3>
-
-                    {/* Full Name */}
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-600">Full Name</p>
-                      <p className="text-base">{adminFullName}</p>
-                    </div>
-
-                    {/* Email */}
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-600">Email</p>
-                      <p className="text-base">{adminEmail}</p>
-                    </div>
-
-                    {/* Phone Number */}
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-600">Phone Number</p>
-                      <p className="text-base">{adminPhone}</p>
-                    </div>
                   </div>
                 </div>
+                <Button onClick={onEditProfile} className="bg-blue-600 hover:bg-blue-700">Update Profile</Button>
+              </div>
+            </CardContent>
+          </Card>
 
-                {/* Update Button - Centered */}
-              <div className="mt-10 border-t pt-8">
-                  <Button 
-                    onClick={onEditProfile} 
-                    size="lg"
-                    className="w-full text-lg h-14 font-bold shadow-md hover:shadow-lg transition-all"
-                  >
-                    Update Profile
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+          {/* 2. SECURITY NOTE */}
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-center gap-4">
+            <ShieldCheck className="h-5 w-5 text-blue-600" />
+            <p className="text-sm text-blue-800 font-medium">
+              Only users listed as "Admin" have permission to manage this institution's portal data.
+            </p>
           </div>
+
+          {/* 3. UNIVERSITY ADMINS TABLE */}
+          <Card className="shadow-sm border-gray-200">
+            <CardHeader className="flex flex-row items-center justify-between border-b pb-6">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg font-bold">
+                  <Users className="h-5 w-5 text-blue-600" /> University Administrators
+                </CardTitle>
+                <CardDescription>
+                  System administrators for {institutionData.institutionName}
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-gray-50/50 text-black font-bold uppercase text-[10px] tracking-widest border-b">
+                    <tr>
+                      <th className="py-4 px-8">Name & ID</th>
+                      <th className="py-4 px-8">Contact Info</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {profileData?.admins.map((user) => (
+                      <tr key={user.userID} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="py-6 px-8">
+                          <div className="font-bold text-gray-900">{user.name}</div>
+                          <div className="text-xs font-mono text-gray-400 mt-0.5">{user.userID}</div>
+                        </td>
+                        <td className="py-6 px-8">
+                          <div className="space-y-2">
+                            <div className="flex items-center text-gray-700 font-medium">
+                              <Mail className="h-4 w-4 mr-2 text-blue-500" /> {user.email}
+                            </div>
+                            <div className="flex items-center text-gray-400 text-xs italic">
+                              <Phone className="h-4 w-4 mr-2" /> {user.phone}
+                            </div>
+                          </div>
+                        </td>                     
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-4">
-        <div className="container mx-auto px-4 text-center text-sm text-gray-600">
-          © 2025 University of Wollongong
-        </div>
-      </footer>
     </div>
   );
 }

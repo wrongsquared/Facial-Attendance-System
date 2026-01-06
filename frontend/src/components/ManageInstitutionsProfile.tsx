@@ -47,7 +47,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
-import { Badge } from "./ui/badge";
 import { toast } from "sonner";
 import { useAuth } from "../cont/AuthContext";
 
@@ -59,10 +58,9 @@ interface ManageInstitutionsProfileProps {
 }
 
 interface InstitutionData {
-  universityID: number;
-  universityName: string;
-  subscriptionDate: string;
-  isActive: boolean;
+  campusID: number;
+  campusName: string;
+  campusAddress: string;
 }
 
 export function ManageInstitutionsProfile({
@@ -89,13 +87,9 @@ export function ManageInstitutionsProfile({
           },
         });
         const data: InstitutionData[] = await response.json();
+        console.log("Fetched Institutions:", data);
 
-        // FIX: Sort Latest (2026) to Earliest (2021)
-        const sortedData = [...data].sort((a, b) => {
-          return new Date(b.subscriptionDate).getTime() - new Date(a.subscriptionDate).getTime();
-        });
-
-        setInstitutions(sortedData);
+        setInstitutions(data);
       } catch (err) {
         console.error("Error while fetching:", err);
       }
@@ -114,14 +108,12 @@ export function ManageInstitutionsProfile({
     }).format(date);
   };
 
-  const filteredInstitutions = institutions.filter((institution) => {
+  const filteredInstitutions = institutions.sort((a, b) =>(a.campusID - b.campusID)).filter((institution) => {
     const matchesSearch =
-      institution.universityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      institution.universityID.toString().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" ? institution.isActive : !institution.isActive);
-    return matchesSearch && matchesStatus;
+      institution.campusName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      institution.campusID.toString().includes(searchQuery.toLowerCase());
+
+    return matchesSearch;
   });
 
   const totalPages = Math.ceil(filteredInstitutions.length / itemsPerPage);
@@ -145,7 +137,7 @@ export function ManageInstitutionsProfile({
       if (response.ok) {
         // 1. Update the local state to remove the item from the UI
         setInstitutions((prev) =>
-          prev.filter((inst) => String(inst.universityID) !== String(id))
+          prev.filter((inst) => String(inst.campusID) !== String(id))
         );
 
         // 2. Show success message
@@ -173,10 +165,17 @@ export function ManageInstitutionsProfile({
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon">
+              <Bell className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon">
+              <Settings className="h-5 w-5" />
+            </Button>
             <div className="flex items-center gap-3">
               <Avatar><AvatarFallback>PM</AvatarFallback></Avatar>
               <div className="hidden md:block">
-                <p className="font-medium">Platform Manager</p>
+                <p>Platform Manager</p>
+                <p className="text-sm text-gray-600">System Manager</p>
               </div>
             </div>
             <Button variant="outline" onClick={onLogout}><LogOut className="h-4 w-4 mr-2" /> Logout</Button>
@@ -206,7 +205,7 @@ export function ManageInstitutionsProfile({
                 />
               </div>
               <div className="w-full md:w-48">
-                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
+                <Select value={statusFilter} onValueChange={(v: string) => { setStatusFilter(v); setCurrentPage(1); }}>
                   <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
@@ -225,49 +224,37 @@ export function ManageInstitutionsProfile({
                     {/* Updated Header to "No." */}
                     <TableHead className="w-[80px]">ID</TableHead>
                     <TableHead>Institution Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-center">Date</TableHead>
                     <TableHead className="text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {currentInstitutions.length > 0 ? (
-                    currentInstitutions.map((institution, index) => (
-                      <TableRow key={institution.universityID}>
+                    currentInstitutions.map((institution, _index) => (
+                      <TableRow key={institution.campusID}>
                         {/* 1. Calculates Row Number: 1, 2, 3... */}
                         <TableCell className="text-gray-600 font-medium">
-                           #{institution.universityID}
+                          #{institution.campusID}
                         </TableCell>
-                        <TableCell className="font-medium">{institution.universityName}</TableCell>
-                        <TableCell>
-                          <Badge variant={institution.isActive ? "default" : "secondary"}>
-                            {institution.isActive ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        {/* 2. Date Column right-aligned and formatted */}
-                        <TableCell className="text-center whitespace-nowrap">
-                          {formatDate(institution.subscriptionDate)}
-                        </TableCell>
-                        {/* 3. Action Column centered */}
+                        <TableCell className="font-medium">{institution.campusName}</TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center gap-2">
-                            <Button variant="outline" size="sm" onClick={() => onViewProfile({ institutionId: institution.universityID.toString(), institutionName: institution.universityName })}>
-                              <Eye className="h-4 w-4 mr-1" /> View Account
+                            <Button variant="outline" size="sm" onClick={() => onViewProfile({ institutionId: institution.campusID.toString(), institutionName: institution.campusName })}>
+                              <Eye className="h-4 w-4 mr-1" /> View
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                                  <Trash2 className="h-4 w-4 mr-1" /> Delete Account
+                                  <Trash2 className="h-4 w-4 mr-1" /> Delete
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Delete Institution Account</AlertDialogTitle>
-                                  <AlertDialogDescription>Are you sure you want to delete "{institution.universityName}"?</AlertDialogDescription>
+                                  <AlertDialogDescription>Are you sure you want to delete "{institution.campusName}"?</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter className="flex justify-center gap-4">
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteInstitution(institution.universityID)} className="bg-red-600">Delete</AlertDialogAction>
+                                  <AlertDialogAction onClick={() => handleDeleteInstitution(institution.campusID)} className="bg-red-600">Delete</AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>

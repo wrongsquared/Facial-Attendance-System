@@ -149,7 +149,7 @@ export default function App() {
   };
 
   // Login Logic
-  const handleLogin = async (creds: LoginCredentials, selectedRole: string) => {
+  const handleLogin = async (creds: LoginCredentials, _selectedRole: string) => {
     try {
       // Call the API
       const data = await loginUser(creds);

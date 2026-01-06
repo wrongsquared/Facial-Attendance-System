@@ -4,12 +4,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import List, Optional
 
+from schemas.platformManager import InstitutionFullProfile, campusDisplay
 from database.db_config import get_db
 from dependencies.deps import get_current_user_id
 # Import the Pydantic schemas you just created
 from schemas import PlatformManagerDashboard, DashboardStats, UniversityDisplay, InstitutionProfile, InstitutionCreate, PaginatedInstitutionResponse
 # Import your SQLAlchemy model for University
-from database.db import University
+from database.db import Campus, University, User, UserProfile
 
 router = APIRouter(
     prefix="/platform-manager",  # All routes here will start with /platform-manager
@@ -44,37 +45,69 @@ def get_platform_manager_dashboard(
     
     return dashboard_data
 
-@router.get("/institutions", response_model=List[UniversityDisplay])
-def get_all_institutions(
+@router.get("/institutions", response_model=List[campusDisplay])
+def get_manager_campuses(
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
     """
-    Retrieves a list of all institutions subscribed to the platform,
-    ordered by name.
+    Fetches all campuses belonging to the University associated 
+    with the current Platform Manager.
     """
-    institutions = db.query(University).order_by(University.universityName).all()
-    return institutions
-
-@router.get("/institution/{university_id}", response_model=UniversityDisplay)
-def get_institution_details(
-    university_id: int,
-    db: Session = Depends(get_db),
-    current_user_id: str = Depends(get_current_user_id)
-):
-    """
-    Retrieves detailed information for a single institution by its ID.
-    This corresponds to the 'View' action button.
-    """
-    institution = db.query(University).filter(University.universityID == university_id).first()
     
-    if not institution:
+    # 1. Find the current Platform Manager's profile 
+    # and the specific campus they are registered under
+    pm_user = db.query(User).filter(User.userID == current_user_id).first()
+    
+    if not pm_user or not pm_user.profileType or not pm_user.profileType.campus:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Institution with ID {university_id} not found."
+            status_code=404, 
+            detail="Platform Manager's primary campus association not found."
         )
-        
-    return institution
+
+    # 2. Identify the University ID from the manager's campus
+    target_university_id = pm_user.profileType.campus.universityID
+
+    # 3. Fetch all campuses that belong to that University
+    campuses = db.query(Campus).filter(
+        Campus.universityID == target_university_id
+    ).order_by(Campus.campusName).all()
+
+    return campuses
+
+@router.get("/institution/{campus_id}", response_model=InstitutionFullProfile)
+def get_institution_details(
+    campus_id: int,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    # 1. Fetch University Details
+    uni = db.query(Campus).filter(Campus.campusID == campus_id).first()
+    if not uni:
+        raise HTTPException(status_code=404, detail="University not found")
+
+    # 2. Fetch all Admins tied to any campus belonging to this University
+    # Logic: User -> UserProfile -> Campus -> University
+    admins = db.query(User).join(UserProfile).join(Campus).filter(
+        Campus.campusID == campus_id,
+        User.type == "admin"
+    ).all()
+
+    # 3. Format data (Mapping 'contactNumber' from DB to 'phone' in Schema)
+    admin_list = []
+    for a in admins:
+        admin_list.append({
+            "userID": a.userID,
+            "name": a.name,
+            "email": a.email,
+            "phone": a.contactNumber if a.contactNumber else "Not provided",
+            "type": a.type
+        })
+
+    return {
+        "details": uni,
+        "admins": admin_list
+    }
 
 @router.get("", response_model=PaginatedInstitutionResponse)
 def search_all_institution_profiles(

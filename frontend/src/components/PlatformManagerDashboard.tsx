@@ -16,6 +16,7 @@ import {
   Settings,
   Search,
   Building2,
+  Eye,
 } from "lucide-react";
 import {
   Table,
@@ -47,48 +48,48 @@ interface PlatformManagerDashboardProps {
 }
 
 // Mock data for recent subscriptions
-const recentSubscriptions = [
-  {
-    id: 1,
-    institutionName: "University of Wollongong",
-    date: "28 Dec 2025",
-  },
-  {
-    id: 2,
-    institutionName: "University of Sydney",
-    date: "25 Dec 2025",
-  },
-  {
-    id: 3,
-    institutionName: "University of New South Wales",
-    date: "22 Dec 2025",
-  },
-  {
-    id: 4,
-    institutionName: "Monash University",
-    date: "20 Dec 2025",
-  },
-  {
-    id: 5,
-    institutionName: "University of Melbourne",
-    date: "18 Dec 2025",
-  },
-  {
-    id: 6,
-    institutionName: "Australian National University",
-    date: "15 Dec 2025",
-  },
-  {
-    id: 7,
-    institutionName: "University of Queensland",
-    date: "12 Dec 2025",
-  },
-  {
-    id: 8,
-    institutionName: "University of Western Australia",
-    date: "10 Dec 2025",
-  },
-];
+// const recentSubscriptions = [
+//   {
+//     id: 1,
+//     institutionName: "University of Wollongong",
+//     date: "28 Dec 2025",
+//   },
+//   {
+//     id: 2,
+//     institutionName: "University of Sydney",
+//     date: "25 Dec 2025",
+//   },
+//   {
+//     id: 3,
+//     institutionName: "University of New South Wales",
+//     date: "22 Dec 2025",
+//   },
+//   {
+//     id: 4,
+//     institutionName: "Monash University",
+//     date: "20 Dec 2025",
+//   },
+//   {
+//     id: 5,
+//     institutionName: "University of Melbourne",
+//     date: "18 Dec 2025",
+//   },
+//   {
+//     id: 6,
+//     institutionName: "Australian National University",
+//     date: "15 Dec 2025",
+//   },
+//   {
+//     id: 7,
+//     institutionName: "University of Queensland",
+//     date: "12 Dec 2025",
+//   },
+//   {
+//     id: 8,
+//     institutionName: "University of Western Australia",
+//     date: "10 Dec 2025",
+//   },
+// ];
 
 export function PlatformManagerDashboard({
   onLogout,
@@ -243,7 +244,7 @@ export function PlatformManagerDashboard({
               </TableHeader>
               <TableBody>
                 {filteredSubscriptions && filteredSubscriptions.length > 0 ? (
-                  filteredSubscriptions.map((subscription, index) => (
+                  filteredSubscriptions.map((subscription, _index) => (
                     <TableRow key={subscription.universityID}>
                       <TableCell>#{subscription.universityID}</TableCell>
 
@@ -266,7 +267,7 @@ export function PlatformManagerDashboard({
                             console.log(`View ${subscription.universityName}`);
                           }}
                         >
-                          View
+                           <Eye className="h-4 w-4 mr-1" /> View
                         </Button>
                       </TableCell>
                     </TableRow>

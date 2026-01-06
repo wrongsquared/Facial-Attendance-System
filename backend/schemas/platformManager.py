@@ -1,6 +1,7 @@
-from pydantic import BaseModel
+import uuid
+from pydantic import BaseModel, ConfigDict
 import datetime
-from typing import List
+from typing import List, Optional
 
 class UniversityDisplay(BaseModel):
     universityID: int
@@ -47,3 +48,24 @@ class PaginatedInstitutionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class AdminUserDisplay(BaseModel):
+    userID: uuid.UUID
+    name: str
+    email: str
+    phone: Optional[str] = None # We will map contactNumber to this
+    type: str
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class campusDisplay(BaseModel):
+    campusID: int
+    campusName: str
+    campusAddress: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+# The response model for the Profile View
+class InstitutionFullProfile(BaseModel):
+    details: campusDisplay
+    admins: List[AdminUserDisplay]       
