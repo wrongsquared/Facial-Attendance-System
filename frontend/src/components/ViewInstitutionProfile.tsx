@@ -233,27 +233,45 @@ export function ViewInstitutionProfile({
                 <table className="w-full text-sm text-left">
                   <thead className="bg-gray-50/50 text-black font-bold uppercase text-[10px] tracking-widest border-b">
                     <tr>
-                      <th className="py-4 px-8">Name & ID</th>
-                      <th className="py-4 px-8">Contact Info</th>
+                      {/* Four distinct headers */}
+                      <th className="py-4 px-8">ID</th>
+                      <th className="py-4 px-8">Full Name</th>
+                      <th className="py-4 px-8">Email Address</th>
+                      <th className="py-4 px-8">Phone Number</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {profileData?.admins.map((user) => (
                       <tr key={user.userID} className="hover:bg-gray-50/50 transition-colors">
+                        
+                        {/* Column 1: ID */}
+                        <td className="py-6 px-8">
+                          <code className="flex items-center text-black-900 font-bold">
+                            {user.userID}
+                          </code>
+                        </td>
+
+                        {/* Column 2: Name */}
                         <td className="py-6 px-8">
                           <div className="font-bold text-gray-900">{user.name}</div>
-                          <div className="text-xs font-mono text-gray-400 mt-0.5">{user.userID}</div>
                         </td>
+
+                        {/* Column 3: Email */}
                         <td className="py-6 px-8">
-                          <div className="space-y-2">
-                            <div className="flex items-center text-gray-700 font-medium">
-                              <Mail className="h-4 w-4 mr-2 text-blue-500" /> {user.email}
-                            </div>
-                            <div className="flex items-center text-gray-400 text-xs italic">
-                              <Phone className="h-4 w-4 mr-2" /> {user.phone}
-                            </div>
+                          <div className="flex items-center text-gray-700 font-medium">
+                            <Mail className="h-4 w-4 mr-2 text-blue-500" /> 
+                            {user.email}
                           </div>
-                        </td>                     
+                        </td>
+
+                        {/* Column 4: Phone */}
+                        <td className="py-6 px-8">
+                          <div className="flex items-center text-gray-600">
+                            <Phone className="h-4 w-4 mr-2 text-gray-400" /> 
+                            {user.phone || <span className="text-gray-300 italic text-xs">Not provided</span>}
+                          </div>
+                        </td>
+                        
                       </tr>
                     ))}
                   </tbody>
