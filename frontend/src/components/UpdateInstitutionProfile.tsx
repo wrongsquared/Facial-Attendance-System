@@ -605,15 +605,6 @@ export function UpdateInstitutionProfile({
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-gray-50">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-        <p className="text-gray-500 font-medium">Loading Institution Details...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
@@ -660,7 +651,7 @@ export function UpdateInstitutionProfile({
       <main className="container mx-auto px-4 py-8 flex-1 max-w-6xl">
         {/* Back Button */}
         <Button variant="ghost" onClick={onBack} className="mb-6 hover:bg-gray-200">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Institutions
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to View Campus Profile
         </Button>
 
         <div className="space-y-6">

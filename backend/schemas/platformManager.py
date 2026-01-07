@@ -69,3 +69,11 @@ class campusDisplay(BaseModel):
 class InstitutionFullProfile(BaseModel):
     details: campusDisplay
     admins: List[AdminUserDisplay]       
+
+
+# Schema for updating an existing institution/campus
+class InstitutionUpdate(BaseModel):
+    campusName: str
+    campusAddress: str
+
+    model_config = ConfigDict(from_attributes=True)

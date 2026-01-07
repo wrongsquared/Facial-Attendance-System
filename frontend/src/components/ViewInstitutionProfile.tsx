@@ -191,12 +191,12 @@ export function ViewInstitutionProfile({
                   <h2 className="text-3xl font-bold text-gray-900">{institutionData.institutionName}</h2>
 
                   {/* Fixed Spacing for ID, Address, and Badge */}
-                  <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-gray-500">
+                  <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-black-500">
                     <span className="text-sm font-bold text-black">ID: {institutionData.institutionId}</span>
 
                     <div className="flex items-center">
-                      <MapPin className="h-5 w-5 text-gray-400" />
-                      <span className="text-sm font-bold text-gray-600">{profileData ? profileData.details.campusAddress : profileData}</span>
+                      <MapPin className="h-5 w-5 text-black-400" />
+                      <span className="text-sm font-bold text-black-600">{profileData ? profileData.details.campusAddress : profileData}</span>
                     </div>
 
 
@@ -266,8 +266,8 @@ export function ViewInstitutionProfile({
 
                         {/* Column 4: Phone */}
                         <td className="py-6 px-8">
-                          <div className="flex items-center text-gray-600">
-                            <Phone className="h-4 w-4 mr-2 text-gray-400" /> 
+                          <div className="flex items-center text-gray-700 font-medium">
+                            <Phone className="h-4 w-4 mr-2 text-gray-700" /> 
                             {user.phone || <span className="text-gray-300 italic text-xs">Not provided</span>}
                           </div>
                         </td>

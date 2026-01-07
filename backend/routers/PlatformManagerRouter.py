@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import List, Optional
 
-from schemas.platformManager import InstitutionFullProfile, campusDisplay
+from schemas.platformManager import InstitutionFullProfile, InstitutionUpdate, campusDisplay
 from database.db_config import get_db
 from dependencies.deps import get_current_user_id
 # Import the Pydantic schemas you just created
@@ -198,3 +198,49 @@ def delete_institution_profile(
     db.delete(university)
     db.commit()
     return None
+
+@router.put("/institution/{campus_id}")
+def update_institution_profile(
+    campus_id: int,
+    update_data: InstitutionUpdate,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Updates the name and address of a specific campus.
+    """
+    # 1. Search for the campus by ID
+    db_campus = db.query(Campus).filter(Campus.campusID == campus_id).first()
+
+    if not db_campus:
+        raise HTTPException(
+            status_code=404, 
+            detail="Campus not found"
+        )
+
+    # 2. Update the fields
+    # These names must match your SQLAlchemy 'Campus' model columns
+    db_campus.campusName = update_data.campusName
+    db_campus.campusAddress = update_data.campusAddress
+
+    try:
+        # 3. Commit the changes to the database
+        db.commit()
+        db.refresh(db_campus)
+        
+        return {
+            "status": "success",
+            "message": "Institution profile updated successfully",
+            "data": {
+                "campusID": db_campus.campusID,
+                "campusName": db_campus.campusName,
+                "campusAddress": db_campus.campusAddress
+            }
+        }
+    except Exception as e:
+        db.rollback()
+        print(f"Update Error: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail="An error occurred while updating the database."
+        )
