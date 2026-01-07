@@ -11,10 +11,13 @@ import { PlatformManagerDashboard } from './components/PlatformManagerDashboard'
 import { ManageInstitutionsProfile } from './components/ManageInstitutionsProfile';
 import { ViewInstitutionProfile } from './components/ViewInstitutionProfile';
 import { UpdateInstitutionProfile } from './components/UpdateInstitutionProfile';
+import { CreateInstitutionProfile } from './components/CreateInstitutionProfile';
 import { AdminAttendanceRecords } from './components/AdminAttendanceRecords';
 import { AdminAttendanceReports } from './components/AdminAttendanceReports';
 import { AttendanceReports } from './components/AttendanceReports';
 import { UpdateProfile } from './components/UpdateProfile';
+import { ViewAdminProfile } from './components/ViewAdminProfile';
+import { UpdateAdminProfile } from './components/UpdateAdminProfile';
 import { LecturerTimetable } from './components/LecturerTimetable';
 import { LecturerAttendanceRecords } from './components/LecturerAttendanceRecords';
 import { ManageUserAccounts } from './components/ManageUserAccounts';
@@ -55,9 +58,9 @@ interface UserProfileData {
 }
 
 type LecturerView = 'dashboard' | 'reports' | 'profile' | 'timetable' | 'records';
-type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'manageCustomGoals' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser';
+type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'manageCustomGoals' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser' | 'viewAdminProfile' | 'updateAdminProfile';
 type StudentView = 'dashboard' | 'attendanceHistory' | 'timetable' | 'profile' | 'progress';
-type PlatformManagerView = 'dashboard' | 'manageInstitutions' | 'viewInstitution' | 'updateInstitution';
+type PlatformManagerView = 'dashboard' | 'manageInstitutions' | 'viewInstitution' | 'updateInstitution' | 'createInstitution';
 
 export default function App() {
   const { user, login, logout, loading, token } = useAuth(); 
@@ -129,6 +132,67 @@ export default function App() {
     };
     fetchAlerts();
   }, [token, user]);
+
+  // Admin profile data state
+  const [adminProfileData, setAdminProfileData] = useState({
+    name: "John Smith",
+    email: "john.smith@uow.edu.au",
+    contactNumber: "+61 2 4221 3456",
+    address: "123 Innovation Campus\nSquires Way\nNorth Wollongong NSW 2500\nAustralia",
+    emergencyContactName: "Jane Smith",
+    emergencyRelationship: "Spouse",
+    emergencyContactNumber: "+61 412 345 678",
+  });
+
+  // Institutions state
+  const [institutions, setInstitutions] = useState<Array<{
+    id: string;
+    name: string;
+    status: string;
+    address?: string;
+    adminFullName?: string;
+    adminEmail?: string;
+    adminPhone?: string;
+    tempPassword?: string;
+  }>>([
+    {
+      id: "INS001",
+      name: "University of Wollongong",
+      status: "Active",
+    },
+    {
+      id: "INS002",
+      name: "University of Sydney",
+      status: "Active",
+    },
+    {
+      id: "INS003",
+      name: "University of New South Wales",
+      status: "Active",
+    },
+    {
+      id: "INS004",
+      name: "Monash University",
+      status: "Active",
+    },
+    {
+      id: "INS005",
+      name: "University of Melbourne",
+      status: "Inactive",
+    },
+    {
+      id: "INS006",
+      name: "Australian National University",
+      status: "Active",
+    },
+    {
+      id: "INS007",
+      name: "University of Queensland",
+      status: "Active",
+    },
+  ]);
+
+  // Function to show toast messages
   const showToast = (message: string) => {
     setToastMessage(message);
   };
@@ -391,6 +455,33 @@ export default function App() {
     setAdminView('attendanceRecords');
   };
 
+  const handleNavigateToAdminProfile = () => {
+    setAdminView('viewAdminProfile');
+  };
+
+  const handleNavigateToUpdateAdminProfile = () => {
+    setAdminView('updateAdminProfile');
+  };
+
+  const handleBackToViewAdminProfile = () => {
+    setAdminView('viewAdminProfile');
+  };
+
+  const handleSaveAdminProfile = (profileData: {
+    name: string;
+    email: string;
+    contactNumber: string;
+    address: string;
+    emergencyContactName: string;
+    emergencyRelationship: string;
+    emergencyContactNumber: string;
+  }) => {
+    // Update the admin profile state
+    setAdminProfileData(profileData);
+    showToast('Profile updated successfully!');
+    setAdminView('viewAdminProfile');
+  };
+
   const handleNavigateToAttendanceHistory = () => {
     setStudentView('attendanceHistory');
   };
@@ -421,8 +512,39 @@ export default function App() {
   };
 
   const handleNavigateToCreateProfile = () => {
-    console.log('Navigate to Create Profile');
-    // This can be expanded later when the page is created
+    setPlatformManagerView('createInstitution');
+  };
+
+  const handleCreateInstitution = (institutionData: {
+    institutionName: string;
+    address: string;
+    fullName: string;
+    email: string;
+    phoneNumber: string;
+    tempPassword: string;
+  }) => {
+    // Generate new institution ID
+    const newId = `INS${String(institutions.length + 1).padStart(3, '0')}`;
+    
+    // Add new institution to the list
+    const newInstitution = {
+      id: newId,
+      name: institutionData.institutionName,
+      status: "Active",
+      address: institutionData.address,
+      adminFullName: institutionData.fullName,
+      adminEmail: institutionData.email,
+      adminPhone: institutionData.phoneNumber,
+      tempPassword: institutionData.tempPassword,
+    };
+    
+    setInstitutions(prev => [...prev, newInstitution]);
+    
+    // Show success toast
+    showToast(`Institution "${institutionData.institutionName}" created successfully!`);
+    
+    // Navigate back to manage institutions
+    setPlatformManagerView('manageInstitutions');
   };
 
   const handleNavigateToViewInstitution = (institutionData: {
@@ -573,7 +695,7 @@ export default function App() {
           onNavigateToBiometricProfile={handleNavigateToBiometricProfile}
           onNavigateToAttendanceRecords={handleNavigateToAdminAttendanceRecords}
           onNavigateToReports={handleNavigateToAdminReports}
-          onNavigateToProfile={handleNavigateToProfile}
+          onNavigateToProfile={handleNavigateToAdminProfile}
         />
       )}
       {userRole === 'admin' && adminView === 'manageUsers' && (
@@ -689,6 +811,22 @@ export default function App() {
           onBack={handleBackToAdminDashboard}
         />
       )}
+      {userRole === 'admin' && adminView === 'viewAdminProfile' && (
+        <ViewAdminProfile 
+          onLogout={handleLogout} 
+          onBack={handleBackToAdminDashboard}
+          onUpdateProfile={handleNavigateToUpdateAdminProfile}
+          adminData={adminProfileData}
+        />
+      )}
+      {userRole === 'admin' && adminView === 'updateAdminProfile' && (
+        <UpdateAdminProfile 
+          onLogout={handleLogout} 
+          onBack={handleBackToViewAdminProfile}
+          onSave={handleSaveAdminProfile}
+          adminData={adminProfileData}
+        />
+      )}
       {userRole === 'pmanager' && platformManagerView === 'dashboard' && (
         <PlatformManagerDashboard
           onLogout={handleLogout}
@@ -701,7 +839,6 @@ export default function App() {
           onBack={handleBackToPlatformManagerDashboard}
           onCreateProfile={handleNavigateToCreateProfile}
           onViewProfile={handleNavigateToViewInstitution}
-          onUpdateInstitution={handleUpdateInstitution}
         />
       )}
       {userRole === 'pmanager' && platformManagerView === 'viewInstitution' && selectedInstitutionData && (
@@ -710,7 +847,6 @@ export default function App() {
           onBack={handleBackToManageInstitutions}
           onEditProfile={handleNavigateToEditInstitution}
           institutionData={selectedInstitutionData}
-          onUpdateInstitution={handleUpdateInstitution}
         />
       )}
       {userRole === 'pmanager' && platformManagerView === 'updateInstitution' && selectedInstitutionData && (
@@ -718,7 +854,13 @@ export default function App() {
           onLogout={handleLogout}
           onBack={handleBackToViewInstitution}
           institutionData={selectedInstitutionData}
-          onUpdateInstitution={handleUpdateInstitution}
+        />
+      )}
+      {userRole === 'pmanager' && platformManagerView === 'createInstitution' && (
+        <CreateInstitutionProfile 
+          onLogout={handleLogout}
+          onBack={handleBackToManageInstitutions}
+          onCreate={handleCreateInstitution}
         />
       )}
       <Toast message={toastMessage} onClose={hideToast} />

@@ -21,8 +21,8 @@ import { useAuth } from "../cont/AuthContext";
 
 interface NavbarProps {
   // Optional: If you want to override the title manually
-  title?: string; 
-  onNavigateToProfile: () => void;
+  title: string; 
+  onNavigateToProfile?: () => void;
   onOpenNotifications?: () => void;
 }
 

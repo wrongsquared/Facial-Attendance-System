@@ -15,6 +15,7 @@ import {
   UserX,
   Fingerprint,
   FileEdit,
+  FileText,
 } from "lucide-react";
 import {
   Table,
@@ -47,7 +48,7 @@ interface AdminDashboardProps {
   onNavigateToBiometricProfile: () => void;
   onNavigateToAttendanceRecords: () => void;
   onNavigateToReports: () => void;
-  onNavigateToProfile: ()=> void;
+  onNavigateToProfile?: () => void;
 }
 
 
@@ -296,10 +297,19 @@ export function AdminDashboard({
                   <Fingerprint className="h-4 w-4 mr-2" />
                   Manage Biometric Data
                 </Button>
+                {onNavigateToProfile && (
+                  <Button
+                    className="w-full justify-start h-18"
+                    variant="outline"
+                    onClick={onNavigateToProfile}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    View Profile
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
-        </div>
 
         {/* User Management */}
         <Card>
