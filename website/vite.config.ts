@@ -16,4 +16,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    open: true, // <-- This tells Vite to automatically open the browser
+    port: 5173, // Optional, can change if needed
+  },
 })
