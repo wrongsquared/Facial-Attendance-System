@@ -1,10 +1,10 @@
 import { Header } from './Header';
+import { Footer } from './Footer';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
-import footerImage from 'figma:asset/3a88df45b5ff09a4387ffcb6bb22c0def0da2ad9.png';
 
 export function LoginPage() {
   const [formData, setFormData] = useState({
@@ -112,10 +112,8 @@ export function LoginPage() {
         </div>
       </main>
 
-      {/* Footer Image */}
-      <div className="w-full mt-auto">
-        <img src={footerImage} alt="Stay Connected Footer" className="w-full" />
-      </div>
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }
