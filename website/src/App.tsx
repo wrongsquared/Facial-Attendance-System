@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { Header } from './components/Header';
-import { HeroSection } from './components/HeroSection';
-import { AboutSection } from './components/AboutSection';
-import { FeaturesSection } from './components/FeaturesSection';
-import { TestimonialsSection } from './components/TestimonialsSection';
-import { Footer } from './components/Footer';
-import { AboutPage } from './components/AboutPage';
-import { FeaturesPage } from './components/FeaturesPage';
-import { ServicesPage } from './components/ServicesPage';
-import { RegistrationPage } from './components/RegistrationPage';
-import { LoginPage } from './components/LoginPage';
+import { Header } from './app/components/Header';
+import { HeroSection } from './app/components/HeroSection';
+import { AboutSection } from './app/components/AboutSection';
+import { FeaturesSection } from './app/components/FeaturesSection';
+import { TestimonialsSection } from './app/components/TestimonialsSection';
+import { Footer } from './app/components/Footer';
+import { AboutPage } from './app/components/AboutPage';
+import { FeaturesPage } from './app/components/FeaturesPage';
+import { ServicesPage } from './app/components/ServicesPage';
+import { RegistrationPage } from './app/components/RegistrationPage';
+import { LoginPage } from './app/components/LoginPage';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<'home' | 'about' | 'features' | 'services' | 'registration' | 'login'>('home');
