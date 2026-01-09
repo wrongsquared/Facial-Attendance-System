@@ -222,3 +222,26 @@ class studentAngles(Base): #Student-Angles for AI Training?
     photoAngle: Mapped[str] = mapped_column(String, primary_key=True)
     student: Mapped[Student] = relationship(back_populates="angles")
 
+class GeneratedReport(Base):
+    __tablename__ = "generated_reports"
+    
+    reportID: Mapped[int] = mapped_column(primary_key=True)
+    
+    # Link to the Lecturer (Foreign Key)
+    lecturerID: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.userID")) 
+    # Note: Make sure this points to your 'users' table or 'lecturers' table depending on your setup.
+    # If your Lecturer ID is a UserID, point to "users.userID".
+    
+    # Report Details
+    title: Mapped[str] = mapped_column(String(100))      # e.g. "CSCI314 - Daily Report"
+    moduleCode: Mapped[str] = mapped_column(String(20))
+    reportType: Mapped[str] = mapped_column(String(50))  # "Daily" or "Monthly"
+    filterStatus: Mapped[str] = mapped_column(String(50)) # "All", "Present"
+    
+    # Metadata
+    generatedAt: Mapped[datetime.datetime] = mapped_column(server_default=func.now())
+
+    # File Location (Where we saved the Excel file)
+    fileName: Mapped[str] = mapped_column(String(255))
+    filePath: Mapped[str] = mapped_column(String(500))
+
