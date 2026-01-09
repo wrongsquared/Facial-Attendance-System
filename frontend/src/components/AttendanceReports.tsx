@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -37,6 +37,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
+import { useAuth } from "../cont/AuthContext";
 
 interface AttendanceReportsProps {
   onLogout: () => void;
@@ -44,40 +45,40 @@ interface AttendanceReportsProps {
   onNavigateToProfile: () => void;
 }
 
-const recentReports = [
-  {
-    id: 1,
-    name: "CSCI334 - Daily Report",
-    date: "28 Oct 2025",
-    type: "Daily",
-    status: "Present",
-    downloadUrl: "#",
-  },
-  {
-    id: 2,
-    name: "CSCI203 - Monthly Report",
-    date: "1 Oct 2025",
-    type: "Monthly",
-    status: "Absent",
-    downloadUrl: "#",
-  },
-  {
-    id: 3,
-    name: "CSCI334 - Daily Report",
-    date: "27 Oct 2025",
-    type: "Daily",
-    status: "Present",
-    downloadUrl: "#",
-  },
-  {
-    id: 4,
-    name: "CSCI203 - Daily Report",
-    date: "26 Oct 2025",
-    type: "Daily",
-    status: "All",
-    downloadUrl: "#",
-  },
-];
+// const recentReports = [
+//   {
+//     id: 1,
+//     name: "CSCI334 - Daily Report",
+//     date: "28 Oct 2025",
+//     type: "Daily",
+//     status: "Present",
+//     downloadUrl: "#",
+//   },
+//   {
+//     id: 2,
+//     name: "CSCI203 - Monthly Report",
+//     date: "1 Oct 2025",
+//     type: "Monthly",
+//     status: "Absent",
+//     downloadUrl: "#",
+//   },
+//   {
+//     id: 3,
+//     name: "CSCI334 - Daily Report",
+//     date: "27 Oct 2025",
+//     type: "Daily",
+//     status: "Present",
+//     downloadUrl: "#",
+//   },
+//   {
+//     id: 4,
+//     name: "CSCI203 - Daily Report",
+//     date: "26 Oct 2025",
+//     type: "Daily",
+//     status: "All",
+//     downloadUrl: "#",
+//   },
+// ];
 
 const days = Array.from({ length: 31 }, (_, i) =>
   (i + 1).toString(),
@@ -102,6 +103,20 @@ const years = Array.from({ length: 6 }, (_, i) =>
   (2024 + i).toString(),
 );
 
+interface Module {
+  moduleID: string;
+  moduleName: string;
+  moduleCode: string;
+}
+
+interface Report {
+  id: number;
+  title: string;
+  date: string;
+  tags: string[];
+  fileName: string;
+}
+
 const buildDateString = (
   year: string,
   month: string,
@@ -125,31 +140,131 @@ export function AttendanceReports({
   onNavigateToProfile,
 }: AttendanceReportsProps) {
   const [reportType, setReportType] = useState<
-    "daily" | "monthly"
-  >("daily");
+    "Daily" | "Monthly"
+  >("Daily");
 
   // Use date strings for calendar inputs
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
+  const [recentReports, setRecentReports] = useState<Report[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
   const [module, setModule] = useState("");
   const [attendanceStatus, setAttendanceStatus] = useState("");
 
-  const handleGenerateReport = () => {
-    console.log("Generating report:", {
-      reportType,
-      fromDate,
-      toDate,
-      module,
-      attendanceStatus,
-    });
-    alert(
-      "Report generated successfully! Download will begin shortly.",
-    );
-  };
+  const { token } = useAuth()
 
-  const dailyActive = reportType === "daily";
-  const monthlyActive = reportType === "monthly";
+  useEffect(() => {
+    const fetchModulesTaught = async () => {
+      try {
+        const res = await fetch(
+          "http://localhost:8000/lecturer/modules/",
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+          }
+        );
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch modules");
+        }
+
+        const data = await res.json();
+        setModules(data);
+      } catch (error) {
+        console.error("Error fetching modules:", error);
+      }
+    }
+    fetchModulesTaught()
+
+    const fetchReportHistory = async () => {
+      try {
+        const res = await fetch(
+          "http://localhost:8000/lecturer/reports/history",
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+          }
+        );
+        if (!res.ok) {
+          throw new Error("Failed to fetch report history");
+        }
+        const data = await res.json();
+        setRecentReports(data);
+        // You can set this data to state if you want to display it
+      } catch (error) {
+        console.error("Error fetching report history:", error);
+      }
+    }
+    fetchReportHistory()
+  }, [])
+
+  const handleGenerateReport = async () => {
+    try {
+      console.log("Generating report with criteria:", {
+        report_type: reportType,
+        date_from: fromDate,
+        date_to: toDate,
+        module_code: module,
+        attendance_status: attendanceStatus
+      });
+
+      const res = await fetch("http://localhost:8000/lecturer/reports/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          report_type: reportType,
+          date_from: fromDate,
+          date_to: toDate,
+          module_code: module,
+          attendance_status: attendanceStatus
+        })
+      })
+
+
+      if (!res.ok) {
+        throw new Error("Failed to generate report");
+      }
+
+      // Download 
+      const data = await res.json()
+      const reportID = data.report_id;
+
+      const downloadRes = await fetch(`http://localhost:8000/lecturer/reports/download/${reportID}`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      })
+
+      const blob = await downloadRes.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `attendance_report_${reportID}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      console.log("Report generated and download initiated.");
+    }
+    catch (error) {
+      console.error("Error generating report:", error);
+    }
+  }
+
+
+  const dailyActive = reportType === "Daily";
+  const monthlyActive = reportType === "Monthly";
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -251,13 +366,12 @@ export function AttendanceReports({
                       type="button"
                       className={`flex-1 h-12 rounded-xl text-sm font-medium transition-colors 
                         border !border-blue-600
-                        ${
-                          reportType === "daily"
-                            ? "bg-blue-600 text-white hover:bg-blue-700"
-                            : "bg-white text-blue-600 hover:bg-blue-50"
+                        ${reportType === "Daily"
+                          ? "bg-blue-600 text-white hover:bg-blue-700"
+                          : "bg-white text-blue-600 hover:bg-blue-50"
                         }
                       `}
-                      onClick={() => setReportType("daily")}
+                      onClick={() => setReportType("Daily")}
                     >
                       Daily
                     </Button>
@@ -267,13 +381,12 @@ export function AttendanceReports({
                       type="button"
                       className={`flex-1 h-12 rounded-xl text-sm font-medium transition-colors 
                         border !border-blue-600
-                        ${
-                          reportType === "monthly"
-                            ? "bg-blue-600 text-white hover:bg-blue-700"
-                            : "bg-white text-blue-600 hover:bg-blue-50"
+                        ${reportType === "Monthly"
+                          ? "bg-blue-600 text-white hover:bg-blue-700"
+                          : "bg-white text-blue-600 hover:bg-blue-50"
                         }
                       `}
-                      onClick={() => setReportType("monthly")}
+                      onClick={() => setReportType("Monthly")}
                     >
                       Monthly
                     </Button>
@@ -322,7 +435,15 @@ export function AttendanceReports({
                         <SelectValue placeholder="Select module" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="csci334">
+                        {modules.map((mod) => (
+                          <SelectItem
+                            key={mod.moduleID}
+                            value={mod.moduleCode}
+                          >
+                            {mod.moduleCode} - {mod.moduleName}
+                          </SelectItem>
+                        ))}
+                        {/* <SelectItem value="csci334">
                           CSCI334 - Database Systems
                         </SelectItem>
                         <SelectItem value="csci203">
@@ -330,7 +451,7 @@ export function AttendanceReports({
                         </SelectItem>
                         <SelectItem value="all">
                           All Modules
-                        </SelectItem>
+                        </SelectItem> */}
                       </SelectContent>
                     </Select>
                   </div>
@@ -349,14 +470,14 @@ export function AttendanceReports({
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All</SelectItem>
-                        <SelectItem value="present">
+                        <SelectItem value="All">All</SelectItem>
+                        <SelectItem value="Present">
                           Present
                         </SelectItem>
-                        <SelectItem value="absent">
+                        <SelectItem value="Absent">
                           Absent
                         </SelectItem>
-                        <SelectItem value="late">
+                        <SelectItem value="Late">
                           Late
                         </SelectItem>
                       </SelectContent>
@@ -454,7 +575,7 @@ export function AttendanceReports({
                     </div>
                     <div>
                       <p className="font-medium">
-                        {report.name}
+                        {report.title}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <p className="text-sm text-gray-600">
@@ -464,13 +585,7 @@ export function AttendanceReports({
                           variant="outline"
                           className="text-xs"
                         >
-                          {report.type}
-                        </Badge>
-                        <Badge
-                          variant="secondary"
-                          className="text-xs"
-                        >
-                          {report.status}
+                          {report.tags.map(tag => tag).join(", ")}
                         </Badge>
                       </div>
                     </div>

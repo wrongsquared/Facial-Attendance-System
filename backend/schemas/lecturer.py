@@ -183,3 +183,21 @@ class RecentSessionsCardData(BaseModel):
 
 class AttendanceOverviewCard(BaseModel):
     Average_attendance: float  
+
+class ReportHistoryEntry(BaseModel):
+    id: int
+    title: str
+    date: str            # Display date (e.g. "08 Jan 2026")
+    tags: List[str]      # e.g. ["Daily", "Absent"]
+    fileName: str
+# class ReportHistoryEntry(BaseModel):
+#     id: int
+#     title: str       # e.g. "CSCI334 - Daily Report"
+#     date: str        # e.g. "28 Oct 2025"
+#     tags: List[str]  # e.g. ["Daily", "Present"]
+#     fileName: str    # e.g. "CSCI334_Daily_123.xlsx"
+
+#     class Config:
+#         from_attributes = True
+
+

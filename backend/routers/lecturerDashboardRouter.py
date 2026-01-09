@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import and_, func, case, desc, or_, extract, cast, Integer
@@ -12,7 +13,10 @@ from database.db import (#This was really long so I had to bracket it
                          AttdCheck, 
                          StudentModules,  
                          LecMod,
-                         EntLeave)
+                         EntLeave, 
+                         GeneratedReport)
+import uuid
+from fastapi.responses import FileResponse
 
 from schemas import( timetableEntry, 
                             AttendanceOverviewCard, 
@@ -30,12 +34,12 @@ from schemas import( timetableEntry,
                             Weeklytimetable,
                             MonthlyTimetable,
                             AttendanceDetailRow,
+                            ReportHistoryEntry,
                             OverallClassAttendanceDetails)
 from io import StringIO
 from routers import studentDashboardRouter
 from typing import Union, List
-import csv
-
+import pandas as pd
 
 router = APIRouter() 
 
@@ -178,7 +182,6 @@ def get_recent_sessions_card(
     return RecentSessionsCardData(
         Recent_sessions_record=recent_sessions_count
     )
-
 
 # Course Overview Cards
 @router.get("/lecturer/dashboard/my-courses-overview", response_model=list[courseoverviewcard])
@@ -402,6 +405,585 @@ def get_recent_sessions_log(
         ))
 
     return results
+
+# View user profile (view-only)
+@router.get("/lecturer/profile/view-basic", response_model=viewUserProfile)
+def get_view_only_user_profile(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Fetches all profile data from the merged 'users' table.
+    """
+    # The query is simple SELECT * FROM users
+    user_record = db.query(User).filter(User.userID == user_id).first()
+    
+    if not user_record:
+        raise HTTPException(status_code=404, detail="User profile not found in database.")
+
+    # Pydantic maps the ORM attributes directly.
+    return user_record
+
+@router.put("/lecturer/profile/update", response_model=viewUserProfile)
+def update_user_profile(
+    updates: UserProfileUpdate, # The data sent from the frontend
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Updates the user's personal information and emergency contact in a single transaction.
+    """
+    
+    # Find the User Record
+    user_record = db.query(User).filter(User.userID == user_id).first()
+    
+    if not user_record:
+        raise HTTPException(status_code=404, detail="User profile not found.")
+
+    # Get the non-None values from the Pydantic input model
+    # We use .model_dump(exclude_none=True) to only get fields the user submitted
+    update_data = updates.model_dump(exclude_unset=True)
+
+    # Apply the updates to the ORM object
+    for key, value in update_data.items():
+        # Use setattr to dynamically update the ORM attribute (e.g., user_record.name = "new name")
+        setattr(user_record, key, value)
+    
+    # Commit and Refresh
+    db.commit()
+    db.refresh(user_record)
+    
+    # Return the full, updated profile
+    return user_record
+
+UPLOAD_DIR = "generated_reports"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+@router.post("/lecturer/reports/generate")
+def generate_report(
+    criteria: ReportCriteria,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Generates a CSV report, saves it locally, logs it to DB, and returns the Report ID.
+    """
+    
+    # 1. Validate Module
+    module_details = db.query(Module).filter(Module.moduleCode == criteria.module_code).first()
+    if not module_details:
+        raise HTTPException(status_code=404, detail="Module not found")
+    
+    module_id = module_details.moduleID
+
+    # 2. Fetch Lessons in Range
+    lessons = db.query(Lesson).join(LecMod).filter(
+        LecMod.lecturerID == user_id,
+        LecMod.moduleID == module_id,
+        func.date(Lesson.startDateTime).between(criteria.date_from, criteria.date_to)
+    ).order_by(Lesson.startDateTime).all()
+    # print("Lecturer: ", user_id)
+    # print("Module ID: ", module_id)
+    # print("Lessons Found: ", len(lessons) if lessons else 0)
+
+    if not lessons:
+        raise HTTPException(status_code=404, detail="No lessons found in this date range.")
+
+    # 3. Fetch Students
+    students = db.query(Student).join(StudentModules).filter(
+        StudentModules.modulesID == module_id
+    ).all()
+
+    # 4. Prepare Data (Pandas DataFrame)
+    is_monthly = (criteria.report_type == "Monthly") or (criteria.date_from != criteria.date_to)
+    
+    df = None
+    
+    # --- LOGIC: MONTHLY (Matrix) ---
+    if is_monthly:
+        data = []
+        for stu in students:
+            row = {"Student ID": stu.studentNum, "Name": stu.name}
+            present_count = 0
+            
+            for lesson in lessons:
+                col_date = lesson.startDateTime.strftime("%d-%b") # "12-Jan"
+                
+                # Check Attendance
+                att = db.query(AttdCheck).filter_by(studentID=stu.studentID, lessonID=lesson.lessonID).first()
+                ent = db.query(EntLeave).filter_by(studentID=stu.studentID, lessonID=lesson.lessonID).first()
+                
+                status = "Absent"
+                if att:
+                    status = "Present"
+                    if ent and ent.enter > lesson.startDateTime + timedelta(minutes=5):
+                        status = "Late"
+                    present_count += 1
+                
+                row[col_date] = status
+            
+            # Calculate Percentage
+            total = len(lessons)
+            row["Attendance %"] = f"{int((present_count/total)*100)}%" if total > 0 else "0%"
+            data.append(row)
+        
+        df = pd.DataFrame(data)
+        # Reorder columns: ID, Name, [Dates], %
+        cols = ["Student ID", "Name"] + [l.startDateTime.strftime("%d-%b") for l in lessons] + ["Attendance %"]
+        # Filter cols that actually exist in data
+        df = df[[c for c in cols if c in df.columns]]
+
+    # --- LOGIC: DAILY (List) ---
+    else:
+        data = []
+        target_lesson = lessons[0] # Only 1 day
+        
+        for stu in students:
+            ent = db.query(EntLeave).filter_by(studentID=stu.studentID, lessonID=target_lesson.lessonID).first()
+            
+            status = "Absent"
+            t_in, t_out = "-", "-"
+            
+            if ent:
+                status = "Present"
+                if ent.enter:
+                    t_in = ent.enter.strftime("%H:%M")
+                    if ent.enter > target_lesson.startDateTime + timedelta(minutes=5):
+                        status = "Late"
+                if ent.leave:
+                    t_out = ent.leave.strftime("%H:%M")
+
+            # Filter Check
+            if criteria.attendance_status != "All" and status != criteria.attendance_status:
+                continue
+                
+            data.append({
+                "Student ID": stu.studentNum,
+                "Name": stu.name,
+                "Date": target_lesson.startDateTime.strftime("%Y-%m-%d"),
+                "Status": status,
+                "Time In": t_in,
+                "Time Out": t_out
+            })
+            
+        df = pd.DataFrame(data)
+
+    # 5. Save CSV to Disk
+    filename = f"{criteria.module_code}_{criteria.report_type}_{criteria.date_from}_{uuid.uuid4().hex[:6]}.csv"
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    
+    # Write CSV
+    df.to_csv(filepath, index=False)
+
+    # 6. Save to DB
+    new_report = GeneratedReport(
+        lecturerID=uuid.UUID(user_id),
+        moduleCode=criteria.module_code,
+        title=f"{criteria.module_code} - {criteria.report_type}",
+        reportType=criteria.report_type,
+        filterStatus=criteria.attendance_status,
+        fileName=filename,
+        filePath=filepath
+    )
+    db.add(new_report)
+    db.commit()
+    db.refresh(new_report)
+
+    # 7. Return JSON with ID
+    return {
+        "status": "success",
+        "message": "Report generated successfully",
+        "report_id": new_report.reportID 
+    }
+
+@router.get("/lecturer/reports/download/{report_id}")
+def download_generated_report(
+    report_id: int,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+) -> FileResponse:  
+    report = db.query(GeneratedReport).filter(
+        GeneratedReport.reportID == report_id,
+        GeneratedReport.lecturerID == user_id 
+    ).first()
+    
+    if not report or not os.path.exists(report.filePath):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # CHANGE 3: Media Type for CSV
+    return FileResponse(
+        path=report.filePath, 
+        filename=report.fileName,
+        media_type='text/csv' 
+    )
+
+# Lecturer Attendance Log with Dynamic Filtering
+@router.get("/lecturer/attendance-log", response_model=List[AttendanceLogEntry])
+def get_lecturer_attendance_log_filtered(
+    # URL QUERY PARAMETERS
+    search_term: str = Query(None, description="Search by Student Name or ID"),
+    module_code: str = Query(None, description="Filter by Module Code"),
+    status: Literal['Present', 'Absent', 'Late'] = Query(None, description="Filter by Status"),
+    date: date = Query(None, description="Filter by specific date (YYYY-MM-DD)"),
+    limit: int = Query(50, gt=0),
+    offset: int = Query(0, ge=0),
+    
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    
+    # Define Core Lesson Sets (Filter Lessons by Lecturer & Date) 
+    
+    relevant_lessons_query = db.query(
+        Lesson.lessonID, Lesson.startDateTime, Lesson.endDateTime, LecMod.moduleID
+    ).join(LecMod).filter(
+        LecMod.lecturerID == user_id,
+        Lesson.endDateTime < datetime.now() # Only completed lessons
+    )
+    
+    # Apply URL DATE filter if provided
+    if date:
+        start_of_day = datetime.combine(date, time.min) # Note: time.min must be imported/defined
+        end_of_day = datetime.combine(date, time.max)   # Note: time.max must be imported/defined
+        relevant_lessons_query = relevant_lessons_query.filter(
+            Lesson.startDateTime.between(start_of_day, end_of_day)
+        )
+        
+    relevant_lessons = relevant_lessons_query.subquery()
+
+    # All student enrollments relevant to the lecturer
+    enrolled_students = db.query(StudentModules.studentID, StudentModules.modulesID).subquery()
+    
+    # Full Cartesian Product (A row for every Student X Lesson pairing)
+    attendance_slots = db.query(
+        enrolled_students.c.studentID,
+        relevant_lessons.c.lessonID,
+        relevant_lessons.c.startDateTime,
+        relevant_lessons.c.moduleID
+    ).join(
+        relevant_lessons,
+        enrolled_students.c.modulesID == relevant_lessons.c.moduleID
+    ).subquery()
+    
+    
+    #LATE Status Subquery (Corrected Syntax)
+    late_check = db.query(
+        EntLeave.studentID, EntLeave.lessonID,
+        # Corrected syntax: func.count(case(condition, result))
+        func.count(case(
+            (EntLeave.enter > relevant_lessons.c.startDateTime + timedelta(minutes=5), 1)
+        , else_=None)).label('late_count')
+    ).group_by(EntLeave.studentID, EntLeave.lessonID).subquery()
+    
+    
+    # Final Query Construction 
+    
+    # The calculated status expression (Corrected Syntax)
+    status_expr = case(
+        (func.count(AttdCheck.AttdCheckID) > 0, # <-- CRITICAL FIX: This is now an aggregate function
+         case( 
+             (func.max(late_check.c.late_count) > 0, 'Late') 
+         , else_='Present')
+        )
+    , else_='Absent').label('status')
+    
+    # Base SELECT statement joins all necessary data
+    final_query = db.query(
+        Student.studentNum.label('user_id'),
+        Student.name.label('student_name'),
+        Module.moduleCode.label('module_code'),
+        attendance_slots.c.startDateTime.label('date_time'),
+        attendance_slots.c.lessonID.label('lesson_id'),
+        status_expr
+    ).select_from(attendance_slots).join(
+        Student, Student.studentID == attendance_slots.c.studentID
+    ).join(
+        Module, Module.moduleID == attendance_slots.c.moduleID
+    ).outerjoin(
+        AttdCheck, and_(AttdCheck.lessonID == attendance_slots.c.lessonID, AttdCheck.studentID == attendance_slots.c.studentID)
+    ).outerjoin(
+        late_check, and_(late_check.c.lessonID == attendance_slots.c.lessonID, late_check.c.studentID == attendance_slots.c.studentID)
+    ).group_by(
+    Student.studentNum, 
+    Student.name, 
+    Module.moduleCode, 
+    attendance_slots.c.startDateTime, 
+    attendance_slots.c.lessonID
+)
+
+    # Apply Dynamic Filters 
+    
+    if module_code:
+        final_query = final_query.filter(Module.moduleCode == module_code)
+
+    if search_term:
+        search_like = f"%{search_term}%"
+        # Search by Student Name OR Student ID (studentNum)
+        search_filter = or_(
+            Student.name.ilike(search_like),
+            Student.studentNum.ilike(search_like)
+        )
+        final_query = final_query.filter(search_filter)
+        
+
+    # Execute the query (LIMIT and OFFSET are applied to the full dataset)
+    final_records = final_query.order_by(
+        attendance_slots.c.startDateTime.desc()
+    ).all()
+
+    log_entries = []
+    for row in final_records:
+        entry = AttendanceLogEntry(
+            user_id=row.user_id,
+            student_name=row.student_name,
+            module_code=row.module_code,
+            status=row.status,
+            date=row.date_time.strftime("%d %b %Y"),
+            lesson_id=row.lesson_id
+        )
+        
+        # Apply Status Filter (Python-side filtering)
+        if not status or entry.status == status:
+            log_entries.append(entry)
+
+    # Apply Pagination to the final list
+    return log_entries[offset:offset + limit]
+
+# Detailed Attendance Record
+@router.get("/lecturer/attendance/details/{lesson_id}/{student_num}", response_model=DetailedAttendanceRecord)
+def get_detailed_attendance_record(
+    lesson_id: int,
+    student_num: str, 
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    
+    # Base Query: Start from Student and fetch all related data
+    
+    # We will query all needed entities (Student, Lesson, Module) but start the FROM clause at Student
+    record = db.query(Student, Lesson, Module)\
+        .select_from(Student) \
+        .join(Lesson, Lesson.lessonID == lesson_id) \
+        .join(LecMod, Lesson.lecModID == LecMod.lecModID) \
+        .join(Module, Module.moduleID == LecMod.moduleID) \
+        .filter(Student.studentNum == student_num) \
+        .first()
+
+    if not record:
+        raise HTTPException(status_code=404, detail="Attendance record not found.")
+
+    student, lesson, module = record
+    
+    # Check for Presence/Late Status (Simplified Logic from the Log Query)
+    # Check for AttdCheck existence
+    is_present = db.query(AttdCheck).filter(
+        AttdCheck.lessonID == lesson_id, 
+        AttdCheck.studentID == student_num
+    ).first()
+
+    # Check for Late Status (using the 5-minute rule)
+    is_late = db.query(EntLeave).filter(
+        EntLeave.lessonID == lesson_id, 
+        EntLeave.studentID == student_num,
+        EntLeave.enter > lesson.startDateTime + timedelta(minutes=5)
+    ).first()
+
+    # C. Final Status Assignment
+    if not is_present:
+        status_str = 'Absent'
+    elif is_late:
+        status_str = 'Late'
+    else:
+        status_str = 'Present'
+        
+    # Get Timestamp (Use EntLeave.enter time if available, otherwise lesson start)
+    entry_time_record = db.query(EntLeave.enter).filter(EntLeave.lessonID == lesson_id, EntLeave.studentID == student_num).first()
+    timestamp_str = (entry_time_record[0] if entry_time_record else lesson.startDateTime).strftime("%H:%M %p")
+
+
+    # Assemble and Return Data (Using Placeholders for Missing DB Fields)
+    
+    # Location (Using the corrected fields from your Lesson model)
+    camera_location_str = f"Building {lesson.building}, Room {lesson.room}" if lesson.building and lesson.room else "TBA"
+
+    return DetailedAttendanceRecord(
+        # Top Section
+        student_name=student.name,
+        user_id=student.studentNum, # Use the Student Number
+        module_code=module.moduleCode,
+        date=lesson.startDateTime.strftime("%d %b %Y"),
+        
+        # Details Section
+        attendance_status=status_str,
+        live_check='Passed', # <--- PLACEHOLDER (Requires a 'liveCheck' column)
+        timestamp=timestamp_str,
+        virtual_tripwire='Triggered', # <--- PLACEHOLDER (Requires a 'tripwire' column)
+        
+        attendance_method='Biometric Scan', # <--- PLACEHOLDER (Requires a 'method' column)
+        camera_location=camera_location_str,
+        verification_type='Multi-person group verification' # <--- PLACEHOLDER (Requires a 'verification' column)
+    )
+
+#--------------------------
+#Lecturer timetable 
+#--------------------------
+# Daily Timetable
+@router.get("/lecturer/timetable/daily", response_model=list[DailyTimetable])
+def get_daily_timetable(
+    date_str: str, # Date as string (e.g., "2025-12-01") from the URL
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Fetches lessons for a specific single day based on the date provided in the URL path.
+    """
+    
+    try:
+        # CRITICAL: Convert the URL string to a Python date object
+        selected_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+
+    # Define the time window: Start of the selected day to End of the selected day
+    start_of_day = datetime.combine(selected_date, time.min)
+    end_of_day = datetime.combine(selected_date, time.max)
+    
+    # Query Lessons
+    upcoming_lessons = db.query(Lesson, Module)\
+        .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
+        .join(Module, LecMod.moduleID == Module.moduleID)\
+        .filter(
+            LecMod.lecturerID == user_id,
+            Lesson.startDateTime.between(start_of_day, end_of_day) # Filter for the single day
+        )\
+        .order_by(Lesson.startDateTime)\
+        .all()
+
+    # Format the data
+    results = []
+
+    for lesson, module in upcoming_lessons:
+        
+        # Location: Combine Building + Room (using the fields you have)
+        loc_str = ""
+        bldg = lesson.building or ""
+        rm = lesson.room or ""
+        if bldg and rm:
+            # Note: We can't tell what T01/T02 is from your DB, so we use a simple string
+            loc_str = f"Building {bldg} | Room {rm}"
+        else:
+            loc_str = "Online"
+
+        # Time
+        start_time = lesson.startDateTime.strftime("%I:%M %p").lstrip("0")
+        end_time = lesson.endDateTime.strftime("%I:%M %p").lstrip("0")
+
+        # Create the Pydantic Object
+        entry = DailyTimetable(
+            module_code=module.moduleCode,
+            module_name=module.moduleName,          # ADDED: Required by DailyTimetable schema
+            lesson_type=lesson.lessontype,          # ADDED: Required by DailyTimetable schema
+            start_time=start_time,
+            end_time=end_time,
+            location=loc_str
+        )
+        results.append(entry)
+
+    return results
+
+# Weekly Timetable 
+@router.get("/lecturer/timetable/weekly", response_model=List[Weeklytimetable])
+def get_weekly_timetable_flat(
+    start_date_str: str, 
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Fetches all lessons for a 7-day period starting from the provided date 
+    and returns them as a single, flat list (no grouping by day).
+    """
+    
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+    
+    # Define the time window: 7 days
+    start_time = datetime.combine(start_date, time.min)
+    end_time = datetime.combine(start_date + timedelta(days=6), time.max)
+    
+    # Query Lessons (Fetch all 7 days of data)
+    upcoming_lessons = db.query(Lesson, Module)\
+        .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
+        .join(Module, LecMod.moduleID == Module.moduleID)\
+        .filter(
+            LecMod.lecturerID == user_id,
+            Lesson.startDateTime.between(start_time, end_time) 
+        )\
+        .order_by(Lesson.startDateTime)\
+        .all()
+
+    # Format the data into a single, flat list
+    results = []
+
+    for lesson, module in upcoming_lessons:
+        
+        # Formatting Logic
+        bldg = lesson.building or ""
+        rm = lesson.room or ""
+        loc_str = f"Building {bldg} | Room {rm}" if bldg and rm else "Online"
+        
+        start_t = lesson.startDateTime.strftime("%I:%M %p").lstrip("0")
+        end_t = lesson.endDateTime.strftime("%I:%M %p").lstrip("0")
+        date_full_str = lesson.startDateTime.strftime("%d")
+        
+        # Construct the flat Weeklytimetable object
+        results.append(Weeklytimetable(
+            day_of_week=lesson.startDateTime.strftime("%a"), # e.g. Mon
+            date_of_day=date_full_str,                             # e.g. 28
+            module_code=f"{module.moduleCode}",
+            module_name=module.moduleName,
+            lesson_type=lesson.lessontype,
+            start_time=start_t,
+            end_time=end_t,
+            location=loc_str
+        ))
+
+    # The frontend will now receive the entire week's schedule as one long list
+    return results
+
+# Monthly Timetable
+@router.get("/lecturer/timetable/monthly", response_model=List[MonthlyTimetable])
+def get_monthly_timetable(
+    year: int = Query(..., description="The year to filter by (e.g., 2025)"),
+    month: int = Query(..., description="The month to filter by (1-12)"),
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    
+    lessons = db.query(Lesson.startDateTime, Module.moduleCode)\
+        .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
+        .join(Module, LecMod.moduleID == Module.moduleID)\
+        .filter(
+            LecMod.lecturerID == user_id,
+            cast(extract('year', Lesson.startDateTime), Integer) == year, 
+            cast(extract('month', Lesson.startDateTime), Integer) == month, 
+        )\
+        .order_by(Lesson.startDateTime.asc())\
+        .all()
+
+    results = []
+
+    for start_dt, module_code in lessons:
+        
+        results.append(MonthlyTimetable(
+            date_of_month=start_dt.date(),
+            module_code=module_code
+        ))
+
+    return results
+
+
 @router.get("/lecturer/class/details", response_model=OverallClassAttendanceDetails)
 def get_overall_class_attendance_details(
     lesson_id: int,
@@ -507,3 +1089,56 @@ def get_overall_class_attendance_details(
         absentees=absentees_count,
         attendance_log=attendance_log_rows
     )
+
+@router.get("/lecturer/modules")
+def get_lecturer_modules(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Fetches all modules taught by the lecturer.
+    """
+    modules = db.query(Module).join(LecMod).filter(
+        LecMod.lecturerID == user_id
+    ).all()
+    
+    return modules  
+
+
+@router.get("/lecturer/reports/history", response_model=List[ReportHistoryEntry])
+def get_lecturer_report_history(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Fetches all reports generated by the current lecturer, 
+    sorted by the most recent first.
+    """
+    
+    # 1. Query the database
+    reports = db.query(GeneratedReport)\
+        .filter(GeneratedReport.lecturerID == user_id)\
+        .order_by(GeneratedReport.generatedAt.desc())\
+        .all()
+        
+    # 2. Format the data for the frontend
+    results = []
+    for r in reports:
+        # Format the datetime object to a string (e.g., "08 Jan 2026")
+        formatted_date = r.generatedAt.strftime("%d %b %Y")
+        
+        # Combine Report Type and Filter Status into tags
+        # Example: ["Daily", "Present"] or ["Monthly", "All"]
+        display_tags = [r.reportType, r.filterStatus]
+
+        results.append(ReportHistoryEntry(
+            id=r.reportID,
+            title=r.title if r.title else f"{r.moduleCode} Report",
+            date=formatted_date,
+            tags=display_tags,
+            fileName=r.fileName
+        ))
+
+    return results
+
+router.include_router(studentDashboardRouter.router, tags=["Student"])

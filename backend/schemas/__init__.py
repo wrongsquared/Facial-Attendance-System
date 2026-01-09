@@ -31,7 +31,7 @@ from .lecturer import( timetableEntry,
                         MonthlyTimetable,
                         AttendanceDetailRow,
                         OverallClassAttendanceDetails,
-                        )
+                        ReportHistoryEntry)
 from .admin import (AdminDashboardStats, 
                     CourseAttentionItem, 
                     UserManagementItem)

@@ -23,7 +23,7 @@ import {
   TableRow,
 } from "./ui/table";
 
-import { useAuth } from "../cont/AuthContext"; 
+import { useAuth } from "../cont/AuthContext";
 import { ClassAttendanceDetails } from "./ClassAttendanceDetails";
 import { timetableEntry, ClassesToday, CourseOverview, recentSessionsLog } from "../types/lecturerdash";
 import {
@@ -66,7 +66,7 @@ export function LecturerDashboard({
   const [selectedSession, setSelectedSession] = useState<any>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
-    const handleViewDetails = (session: typeof recentSessionsLog[0]) => {
+  const handleViewDetails = (session: typeof recentSessionsLog[0]) => {
     setSelectedSession(session);
     setIsDetailsOpen(true);
   };
@@ -77,10 +77,10 @@ export function LecturerDashboard({
   };
 
   useEffect(() => {
-    const fetchDashboardData = async () =>{
+    const fetchDashboardData = async () => {
       if (!token) return;
-    
-      try{
+
+      try {
         const [
           ModulesCount,
           timetable,
@@ -104,24 +104,24 @@ export function LecturerDashboard({
       setrecentSessionsLog(recentSessionsLog);
       }
       catch (err) {
-          console.error("Failed to load dashboard:", err);
-          // Optional: setError(true) to show a "Retry" button
-        } finally {
-          //Stop loading only when EVERYTHING is finished (or failed)
-          setLoading(false);
-        }
-      };
-      fetchDashboardData();
-    }, [token]);
-    const getWeeklySchedule = () => {
+        console.error("Failed to load dashboard:", err);
+        // Optional: setError(true) to show a "Retry" button
+      } finally {
+        //Stop loading only when EVERYTHING is finished (or failed)
+        setLoading(false);
+      }
+    };
+    fetchDashboardData();
+  }, [token]);
+  const getWeeklySchedule = () => {
     const grouped: Record<string, timetableEntry[]> = {
       Mon: [], Tue: [], Wed: [], Thu: [], Fri: [], Sat: [], Sun: []
     };
 
     timetable.forEach((lesson) => {
       // The backend sends "Mon", "Tue", etc.
-      const day = lesson.day_of_week; 
-      
+      const day = lesson.day_of_week;
+
       if (grouped[day]) {
         grouped[day].push(lesson);
       }
@@ -185,14 +185,14 @@ export function LecturerDashboard({
             <CardContent>
               <div className="space-y-2 mb-4">
                 {Object.values(weeklySchedule).every(arr => arr.length === 0) ? (
-                   <p className="text-xs text-gray-400">No classes this week.</p>
+                  <p className="text-xs text-gray-400">No classes this week.</p>
 
                 ) : (dayOrder.map((day) => {
-                    const classes = weeklySchedule[day];
-                    // Skip days with no classes
-                    if (!classes || classes.length === 0) return null;
+                  const classes = weeklySchedule[day];
+                  // Skip days with no classes
+                  if (!classes || classes.length === 0) return null;
 
-                    return(
+                  return (
                     <div
                       key={day}
                       className="flex items-start gap-2 text-xs"
@@ -210,10 +210,10 @@ export function LecturerDashboard({
                             {cls.location}
                           </div>
                         ))}
+                      </div>
                     </div>
-                  </div>
                   );
-                  })
+                })
                 )}
               </div>
 
@@ -274,47 +274,47 @@ export function LecturerDashboard({
                   <p className="text-sm text-gray-500 text-center py-6">
                     No classes scheduled for today.
                   </p>
-                ) : ( 
+                ) : (
                   todaysClasses.map((classItem, index) => (
-                  <div
-                    key={index}
-                    className="p-4 border rounded-lg"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <p className="font-medium">
-                          {classItem.module_code} - {classItem.module_name}
-                        </p>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {classItem.time_range}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {classItem.location}
-                        </p>
-                      </div>
+                    <div
+                      key={index}
+                      className="p-4 border rounded-lg"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <p className="font-medium">
+                            {classItem.module_code} - {classItem.module_name}
+                          </p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {classItem.time_range}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {classItem.location}
+                          </p>
+                        </div>
                         <Badge
                           className={
-                            classItem.status === 'Live' 
+                            classItem.status === 'Live'
                               ? "bg-green-600 hover:bg-green-700 text-white" // Live = Green
-                              : classItem.status === 'Completed' 
-                              ? "bg-blue-600 hover:bg-blue-700 text-white"   // Completed = Blue
-                              : "bg-gray-100 text-gray-800 hover:bg-gray-200" // Pending = Gray
+                              : classItem.status === 'Completed'
+                                ? "bg-blue-600 hover:bg-blue-700 text-white"   // Completed = Blue
+                                : "bg-gray-100 text-gray-800 hover:bg-gray-200" // Pending = Gray
                           }
                         >
                           {classItem.status}
                         </Badge>
-                    </div>
-                    {classItem.status !=='Pending' && (
-                      <div className="flex items-center justify-between text-sm bg-green-50 p-2 rounded">
-                        <span className="text-green-700">
-                          {classItem.status === 'Live' ? "Marking in progress..." : "Attendance recorded"}
-                        </span>
-                        <span className="text-green-700">
-                          {classItem.attendance_display}
-                        </span>
                       </div>
-                    )}
-                  </div>
+                      {classItem.status !== 'Pending' && (
+                        <div className="flex items-center justify-between text-sm bg-green-50 p-2 rounded">
+                          <span className="text-green-700">
+                            {classItem.status === 'Live' ? "Marking in progress..." : "Attendance recorded"}
+                          </span>
+                          <span className="text-green-700">
+                            {classItem.attendance_display}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   ))
                 )}
               </div>
@@ -336,37 +336,37 @@ export function LecturerDashboard({
                     No courses found.
                   </p>
                 ) : (
-                courseovw.map((course) => (
-                  <div
-                    key={course.module_code}
-                    className="p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <p className="font-medium">
-                          {course.module_code}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {course.module_name}
-                        </p>
-                      </div>
-                      <Badge variant="outline" className={
-                          course.overall_attendance_rate < 80 
-                            ? "border-red-200 text-red-700 bg-red-50" 
+                  courseovw.map((course) => (
+                    <div
+                      key={course.module_code}
+                      className="p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="font-medium">
+                            {course.module_code}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {course.module_name}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className={
+                          course.overall_attendance_rate < 80
+                            ? "border-red-200 text-red-700 bg-red-50"
                             : "border-green-200 text-green-700 bg-green-50"
                         }>
-                        {course.overall_attendance_rate}% attendance
-                      </Badge>
+                          {course.overall_attendance_rate}% attendance
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-600 mt-3">
+                        <Users className="h-4 w-4" />
+                        <span>
+                          {course.students_enrolled} students enrolled
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600 mt-3">
-                      <Users className="h-4 w-4" />
-                      <span>
-                        {course.students_enrolled} students enrolled
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -386,52 +386,51 @@ export function LecturerDashboard({
                 No recent sessions found.
               </p>
             ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Attended</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Percentage</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentSessionsLog.map((session,index) => (
-                  <TableRow key={index}>
-                    <TableCell>{session.subject}</TableCell>
-                    <TableCell>{session.date}</TableCell>
-                    <TableCell>{session.time}</TableCell>
-                    <TableCell>{session.attended}</TableCell>
-                    <TableCell>{session.total}</TableCell>
-                    <TableCell>
-                      <Badge
-                        className={`px-3 py-1 rounded-full text-white text-sm font-medium
-    ${
-      session.percentage >= 90
-        ? "bg-blue-600 hover:bg-blue-700"
-        : "bg-gray-200 text-gray-800"
-    }
-  `}
-                      >
-                        {session.percentage}%
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewDetails(session)}
-                      >
-                        View Details
-                      </Button>
-                    </TableCell>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Attended</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Percentage</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {recentSessionsLog.map((session, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{session.subject}</TableCell>
+                      <TableCell>{session.date}</TableCell>
+                      <TableCell>{session.time}</TableCell>
+                      <TableCell>{session.attended}</TableCell>
+                      <TableCell>{session.total}</TableCell>
+                      <TableCell>
+                        <Badge
+                          className={`px-3 py-1 rounded-full text-white text-sm font-medium
+    ${session.percentage >= 90
+                              ? "bg-blue-600 hover:bg-blue-700"
+                              : "bg-gray-200 text-gray-800"
+                            }
+  `}
+                        >
+                          {session.percentage}%
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewDetails(session)}
+                        >
+                          View Details
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>
