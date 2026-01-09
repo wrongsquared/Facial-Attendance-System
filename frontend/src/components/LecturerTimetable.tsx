@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -7,28 +7,16 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Button } from "./ui/button";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
   Calendar,
-  BookOpen,
-  LogOut,
   ArrowLeft,
-  Bell,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
-
+import { Navbar } from "./Navbar";
+import { getLecDailyTimetable, getLecturerMonthlyTimetable, getLecWeeklyTimetable } from "../services/api";
+import { DailyTimetable, MonthlyTimetable, WeeklyTimetable } from "../types/lecturerinnards";
+import { useAuth } from "../cont/AuthContext";
 interface LecturerTimetableProps {
   onLogout: () => void;
   onBack: () => void;
@@ -42,12 +30,6 @@ type MonthCell = {
   isCurrentMonth: boolean;
 };
 
-type MonthEvent = {
-  date: Date;
-  label: string; // e.g. "ISIT 312"
-  time: string; // e.g. "2:00 PM – 4:00 PM"
-  location: string; // e.g. "Building 3, Room 205"
-};
 
 // Helper function to format date (daily view)
 const formatDate = (date: Date) => {
@@ -79,127 +61,6 @@ const formatDate = (date: Date) => {
     months[date.getMonth()]
   } ${date.getFullYear()}`;
 };
-
-// Mock data for timetable
-const dailySchedule = [
-  {
-    time: "8:30AM - 11:30AM",
-    courseCode: "CSCI334 - T01",
-    subject: "Database Systems",
-    room: "HQ BLK A | LAB A.5.17A/A.5.17B",
-  },
-  {
-    time: "2:00PM - 4:00PM",
-    courseCode: "CSCI203 - T02",
-    subject: "Algorithms",
-    room: "Building 1 | Room 310",
-  },
-];
-
-const weeklySchedule = [
-  {
-    day: "Monday",
-    classes: [
-      {
-        time: "9:00AM - 11:00AM",
-        courseCode: "CSCI334 - T01",
-        subject: "Database Systems",
-        room: "HQ BLK A | LAB A.517A/A.517B",
-        type: "Lecture",
-      },
-    ],
-  },
-  {
-    day: "Tuesday",
-    classes: [
-      {
-        time: "2:00PM - 4:00PM",
-        courseCode: "CSCI203 - T02",
-        subject: "Algorithms",
-        room: "Building 1 | Room 310",
-        type: "Tutorial",
-      },
-    ],
-  },
-  {
-    day: "Wednesday",
-    classes: [
-      {
-        time: "9:00AM - 11:00AM",
-        courseCode: "CSCI334 - T02",
-        subject: "Database Systems",
-        room: "HQ BLK A | LAB A.517A/A.517B",
-        type: "Lab",
-      },
-    ],
-  },
-  {
-    day: "Thursday",
-    classes: [
-      {
-        time: "2:00PM - 4:00PM",
-        courseCode: "CSCI203 - L01",
-        subject: "Algorithms",
-        room: "Building 1 | Room 310",
-        type: "Lecture",
-      },
-    ],
-  },
-  {
-    day: "Friday",
-    classes: [
-      {
-        time: "11:00AM - 1:00PM",
-        courseCode: "CSCI334 - T03",
-        subject: "Database Systems",
-        room: "HQ BLK A | Room A.G19",
-        type: "Tutorial",
-      },
-    ],
-  },
-];
-
-// Events for the monthly calendar
-const monthEvents: MonthEvent[] = [
-  {
-    date: new Date(2025, 10, 10), // 10 Nov 2025
-    label: "ISIT 312",
-    time: "2:00 PM – 4:00 PM",
-    location: "Building 3, Room 205",
-  },
-  {
-    date: new Date(2025, 10, 19),
-    label: "ISIT 312",
-    time: "2:00 PM – 4:00 PM",
-    location: "Building 3, Room 205",
-  },
-  {
-    date: new Date(2025, 10, 23),
-    label: "ISIT 312",
-    time: "2:00 PM – 4:00 PM",
-    location: "Building 3, Room 205",
-  },
-];
-
-const monthNames = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-const isSameDay = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate();
 
 const getMonthGrid = (monthDate: Date): MonthCell[] => {
   const year = monthDate.getFullYear();
@@ -246,17 +107,61 @@ export function LecturerTimetable({
   onBack,
   onNavigateToProfile,
 }: LecturerTimetableProps) {
+  const { token } = useAuth()
+  const [dailyLessons, setDailyLessons] = useState<DailyTimetable[]>([]);
+  const [weeklyLessons, setWeeklyLessons] = useState<WeeklyTimetable[]>([]);
+  const [monthlyLessons, setMonthlyLessons] = useState<MonthlyTimetable[]>([]);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("daily");
-  const [currentDate, setCurrentDate] = useState<Date>(
-    new Date(2025, 11, 1), // December 1, 2025
-  );
-  const [currentWeekStart, setCurrentWeekStart] =
-    useState<Date>(
-      new Date(2025, 11, 1), // December 1, 2025
-    );
-  const [currentMonth, setCurrentMonth] = useState<Date>(
-    new Date(2025, 10, 1), // November 2025 for the screenshot-style view
-  );
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const getStartOfWeek = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay(); 
+    // Adjust to get Sunday (0) as start, or subtract day to get previous Sunday
+    d.setDate(d.getDate() - day);
+    return d;
+  };
+  const formatDateForAPI = (date: Date) => {
+    const year = date.getFullYear();
+    // Month is 0-indexed, so add 1. Pad with 0 if needed.
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!token) return;
+      setLoading(true);
+      try {
+        if ( viewMode=== "monthly"){
+          const year = currentMonth.getFullYear();
+          const month = currentMonth.getMonth() + 1; // JS is 0-11, Python needs 1-12
+          
+          const data = await getLecturerMonthlyTimetable(token, year, month);
+          setMonthlyLessons(data);
+        }
+        else if (viewMode=== "weekly"){
+          const startofWeek = getStartOfWeek(currentDate);
+          const datePI = formatDateForAPI(startofWeek)
+          const weekData = await getLecWeeklyTimetable(token, datePI);
+          setWeeklyLessons(weekData);
+        }
+        else{
+          const dateStr = formatDateForAPI(currentDate);
+          const data = await getLecDailyTimetable(token, dateStr);
+          setDailyLessons(data);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [token, viewMode, currentDate, currentMonth]);
 
   const handlePreviousDay = () => {
     const newDate = new Date(currentDate);
@@ -270,143 +175,55 @@ export function LecturerTimetable({
     setCurrentDate(newDate);
   };
 
-  const handlePreviousWeek = () => {
-    const newDate = new Date(currentWeekStart);
-    newDate.setDate(newDate.getDate() - 7);
-    setCurrentWeekStart(newDate);
-  };
-
   const handleNextWeek = () => {
-    const newDate = new Date(currentWeekStart);
-    newDate.setDate(newDate.getDate() + 7);
-    setCurrentWeekStart(newDate);
+    // 1. Create a CLONE of the date
+    const next = new Date(currentDate);
+    // 2. Add 7 days to the clone
+    next.setDate(next.getDate() + 7);
+    // 3. Set the state to the NEW object
+    setCurrentDate(next);
   };
 
-  // Weekly helpers (week starts on Sunday)
+  const handlePrevWeek = () => {
+    const prev = new Date(currentDate);
+    prev.setDate(prev.getDate() - 7);
+    setCurrentDate(prev);
+  };
+
   const getWeekDates = () => {
-    const dates: Date[] = [];
-    const weekStart = new Date(currentWeekStart);
-
-    // Adjust to Sunday (start of week)
-    const day = weekStart.getDay(); // 0 = Sunday
-    weekStart.setDate(weekStart.getDate() - day);
-
-    // Generate Sunday → Saturday (7 days)
+    const dates = [];
+    const start = new Date(currentDate);
+    start.setHours(0, 0, 0, 0);
+    
+    //Calculate Start of Week (Sun)
+    const dayOfWeek = start.getDay();
+    start.setDate(start.getDate() - dayOfWeek);
+    
+    // Generate 7 days
     for (let i = 0; i < 7; i++) {
-      const date = new Date(weekStart);
-      date.setDate(weekStart.getDate() + i);
-      dates.push(date);
+      dates.push(new Date(start));
+      start.setDate(start.getDate() + 1);
     }
-
     return dates;
   };
 
   const formatWeekRange = () => {
     const dates = getWeekDates();
-    const firstDay = dates[0];
-    const lastDay = dates[6];
+    
+    // Grab First (Sun) and Last (Sat)
+    const start = dates[0];
+    const end = dates[6];
 
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-
-    return `Week: ${firstDay.getDate()} ${
-      months[firstDay.getMonth()]
-    } ${firstDay.getFullYear()} - ${lastDay.getDate()} ${
-      months[lastDay.getMonth()]
-    } ${lastDay.getFullYear()}`;
-  };
-
-  const getDayName = (date: Date) => {
-    const days = [
-      "Sunday",
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-    ];
-    return days[date.getDay()];
-  };
-
-  const getClassesForDay = (dayName: string) => {
-    const dayData = weeklySchedule.find(
-      (d) => d.day === dayName,
-    );
-    return dayData ? dayData.classes : [];
+    // Format helper
+    const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
+    
+    // Return string
+    return `${start.toLocaleDateString('en-GB', options)} - ${end.toLocaleDateString('en-GB', options)}`;
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">
-                Lecturer Portal
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <div
-              className="flex items-center gap-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
-              onClick={onNavigateToProfile}
-            >
-              <Avatar>
-                <AvatarFallback>DR</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>Dr. Rachel Wong</p>
-                <p className="text-sm text-gray-600">
-                  Computer Science
-                </p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
+      <Navbar title="Lecturer Portal" onNavigateToProfile={onNavigateToProfile} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -506,22 +323,22 @@ export function LecturerTimetable({
                   </Button>
                 </div>
                 <div className="space-y-4">
-                  {dailySchedule.map((classItem, index) => (
+                  {dailyLessons.map((classDay, index) => (
                     <div
                       key={index}
                       className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       <p className="font-medium">
-                        {classItem.courseCode}
+                        {classDay.module_code} - {classDay.lesson_type}
                       </p>
                       <p className="text-sm text-gray-700 mt-1">
-                        {classItem.subject}
+                        {classDay.module_name}
                       </p>
                       <p className="text-sm text-gray-600 mt-1">
-                        {classItem.time}
+                        {classDay.start_time} - {classDay.end_time}
                       </p>
                       <p className="text-sm text-gray-600 mt-1">
-                        {classItem.room}
+                        {classDay.location}
                       </p>
                     </div>
                   ))}
@@ -536,7 +353,7 @@ export function LecturerTimetable({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={handlePreviousWeek}
+                    onClick={handlePrevWeek}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
@@ -551,12 +368,22 @@ export function LecturerTimetable({
                 </div>
                 <div className="space-y-6">
                   {getWeekDates().map((date) => {
-                    const dayName = getDayName(date);
-                    const classes = getClassesForDay(dayName);
-                    const dayAbbreviation = dayName.slice(0, 3);
-
+                    //Get Day Name strings
+                    const dayAbbreviation = date.toLocaleDateString('en-US', { weekday: 'short' });
+                  
+                    // FILTER: Find lessons specific to THIS date in the loop
+                    // We compare YYYY-MM-DD strings to avoid Timezone issues
+                    const dayLessons = weeklyLessons.filter((l) => {
+                      // API string: "2025-12-30T09:00:00" -> "2025-12-30"
+                      const currentDayNum = date.getDate(); 
+                      const apiDayNum = parseInt(l.date_of_day, 10);
+                      return currentDayNum === apiDayNum;
+                    });
+                  
                     return (
-                      <div key={dayName} className="flex items-start gap-4">
+                      <div key={date.toISOString()} className="flex items-start gap-4">
+
+                        {/* Date Bubble */}
                         <div className="flex items-center justify-center w-14 h-14 rounded-full bg-blue-600 text-white flex-shrink-0">
                           <div className="text-center">
                             <div className="text-xs">
@@ -567,33 +394,36 @@ export function LecturerTimetable({
                             </div>
                           </div>
                         </div>
-
-                        {classes.length > 0 ? (
+                    
+                        {/* Content Area */}
+                        {dayLessons.length > 0 ? (
                           <div className="flex-1 space-y-3">
-                            {classes.map((classItem, idx) => (
-                              <div
-                                key={idx}
-                                className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                              >
-                                <p className="font-medium">
-                                  {classItem.courseCode}
-                                </p>
-                                <p className="text-sm text-gray-700 mt-1">
-                                  {classItem.subject}
-                                </p>
-                                <p className="text-sm text-gray-600 mt-1">
-                                  {classItem.time}
-                                </p>
-                                <p className="text-sm text-gray-600 mt-1">
-                                  {classItem.room}
-                                </p>
-                              </div>
-                            ))}
+                            {dayLessons.map((classItem, idx) => {
+                              return (
+                                <div
+                                  key={idx} 
+                                  className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                  <p className="font-medium">
+                                    {classItem.module_code} - {classItem.lesson_type}
+                                  </p>
+                                  <p className="text-sm text-gray-700 mt-1">
+                                    {classItem.module_name}
+                                  </p>
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    {classItem.start_time} - {classItem.end_time}
+                                  </p>
+                                  <p className="text-sm text-gray-600 mt-1 uppercase">
+                                    {classItem.location || "Location TBD"}
+                                  </p>
+                                </div>
+                              );
+                            })}
                           </div>
                         ) : (
                           <div className="flex-1 p-4 border rounded-lg bg-gray-50">
                             <p className="text-sm text-gray-600">
-                              {dayName === "Sunday"
+                              {date.getDay() ===0
                                 ? "No school on Sunday"
                                 : "No Classes Scheduled"}
                             </p>
@@ -628,8 +458,7 @@ export function LecturerTimetable({
                   </Button>
 
                   <p className="font-medium">
-                    {monthNames[currentMonth.getMonth()]}{" "}
-                    {currentMonth.getFullYear()}
+                    {currentMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
                   </p>
 
                   <Button
@@ -652,31 +481,34 @@ export function LecturerTimetable({
                 <div className="border rounded-lg p-4">
                   {/* Weekday header */}
                   <div className="grid grid-cols-7 text-xs font-medium text-gray-500 mb-4 text-center">
-                    {[
-                      "SUN",
-                      "MON",
-                      "TUE",
-                      "WED",
-                      "THU",
-                      "FRI",
-                      "SAT",
-                    ].map((d) => (
+                    {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((d) => (
                       <div key={d}>{d}</div>
                     ))}
                   </div>
 
                   {/* Days grid */}
                   <div className="grid grid-cols-7 gap-y-6 text-sm">
-                    {getMonthGrid(currentMonth).map((cell) => {
+                    {getMonthGrid(currentMonth).map((cell, idx) => {
+                      // Safety Check: If cell is just padding (null date)
+                      if (!cell.date) return <div key={idx} className="min-h-[60px]"></div>;
+
                       const { date, isCurrentMonth } = cell;
-                      const events = monthEvents.filter((e) =>
-                        isSameDay(e.date, date),
+
+                      // Format the Cell Date to "YYYY-MM-DD"
+                      // We construct this manually to match the API string exactly
+                      const year = date.getFullYear();
+                      const month = String(date.getMonth() + 1).padStart(2, '0');
+                      const day = String(date.getDate()).padStart(2, '0');
+                      const cellDateStr = `${year}-${month}-${day}`; // e.g., "2025-12-01"
+
+                      const dayLessons = monthlyLessons.filter(
+                        (l) => l.date_of_month === cellDateStr
                       );
 
                       return (
                         <div
-                          key={date.toISOString()}
-                          className="flex flex-col items-center gap-1"
+                          key={cellDateStr}
+                          className="flex flex-col items-center gap-1 min-h-[60px]"
                         >
                           <span
                             className={`text-sm ${
@@ -688,12 +520,13 @@ export function LecturerTimetable({
                             {date.getDate()}
                           </span>
 
-                          {events.map((event, idx) => (
+                          {dayLessons.map((lesson, idx) => (
                             <div
                               key={idx}
-                              className="px-3 py-1 rounded-full bg-blue-600 text-white text-xs leading-tight text-center font-semibold"
+                              className="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] w-full text-center truncate cursor-default"
+                              title={lesson.module_code}
                             >
-                              {event.label}
+                              {lesson.module_code}
                             </div>
                           ))}
                         </div>

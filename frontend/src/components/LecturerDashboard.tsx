@@ -32,7 +32,6 @@ import {
   getavgatt,
   getClassesToday,
   getCourseOverview,
-  getrecentSessionsrecord,
   getrecentSessionslog} from "../services/api";
 import { Navbar } from "./Navbar";
 
@@ -59,7 +58,6 @@ export function LecturerDashboard({
 
   const [totalModules, settotalModules] = useState(0);
   const [avgattM, setavgattM] = useState(0);
-  const [reportCount, setreportCount] = useState(0);
 
   const [timetable, settimetable] = useState<timetableEntry[]>([])
   const [todaysClasses, setTodaysClasses] = useState<ClassesToday[]>([]);
@@ -89,7 +87,6 @@ export function LecturerDashboard({
           avgAttM,
           todayclasses,
           courseoview,
-          reportCount,
           recentSessionsLog
         ] = await Promise.all([
           getLecturerModulesCount(token),
@@ -97,7 +94,6 @@ export function LecturerDashboard({
           getavgatt(token),
           getClassesToday(token),
           getCourseOverview(token),
-          getrecentSessionsrecord(token),
           getrecentSessionslog(token)
         ]);
       settotalModules(ModulesCount.total_modules);
@@ -105,7 +101,6 @@ export function LecturerDashboard({
       setavgattM(avgAttM.Average_attendance);
       setTodaysClasses(todayclasses);
       setCourseovw(courseoview);
-      setreportCount(reportCount.Recent_sessions_record);
       setrecentSessionsLog(recentSessionsLog);
       }
       catch (err) {
@@ -242,10 +237,6 @@ export function LecturerDashboard({
               <Calendar className="h-4 w-4 text-orange-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-6xl font-bold">{reportCount}</div>
-              <p className="text-xs text-gray-600 mt-1">
-                Recent sessions recorded
-              </p>
               <div className="mt-4 space-y-2">
                 <Button
                   variant="outline"

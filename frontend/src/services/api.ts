@@ -1,5 +1,6 @@
 
 import { LoginCredentials, AuthResponse } from "../types/auth";
+import { AttendanceLogFilters } from "../types/lecturerinnards";
 
 
 const API_URL = "http://127.0.0.1:8000"; // The FASTAPI URL
@@ -108,7 +109,7 @@ export const getTimetableRange = async (token: string, start: string, end: strin
 };
 
 export const getStudentFullProfile = async (token: string) => {
-  return await fetchProtected("/student/profile/details", token);
+  return await fetchProtected("/student/my-profile", token);
 };
 
 export const getNotifications = async (token: string) => {
@@ -118,22 +119,13 @@ export const getNotifications = async (token: string) => {
 //Student Routes End
 //Lecturer Routes Begin
 
-export const getLecturerProfile = async (token: string) => {
-  return await fetchProtected('/lecturer/my-profile', token);
-}
-
-
 export const getLecturerModulesCount = async(token: string) =>{
   return await fetchProtected("/lecturer/dashboard/summary", token);
 }
 
-
-
 export const getLecturertimetable = async (token: string) => {
   return await fetchProtected("/lecturer/dashboard/timetable", token);
 }
-
-
 
 export const getavgatt = async (token: string) => {
   return await fetchProtected("/lecturer/dashboard/average-attendance", token);
@@ -143,23 +135,49 @@ export const getClassesToday = async(token:string) =>{
   return await fetchProtected("/lecturer/dashboard/classes-today",token);
 }
 
-
 export const getCourseOverview = async (token: string) => {
   return await fetchProtected("/lecturer/dashboard/my-courses-overview", token);
 }
-
-
-
-export const getrecentSessionsrecord = async (token: string) => {
-  return await fetchProtected("/lecturer/dashboard/recent-sessions-card", token);
-}
-
-
 
 export const getrecentSessionslog = async (token: string) => {
   return await fetchProtected("/lecturer/dashboard/recent-sessions-log", token);
 }
 
+export const getLecturerFullProfile = async (token: string) => {
+  return await fetchProtected('/lecturer/my-profile', token);
+};
+
+
+export const getLecDailyTimetable = async (token: string, dateStr: string) =>{
+  return await fetchProtected(`/lecturer/timetable/daily?date_str=${dateStr}`, token);
+}
+export const getLecWeeklyTimetable = async (token: string, startDateStr: string) =>{
+  return await fetchProtected(`/lecturer/timetable/weekly?start_date_str=${startDateStr}`, token);
+}
+
+export const getLecturerMonthlyTimetable = async (token: string, year: number, month: number) => {
+  return await fetchProtected(`/lecturer/timetable/monthly?year=${year}&month=${month}`, token);
+};
+
+export const getAttendanceLog = async(token:string, filters:AttendanceLogFilters) =>{
+  const params = new URLSearchParams();
+  if (filters.searchTerm) params.append("search_term", filters.searchTerm);
+  if (filters.moduleCode && filters.moduleCode !== "All") params.append("module_code", filters.moduleCode);
+  if (filters.status && filters.status !== "All") params.append("status", filters.status);
+  if (filters.date) params.append("date", filters.date);
+  
+  
+  const limit = 10;
+  const offset = ((filters.page || 1) - 1) * limit;
+  params.append("limit", limit.toString());
+  params.append("offset", offset.toString());
+  return await fetchProtected(`/lecturer/attendance-log?${params.toString()}`, token);
+}
+
+
+// export const getRecentStudents = async (token: string, lesson_id: string, student_num: string) => {
+//   return await fetchProtected(`/lecturer/attendance/details/?lesson_id=${lesson_id}/?student_num=${student_num}`, token);
+// };
 //Lecturer Routes End
 //Admin Routes Begin
 
@@ -172,13 +190,9 @@ export const getAdminStats = async (token: string) => {
   return await fetchProtected("/admin/stats", token);
 };
 
-
-
 export const getCoursesRequiringAttention = async (token: string) => {
   return await fetchProtected("/admin/courses/attention", token);
 };
-
-
 
 export const getRecentUsers = async (token: string) => {
   return await fetchProtected("/admin/users/recent", token);

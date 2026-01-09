@@ -16,7 +16,7 @@ export interface AttendanceLog {
   lessonID: number;
   module_code: string;
   status: "Present" | "Absent" | "Late";
-  start_time: string; // ISO String
+  start_time: string; 
 }
 
 export interface StudentProfileData {
@@ -38,7 +38,6 @@ export interface NotificationItem {
   module_code: string;
   module_name: string;
   
-  // ✅ UPDATE THIS SECTION
   details: {
     // Shared Fields
     attendanceStatus: string; // e.g., "Not Recorded" or "At Risk"
@@ -51,10 +50,10 @@ export interface NotificationItem {
     timestamp?: string;
 
     // Specific to 'below_threshold'
-    currentAttendance?: number; // e.g. 77
-    threshold?: number;         // e.g. 85
+    currentAttendance?: number; 
+    threshold?: number;         
     recentSessionsMissed?: number;
-    totalRecentSessions?: number; // ✅ The "Total" you were looking for
+    totalRecentSessions?: number; 
     impact?: string;
   };
 }

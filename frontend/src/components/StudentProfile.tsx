@@ -29,7 +29,7 @@ export function StudentProfile({
   onBack,
   onOpenNotifications
 }: StudentProfileProps) {
-    const { token } = useAuth();
+  const { token } = useAuth();
   const [loading, setLoading] = useState(true);
 
   // Form State

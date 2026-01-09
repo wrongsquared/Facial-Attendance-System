@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -7,55 +7,57 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Button } from "./ui/button";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import {
-  BookOpen,
-  LogOut,
-  Bell,
   ArrowLeft,
 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
+import { useAuth } from "../cont/AuthContext";
+import { LecturerProfileData } from "../types/lecturerinnards";
+import { getLecturerFullProfile  } from "../services/api";
+import { Navbar } from "./Navbar";
 
 interface UpdateProfileProps {
   onLogout: () => void;
   onBack: () => void;
+  onNavigateToProfile: () => void;
 }
 
 export function UpdateProfile({
   onLogout,
   onBack,
+  onNavigateToProfile
 }: UpdateProfileProps) {
   // Edit mode state
+  const { token } = useAuth();
+  const [formData, setFormData] = useState<LecturerProfileData>({
+    name: "",
+    email: "",
+    specialistIn: "",
+    phone: "",
+    fulladdress: "",
+    emergencyContactName: "",
+    emergencyContactRelationship: "",
+    emergencyContactNumber: "",
+  });
   const [isEditMode, setIsEditMode] = useState(false);
 
   // Personal Information
-  const [name, setName] = useState("Dr. Rachel Wong");
-  const [email, setEmail] = useState("rachel.wong@uow.edu.au");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [contactNumber, setContactNumber] = useState(
-    "+61 2 4221 3555",
+    ""
   );
   const [address, setAddress] = useState(
-    "University of Wollongong, Northfields Ave, Wollongong NSW 2522",
+    ""
   );
 
   // Emergency Contact
   const [emergencyName, setEmergencyName] =
     useState("Michael Wong");
-  const [relationship, setRelationship] = useState("Spouse");
+  const [relationship, setRelationship] = useState("");
   const [emergencyContact, setEmergencyContact] = useState(
-    "+61 412 345 678",
+    "",
   );
 
   const handleSave = () => {
@@ -80,64 +82,33 @@ export function UpdateProfile({
   const handleUpdateProfile = () => {
     setIsEditMode(true);
   };
-
+  // Fetch Data on Mount
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!token) return;
+      try {
+        const data = await getLecturerFullProfile(token);
+        // Populate Form
+        // We use || "" to ensure inputs don't become uncontrolled if value is null
+        setFormData({
+          name: data.name || "",
+          email: data.email || "",
+          specialistIn: data.specialistIn || "",
+          phone: data.contactNumber || "",
+          fulladdress: data.address || "",
+          emergencyContactName: data.emergencyContactName || "",
+          emergencyContactRelationship: data.emergencyContactRelationship || "",
+          emergencyContactNumber: data.emergencyContactNumber || ""
+        });
+      } catch (err) {
+        console.error("Failed to load profile", err);
+      }
+    };
+    fetchData();
+  }, [token]);
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">
-                Lecturer Portal
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback>DR</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>Dr. Rachel Wong</p>
-                <p className="text-sm text-gray-600">
-                  Computer Science
-                </p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
-
+      <Navbar title="Lecturer Dashboard" onNavigateToProfile={onNavigateToProfile}/>
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
         {/* Back Button */}
@@ -176,7 +147,7 @@ export function UpdateProfile({
                 <Input
                   id="name"
                   type="text"
-                  value={name}
+                  value={formData.name}
                   onChange={(e) => setName(e.target.value)}
                   className="h-12"
                   disabled={!isEditMode}
@@ -188,7 +159,7 @@ export function UpdateProfile({
                 <Input
                   id="email"
                   type="email"
-                  value={email}
+                  value={formData.email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="h-12"
                   disabled={!isEditMode}
@@ -202,7 +173,7 @@ export function UpdateProfile({
                 <Input
                   id="contactNumber"
                   type="tel"
-                  value={contactNumber}
+                  value={formData.phone}
                   onChange={(e) =>
                     setContactNumber(e.target.value)
                   }
@@ -216,7 +187,7 @@ export function UpdateProfile({
                 <Input
                   id="address"
                   type="text"
-                  value={address}
+                  value={formData.fulladdress}
                   onChange={(e) => setAddress(e.target.value)}
                   className="h-12"
                   disabled={!isEditMode}
@@ -241,7 +212,7 @@ export function UpdateProfile({
                 <Input
                   id="emergencyName"
                   type="text"
-                  value={emergencyName}
+                  value={formData.emergencyContactName}
                   onChange={(e) =>
                     setEmergencyName(e.target.value)
                   }
@@ -257,7 +228,7 @@ export function UpdateProfile({
                 <Input
                   id="relationship"
                   type="text"
-                  value={relationship}
+                  value={formData.emergencyContactRelationship}
                   onChange={(e) =>
                     setRelationship(e.target.value)
                   }
@@ -273,7 +244,7 @@ export function UpdateProfile({
                 <Input
                   id="emergencyContact"
                   type="tel"
-                  value={emergencyContact}
+                  value={formData.emergencyContactNumber}
                   onChange={(e) =>
                     setEmergencyContact(e.target.value)
                   }

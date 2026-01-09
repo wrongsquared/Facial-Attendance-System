@@ -4,7 +4,6 @@ import {
   CardContent,
 } from "./ui/card";
 import { Button } from "./ui/button";
-import { Progress } from "./ui/progress";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -150,7 +149,7 @@ export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigate
                  {currentModules.map((module) => {
                   
                   // Determine color class for module progress
-                  // Note: Standard shadcn Progress uses classes, not hex codes in props usually
+                  // Standard shadcn Progress uses classes, not hex codes
                   const isSuccess = module.progress >= module.goal;
                   const indicatorClass = isSuccess ? "bg-blue-600" : "bg-red-500";
 

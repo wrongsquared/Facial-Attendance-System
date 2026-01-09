@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -8,13 +8,10 @@ import {
 } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import {
-  BookOpen,
   LogOut,
   ArrowLeft,
-  Bell,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -41,17 +38,8 @@ import {
   PopoverTrigger,
 } from "./ui/popover";
 import { Calendar } from "./ui/calendar";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
+import { AttendanceLogEntry } from "../types/lecturerinnards";
+import { getAttendanceLog } from "../services/api";
 import {
   Dialog,
   DialogContent,
@@ -59,146 +47,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import { Navbar } from "./Navbar";
+import { useAuth } from "../cont/AuthContext";
 
 interface LecturerAttendanceRecordsProps {
   onLogout: () => void;
   onBack: () => void;
   onNavigateToProfile: () => void;
 }
-
-// Mock data for attendance records
-const attendanceRecords = [
-  {
-    userId: "S1001",
-    studentName: "John Smith",
-    module: "CSCI334",
-    status: "Present",
-    date: "01 Dec 2025",
-    attendanceMethod: "Biometric Scan",
-    liveCheck: "Passed",
-    cameraLocation: "Building 41, Room 104",
-    timestamp: "09:00 AM",
-    verificationType: "Multi-person group verification",
-    virtualTripwire: "Triggered",
-  },
-  {
-    userId: "S1002",
-    studentName: "Emma Johnson",
-    module: "CSCI334",
-    status: "Present",
-    date: "01 Dec 2025",
-    attendanceMethod: "Biometric Scan",
-    liveCheck: "Passed",
-    cameraLocation: "Building 41, Room 104",
-    timestamp: "09:02 AM",
-    verificationType: "Multi-person group verification",
-    virtualTripwire: "Triggered",
-  },
-  {
-    userId: "S1003",
-    studentName: "Michael Brown",
-    module: "CSCI203",
-    status: "Absent",
-    date: "01 Dec 2025",
-    attendanceMethod: "N/A",
-    liveCheck: "N/A",
-    cameraLocation: "N/A",
-    timestamp: "N/A",
-    verificationType: "N/A",
-    virtualTripwire: "Not Triggered",
-  },
-  {
-    userId: "S1004",
-    studentName: "Sophia Davis",
-    module: "CSCI334",
-    status: "Late",
-    date: "01 Dec 2025",
-    attendanceMethod: "Biometric Scan",
-    liveCheck: "Passed",
-    cameraLocation: "Building 41, Room 104",
-    timestamp: "09:15 AM",
-    verificationType: "Multi-person group verification",
-    virtualTripwire: "Triggered",
-  },
-  {
-    userId: "S1005",
-    studentName: "James Wilson",
-    module: "CSCI203",
-    status: "Present",
-    date: "01 Dec 2025",
-    attendanceMethod: "Biometric Scan",
-    liveCheck: "Passed",
-    cameraLocation: "Building 15, Room 203",
-    timestamp: "10:00 AM",
-    verificationType: "Multi-person group verification",
-    virtualTripwire: "Triggered",
-  },
-  {
-    userId: "S1006",
-    studentName: "Olivia Martinez",
-    module: "CSCI334",
-    status: "Present",
-    date: "30 Nov 2025",
-    attendanceMethod: "Biometric Scan",
-    liveCheck: "Passed",
-    cameraLocation: "Building 41, Room 104",
-    timestamp: "09:01 AM",
-    verificationType: "Multi-person group verification",
-    virtualTripwire: "Triggered",
-  },
-  {
-    userId: "S1007",
-    studentName: "William Taylor",
-    module: "CSCI203",
-    status: "Absent",
-    date: "30 Nov 2025",
-    attendanceMethod: "N/A",
-    liveCheck: "N/A",
-    cameraLocation: "N/A",
-    timestamp: "N/A",
-    verificationType: "N/A",
-    virtualTripwire: "Not Triggered",
-  },
-  {
-    userId: "S1008",
-    studentName: "Ava Anderson",
-    module: "CSCI334",
-    status: "Present",
-    date: "30 Nov 2025",
-    attendanceMethod: "Biometric Scan",
-    liveCheck: "Failed",
-    cameraLocation: "Building 41, Room 104",
-    timestamp: "09:03 AM",
-    verificationType: "Multi-person group verification",
-    virtualTripwire: "Triggered",
-  },
-  {
-    userId: "S1009",
-    studentName: "Benjamin Thomas",
-    module: "CSCI203",
-    status: "Late",
-    date: "29 Nov 2025",
-    attendanceMethod: "Biometric Scan",
-    liveCheck: "Passed",
-    cameraLocation: "Building 15, Room 203",
-    timestamp: "10:18 AM",
-    verificationType: "Multi-person group verification",
-    virtualTripwire: "Triggered",
-  },
-  {
-    userId: "S1010",
-    studentName: "Isabella Moore",
-    module: "CSCI334",
-    status: "Present",
-    date: "29 Nov 2025",
-    attendanceMethod: "Biometric Scan",
-    liveCheck: "Passed",
-    cameraLocation: "Building 41, Room 104",
-    timestamp: "09:00 AM",
-    verificationType: "Multi-person group verification",
-    virtualTripwire: "Triggered",
-  },
-];
 
 const ITEMS_PER_PAGE = 8;
 
@@ -207,115 +63,76 @@ export function LecturerAttendanceRecords({
   onBack,
   onNavigateToProfile,
 }: LecturerAttendanceRecordsProps) {
+  const { token } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedModule, setSelectedModule] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedRecord, setSelectedRecord] = useState<typeof attendanceRecords[0] | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<AttendanceLogEntry | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [recentAttendanceLog, setRecentAttendanceLog] = useState<AttendanceLogEntry[]>([]);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const formatDate = (date: Date) => {
-    const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    ];
-    return `${date.getDate().toString().padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
-  };
 
   // Filter records
-  const filteredRecords = attendanceRecords.filter((record) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      record.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.userId.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesModule =
-      selectedModule === "all" || record.module === selectedModule;
-    
-    const matchesStatus =
-      selectedStatus === "all" || record.status === selectedStatus;
-    
-    const matchesDate =
-      !selectedDate || record.date === formatDate(selectedDate);
-
-    return matchesSearch && matchesModule && matchesStatus && matchesDate;
-  });
-
-  // Pagination
-  const totalPages = Math.ceil(filteredRecords.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const currentRecords = filteredRecords.slice(startIndex, endIndex);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Present":
-        return "bg-green-100 text-green-700 hover:bg-green-100";
-      case "Absent":
-        return "bg-red-100 text-red-700 hover:bg-red-100";
-      case "Late":
-        return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
-      default:
-        return "bg-gray-100 text-gray-700 hover:bg-gray-100";
-    }
+    const formatDate = (date: Date) => {
+    return date.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
   };
 
+    useEffect(() => {
+    const fetchData = async () => {
+      if (!token) return;
+      setLoading(true);
+      try {
+        // Convert Date to YYYY-MM-DD
+        let dateStr = "";
+        if (selectedDate) {
+           // Ensure local date string matches API expectation
+           // Trick: use the 'en-CA' locale to get YYYY-MM-DD
+           dateStr = selectedDate.toLocaleDateString("en-CA");
+        }
+        console.log("SENDING DATE:", dateStr); 
+
+        const data = await getAttendanceLog(token, {
+          searchTerm: debouncedSearch,
+          moduleCode: selectedModule === "all" ? undefined : selectedModule,
+          status: selectedStatus === "all" ? undefined : (selectedStatus as any),
+          date: dateStr, // Sends "2026-01-06"
+          page: 1
+        });
+        setRecentAttendanceLog(data);
+        setCurrentPage(1);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [token, debouncedSearch, selectedModule, selectedStatus, selectedDate]);
+  
+  const totalPages = Math.ceil(recentAttendanceLog.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentRecords = recentAttendanceLog.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  // Helper for Status Badge Color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Present": return "bg-green-100 text-green-700 hover:bg-green-100";
+      case "Absent": return "bg-red-100 text-red-700 hover:bg-red-100";
+      case "Late": return "bg-yellow-100 text-yellow-800 hover:bg-yellow-100";
+      default: return "bg-gray-100";
+    }
+  };
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">Lecturer Portal</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <div
-              className="flex items-center gap-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
-              onClick={onNavigateToProfile}
-            >
-              <Avatar>
-                <AvatarFallback>DR</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>Dr. Rachel Wong</p>
-                <p className="text-sm text-gray-600">Computer Science</p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
+      <Navbar title= "Lecturer Portal" onNavigateToProfile={onNavigateToProfile}/>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -418,10 +235,10 @@ export function LecturerAttendanceRecords({
                 <TableBody>
                   {currentRecords.length > 0 ? (
                     currentRecords.map((record, index) => (
-                      <TableRow key={`${record.userId}-${index}`}>
-                        <TableCell>{record.userId}</TableCell>
-                        <TableCell>{record.studentName}</TableCell>
-                        <TableCell>{record.module}</TableCell>
+                      <TableRow key={`${record.user_id}-${index}`}>
+                        <TableCell>{record.user_id}</TableCell>
+                        <TableCell>{record.student_name}</TableCell>
+                        <TableCell>{record.module_code}</TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(record.status)}>
                             {record.status}
@@ -433,7 +250,16 @@ export function LecturerAttendanceRecords({
                             variant="outline" 
                             size="sm"
                             onClick={() => {
-                              setSelectedRecord(record);
+                              const detailedRecord = {
+                                ...record,
+                                attendanceMethod: "Biometric Scan", // Mock
+                                liveCheck: "Passed",                // Mock
+                                cameraLocation: "Building 3, Room 205", // Mock or from API
+                                timestamp: "09:00 AM",              // Mock
+                                verificationType: "Single-person",  // Mock
+                                virtualTripwire: "Triggered"        // Mock
+                                };
+                              setSelectedRecord(detailedRecord);
                               setIsDialogOpen(true);
                             }}
                           >
@@ -458,7 +284,7 @@ export function LecturerAttendanceRecords({
             </div>
 
             {/* Pagination */}
-            {filteredRecords.length > 0 && (
+            {recentAttendanceLog.length > 0 && (
               <div className="flex items-center justify-center gap-2 mt-6">
                 <Button
                   variant="outline"
@@ -469,19 +295,9 @@ export function LecturerAttendanceRecords({
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(page)}
-                      className="w-10"
-                    >
-                      {page}
-                    </Button>
-                  ))}
-                </div>
+                <span className="text-sm text-gray-600">
+                  Page {currentPage} of {totalPages || 1}
+                </span>
 
                 <Button
                   variant="outline"
@@ -511,15 +327,15 @@ export function LecturerAttendanceRecords({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Student Name:</p>
-                  <p className="font-medium">{selectedRecord.studentName}</p>
+                  <p className="font-medium">{selectedRecord.student_name}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 mb-1">User ID:</p>
-                  <p className="font-medium">{selectedRecord.userId}</p>
+                  <p className="font-medium">{selectedRecord.user_id}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Module:</p>
-                  <p className="font-medium">{selectedRecord.module}</p>
+                  <p className="font-medium">{selectedRecord.module_code}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Date:</p>
@@ -537,7 +353,7 @@ export function LecturerAttendanceRecords({
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Attendance Method:</p>
-                    <p className="font-medium">{selectedRecord.attendanceMethod}</p>
+                    <p className="font-medium">{selectedRecord.status}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Live Check:</p>

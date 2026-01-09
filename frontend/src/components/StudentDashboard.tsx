@@ -15,7 +15,6 @@ import {
 
 } from "lucide-react";
 import { Progress } from "./ui/progress";
-import { NotificationAlerts } from "./NotificationAlerts";
 import { useAuth } from "../cont/AuthContext"; 
 import { lessonInfo, TodaysLessons, AttendanceRecord, WeeklyLesson, OverallLessonsStat,ModuleStat } from "../types/studentdash";
 import { 
@@ -54,7 +53,6 @@ export function StudentDashboard({
     year: 'numeric'
   })
 
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notificationAlerts, setNotificationAlerts] = useState<NotificationItem[]>([]);
 
   const { token, user } = useAuth();
@@ -187,13 +185,13 @@ useEffect(() => {
               <div className="flex-1">
                 <div className="space-y-3 max-h-32 overflow-y-auto pr-2">
                   
-                  {/* 1. Check if the entire week is empty */}
+                  {/* Check if the entire week is empty */}
                   {Object.values(weeklySchedule).every((arr) => arr.length === 0) ? (
                     <p className="text-xs text-gray-400 text-center mt-4">
                       No classes upcoming this week.
                     </p>
                   ) : (
-                    /* 2. Map through MON, TUE, WED... */
+                    /* Map throug the days of the week */
                     dayOrder.map((day) => {
                       const lessonsForDay = weeklySchedule[day];
 

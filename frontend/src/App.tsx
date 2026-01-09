@@ -670,6 +670,7 @@ export default function App() {
         <UpdateProfile
           onLogout={handleLogout}
           onBack={handleBackToDashboard}
+          onNavigateToProfile={handleNavigateToProfile}
         />
       )}
       {userRole === 'lecturer' && lecturerView === 'timetable' && (
