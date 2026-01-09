@@ -77,6 +77,7 @@ class User(Base): #User
 
     profileTypeID: Mapped[int] = mapped_column(ForeignKey("userprofiles.profileTypeID"))
     profileType: Mapped[UserProfile] = relationship(back_populates="users")
+    creationDate: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default= func.now())
 
     #Basic Details
     name: Mapped[str] = mapped_column(String(50))
@@ -91,6 +92,7 @@ class User(Base): #User
 
     # Password is not required as it is stored as hash in the hidden supabase password table
     photo: Mapped[str | None] #Allows for None, as we figure out how we want to store the photo.
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 #Add a Platform Manager
 class PlatformMgr(User): #Admin, Child of User
@@ -151,6 +153,7 @@ class AttdCheck(Base): # Backend checks an AttdCheck variable based on an EntLea
     lesson: Mapped[Lesson] = relationship(back_populates="attdcheck")
     studentID: Mapped[uuid.UUID] = mapped_column(ForeignKey("students.studentID"))
     student: Mapped[Student] = relationship(back_populates="attdcheck")
+    remarks: Mapped[str|None]
 
 class Module(Base): #Modules
     __tablename__ = "modules"
@@ -159,6 +162,8 @@ class Module(Base): #Modules
     moduleCode: Mapped[str] = mapped_column(String(8))
     lecMod: Mapped[list[LecMod]] = relationship(back_populates="modules")
     studentModules: Mapped[list[StudentModules]] = relationship(back_populates="modules")
+    startDate: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True))
+    endDate: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True))
 
 class Lesson(Base): # Lessons by Lecturers, belongs to Modules
     __tablename__ = "lessons"
