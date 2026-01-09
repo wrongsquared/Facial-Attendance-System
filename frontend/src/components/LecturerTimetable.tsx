@@ -221,6 +221,11 @@ export function LecturerTimetable({
     return `${start.toLocaleDateString('en-GB', options)} - ${end.toLocaleDateString('en-GB', options)}`;
   };
 
+  const handleJumpToDaily = (targetDate: Date) => {
+    setCurrentDate(targetDate);
+    setViewMode("daily");
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar title="Lecturer Portal" onNavigateToProfile={onNavigateToProfile} />
@@ -323,7 +328,18 @@ export function LecturerTimetable({
                   </Button>
                 </div>
                 <div className="space-y-4">
-                  {dailyLessons.map((classDay, index) => (
+                   {loading ? (
+                      <div className="text-center py-8 text-gray-500">Loading timetable...</div>
+                    ) : dailyLessons.length === 0 ? (
+                      /* --- THIS IS THE NEW NO CLASS MESSAGE --- */
+                      <div className="flex flex-col items-center justify-center p-8 border rounded-lg bg-gray-50 text-center">
+                        <Calendar className="h-10 w-10 text-gray-300 mb-2" />
+                        <p className="text-gray-600 font-medium">No classes scheduled for today.</p>
+                        <p className="text-sm text-gray-400">Enjoy your day!</p>
+                      </div>
+                    ) : (
+                    
+                      dailyLessons.map((classDay, index) => (
                     <div
                       key={index}
                       className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
@@ -341,7 +357,8 @@ export function LecturerTimetable({
                         {classDay.location}
                       </p>
                     </div>
-                  ))}
+                      ))
+                  )}
                 </div>
               </div>
             )}
@@ -507,9 +524,12 @@ export function LecturerTimetable({
 
                       return (
                         <div
-                          key={cellDateStr}
-                          className="flex flex-col items-center gap-1 min-h-[60px]"
-                        >
+                            key={cellDateStr}
+                            // 1. Add the click handler here
+                            onClick={() => handleJumpToDaily(date)} 
+                            // 2. Add cursor-pointer and hover effects
+                            className="flex flex-col items-center gap-1 min-h-[60px] cursor-pointer hover:bg-gray-100 rounded-lg transition-colors p-1"
+                          >
                           <span
                             className={`text-sm ${
                               isCurrentMonth
