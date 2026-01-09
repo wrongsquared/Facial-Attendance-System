@@ -3,6 +3,7 @@ import os
 import uuid
 import random
 
+
 from faker import Faker
 from sqlalchemy.orm import Session
 from db_config import SessionLocal, DATABASE_URL
@@ -15,8 +16,6 @@ from supabase import create_client, Client
 
 import traceback
 load_dotenv()
-
-
 
 def createAccountgetuuid(email: str , password: str, email_confirmed: bool):
     try:
@@ -135,7 +134,7 @@ def platSeed(dbSessionLocalInstance: Session, spbase: Client):
 
         # Create the PManager
         new_manager = PlatformMgr(
-            userID=user_uuid,
+            userID=uuid.UUID(str(user_uuid)),
             profileTypeID=pm_profile.profileTypeID, 
             role = "Platform Manager",
             email=email,
@@ -179,7 +178,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
     baseemail = "student@uow.edu.au"
     basepass = "Valid123"
     user_uuid = createAccountgetuuid(baseemail, basepass, True)
-    dbSessionLocalInstance.add(Student(userID = user_uuid,
+    dbSessionLocalInstance.add(Student(userID = uuid.UUID(str(user_uuid)),
                                        profileType = studentProfile,
                                        email = baseemail,
                                        name= "Allison Lang",
@@ -207,7 +206,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
             print(f" Skipping {name} ({email}): Auth creation failed (User might exist or error).")
             continue # Skip to next loop iteration, DO NOT try to insert into DB
         dbSessionLocalInstance.add(Student(
-                                        userID = user_uuid,
+                                        userID = uuid.UUID(str(user_uuid)),
                                         profileType = studentProfile,
                                         email = email,
                                         name = name,
@@ -232,7 +231,7 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client):
     baseemail = "Admin@uow.edu.au"
     basepass = "Valid123"
     user_uuid = createAccountgetuuid(baseemail, basepass, True)
-    dbSessionLocalInstance.add(Admin(userID = user_uuid,
+    dbSessionLocalInstance.add(Admin(userID = uuid.UUID(str(user_uuid)),
                                     profileType = AdminProfile, 
                                     name = "James Looker",
                                     role = "System Administrator",
@@ -265,7 +264,7 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client):
         # For simplicity's sake username is the password.
         user_uuid = createAccountgetuuid(email, "Valid123", True)
         # Ghost Users that can not be logged in to
-        dbSessionLocalInstance.add(Admin(userID = user_uuid,
+        dbSessionLocalInstance.add(Admin(userID = uuid.UUID(str(user_uuid)),
                                         profileType = AdminProfile,
                                         email = email,
                                         role = "System Administrator",
@@ -288,7 +287,7 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client):
 
     user_uuid = createAccountgetuuid(baseemail, basepass, True)
 
-    dbSessionLocalInstance.add(Lecturer(userID = user_uuid,
+    dbSessionLocalInstance.add(Lecturer(userID = uuid.UUID(str(user_uuid)),
                                         profileType = LecturerProfile, 
                                         name = "Agnes Lam",
                                         specialistIn = "Computer Science",
@@ -320,7 +319,7 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client):
             spec = random.choice(['Computer Science', 'Business'])
             #For simplicity, Username is the password!
             user_uuid = createAccountgetuuid(email, "Valid123", True)
-            dbSessionLocalInstance.add(Lecturer(userID = user_uuid,
+            dbSessionLocalInstance.add(Lecturer(userID = uuid.UUID(str(user_uuid)),
                                                 profileType = LecturerProfile, 
                                                 name = name,
                                                 specialistIn = spec,
@@ -481,7 +480,7 @@ def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
         # Calculate Ratio
         ratio = total_time / lesson_length
         if ratio > 0.5:
-            new_checks.append(AttdCheck(lessonID=lesson_id, studentID=student_id)) 
+            new_checks.append(AttdCheck(lessonID=lesson_id, studentID=student_id, remarks = "Camera Capture")) 
 
     # Commit
     if new_checks:
