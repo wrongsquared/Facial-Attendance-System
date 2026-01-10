@@ -1,4 +1,6 @@
 from pydantic import BaseModel
+from typing import Literal, List, Optional
+from datetime import date
 
 class AdminDashboardStats(BaseModel):
     overall_attendance_rate: float
@@ -9,7 +11,7 @@ class AdminDashboardStats(BaseModel):
     trend_attendance: str 
     trend_absences: str
     trend_users: str
-    trend_records: "str"
+    trend_records: str
 
 class CourseAttentionItem(BaseModel):
     module_code: str
@@ -28,3 +30,11 @@ class UserManagementItem(BaseModel):
 
     class Config:
         from_attributes = True
+
+# --- REPORT GENERATION REQUEST ---
+class AdminReportRequest(BaseModel):
+    report_type: Literal["Module Performance", "Low Attendance Rate"]
+    date_from: date
+    date_to: date
+    course_id: Optional[str] = "All"
+

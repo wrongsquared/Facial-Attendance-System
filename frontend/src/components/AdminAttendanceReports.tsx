@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -18,6 +18,7 @@ import {
   ArrowLeft,
   Download,
   FileText,
+  Shield, // Icon for Admin
 } from "lucide-react";
 import { Label } from "./ui/label";
 import {
@@ -38,48 +39,30 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
+import { useAuth } from "../cont/AuthContext"; 
+import { Navbar } from "./Navbar";
 
 interface AdminAttendanceReportsProps {
   onLogout: () => void;
   onBack: () => void;
+  onNavigateToProfile: () => void;
 }
 
-const recentReports = [
-  {
-    id: 1,
-    name: "All Departments - Daily Report",
-    date: "28 Oct 2025",
-    type: "Daily",
-    status: "Present",
-    downloadUrl: "#",
-  },
-  {
-    id: 2,
-    name: "Computer Science - Monthly Report",
-    date: "1 Oct 2025",
-    type: "Monthly",
-    status: "Absent",
-    downloadUrl: "#",
-  },
-  {
-    id: 3,
-    name: "All Departments - Daily Report",
-    date: "27 Oct 2025",
-    type: "Daily",
-    status: "Present",
-    downloadUrl: "#",
-  },
-  {
-    id: 4,
-    name: "Engineering - Daily Report",
-    date: "26 Oct 2025",
-    type: "Daily",
-    status: "All",
-    downloadUrl: "#",
-  },
-];
+// Data structures matching Backend
+interface Module {
+  moduleID: number;
+  moduleCode: string;
+  moduleName: string;
+}
 
-// NEW: format for display as dd/mm/yyyy
+interface Report {
+  id: number;
+  title: string;
+  date: string;
+  tags: string[];
+  fileName: string;
+}
+
 const formatDisplayDate = (dateString: string) => {
   if (!dateString) return "";
   const [year, month, day] = dateString.split("-");
@@ -89,257 +72,225 @@ const formatDisplayDate = (dateString: string) => {
 export function AdminAttendanceReports({
   onLogout,
   onBack,
+  onNavigateToProfile,
 }: AdminAttendanceReportsProps) {
-  const [reportType, setReportType] = useState<
-    "daily" | "monthly"
-  >("daily");
-
-  // Use date strings for calendar inputs
+  // 1. State Management
+  const [reportType, setReportType] = useState<"Module Performance" | "Low Attendance Rate">
+  ("Module Performance");
+  
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [selectedModule, setSelectedModule] = useState("All"); 
+  
+  // Data from API
+  const [recentReports, setRecentReports] = useState<Report[]>([]);
+  const [modulesList, setModulesList] = useState<Module[]>([]);
+  
+  const { token } = useAuth();
 
-  const [module, setModule] = useState("");
-  const [attendanceStatus, setAttendanceStatus] = useState("");
+  // 2. Fetch Data
+// Replace your existing fetchData with this:
+  const fetchData = async () => {
+    console.log("--- FETCHING DATA START ---");
+    console.log("Current Token:", token);
 
-  const handleGenerateReport = () => {
-    console.log("Generating report:", {
-      reportType,
-      fromDate,
-      toDate,
-      module,
-      attendanceStatus,
-    });
-    alert(
-      "Report generated successfully! Download will begin shortly.",
-    );
+    if (!token) {
+      console.warn("No token found! Aborting fetch.");
+      return;
+    }
+
+    // 1. Fetch History
+    try {
+      const res = await fetch("http://localhost:8000/admin/reports/history", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      
+      console.log("History Status:", res.status);
+      
+      if (res.ok) {
+        const data = await res.json();
+        console.log("History Data Received:", data);
+        setRecentReports(data);
+      } else {
+        const errText = await res.text();
+        console.error("History Error Response:", errText);
+      }
+    } catch (e) { 
+      console.error("History Network Error:", e); 
+    }
+
+    // 2. Fetch Modules
+    try {
+      const res = await fetch("http://localhost:8000/admin/modules", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      console.log("Modules Status:", res.status);
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log("Modules Data Received:", data);
+        setModulesList(data);
+      }
+    } catch (e) { 
+      console.error("Modules Network Error:", e); 
+    }
   };
 
-  const dailyActive = reportType === "daily";
-  const monthlyActive = reportType === "monthly";
+  useEffect(() => {
+    fetchData();
+  }, [token]);
+
+  // 3. Download Logic
+  const handleDownloadFile = async (reportID: number, fileName: string) => {
+    try {
+      const res = await fetch(`http://localhost:8000/admin/reports/download/${reportID}`, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (!res.ok) throw new Error("Download failed");
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName.endsWith('.csv') ? fileName : `${fileName}.csv`; 
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to download file.");
+    }
+  };
+
+  // 4. Generate Logic
+  const handleGenerateReport = async () => {
+    try {
+      const payload = {
+        report_type: reportType,
+        date_from: fromDate,
+        date_to: toDate,
+        course_id: selectedModule
+      };
+
+      const res = await fetch("http://localhost:8000/admin/reports/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error("Generation failed");
+
+      const data = await res.json();
+      await handleDownloadFile(data.report_id, data.filename);
+      fetchData(); // Refresh list
+
+    } catch (error) {
+      console.error(error);
+      alert("Failed to generate report.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">
-                Admin Portal
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback>AM</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>Admin User</p>
-                <p className="text-sm text-gray-600">
-                  System Administrator
-                </p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
+      <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
-        {/* Back Button */}
-        <Button
-          variant="ghost"
-          className="mb-6"
-          onClick={onBack}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Dashboard
+        <Button variant="ghost" className="mb-6" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4 mr-2" />Back to Dashboard
         </Button>
 
-        {/* Page Title */}
         <div className="mb-8">
-          <h2 className="text-3xl mb-2">Attendance Reports</h2>
-          <p className="text-gray-600">
-            Generate and download attendance reports
-          </p>
+          <h2 className="text-3xl mb-2">System Reports</h2>
+          <p className="text-gray-600">Generate system-wide reports</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Report Generation Form */}
+          
+          {/* Report Generation Form (2 Columns) */}
           <div className="lg:col-span-2">
             <Card>
               <CardHeader>
                 <CardTitle>Generate Report</CardTitle>
-                <CardDescription>
-                  Configure and generate attendance reports
-                </CardDescription>
+                <CardDescription>Configure and Generate attendance reports</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Report Type */}
+                
+                {/* 1. Report Type Buttons (Large Toggle Style) */}
                 <div className="space-y-3">
                   <Label>Report Type</Label>
                   <div className="flex gap-3">
-                    {/* Daily */}
                     <Button
                       type="button"
-                      className={`flex-1 h-12 rounded-xl text-sm font-medium transition-colors 
-                        border !border-blue-600
-                        ${
-                          reportType === "daily"
+                      className={`flex-1 h-12 rounded-xl text-sm font-medium transition-colors border !border-blue-600 
+                        ${reportType === "Module Performance"
                             ? "bg-blue-600 text-white hover:bg-blue-700"
                             : "bg-white text-blue-600 hover:bg-blue-50"
                         }
                       `}
-                      onClick={() => setReportType("daily")}
+                      onClick={() => setReportType("Module Performance")}
                     >
-                      Daily
+                      Module Performance
                     </Button>
 
-                    {/* Monthly */}
                     <Button
                       type="button"
-                      className={`flex-1 h-12 rounded-xl text-sm font-medium transition-colors 
-                        border !border-blue-600
-                        ${
-                          reportType === "monthly"
+                      className={`flex-1 h-12 rounded-xl text-sm font-medium transition-colors border !border-blue-600 
+                        ${reportType === "Low Attendance Rate"
                             ? "bg-blue-600 text-white hover:bg-blue-700"
                             : "bg-white text-blue-600 hover:bg-blue-50"
                         }
                       `}
-                      onClick={() => setReportType("monthly")}
+                      onClick={() => setReportType("Low Attendance Rate")}
                     >
-                      Monthly
+                      Low Attendance Rate
                     </Button>
                   </div>
                 </div>
 
-                {/* Date Range */}
+                {/* 2. Date Range */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* From Date */}
                   <div className="space-y-2">
                     <Label htmlFor="fromDate">From:</Label>
-                    <Input
-                      id="fromDate"
-                      type="date"
-                      value={fromDate}
-                      onChange={(e) => setFromDate(e.target.value)}
-                      className="h-12 bg-gray-100"
-                    />
+                    <Input id="fromDate" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-12 bg-gray-100" />
                   </div>
-
-                  {/* To Date */}
                   <div className="space-y-2">
                     <Label htmlFor="toDate">To:</Label>
-                    <Input
-                      id="toDate"
-                      type="date"
-                      value={toDate}
-                      onChange={(e) => setToDate(e.target.value)}
-                      className="h-12 bg-gray-100"
-                    />
+                    <Input id="toDate" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-12 bg-gray-100" />
                   </div>
                 </div>
 
-                {/* Module and Attendance Status */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="module">Module</Label>
-                    <Select
-                      value={module}
-                      onValueChange={setModule}
-                    >
-                      <SelectTrigger
-                        id="module"
-                        className="h-12 bg-gray-100"
-                      >
-                        <SelectValue placeholder="Select module" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="csci334">
-                          CSCI334 - Database Systems
+                {/* 3. Scope / Module */}
+                <div className="space-y-2">
+                  <Label htmlFor="moduleScope">Scope</Label>
+                  <Select value={selectedModule} onValueChange={setSelectedModule}>
+                    <SelectTrigger id="moduleScope" className="h-12 bg-gray-100">
+                      <SelectValue placeholder="Select Scope" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All Modules</SelectItem>
+                      {modulesList.map((mod) => (
+                        <SelectItem key={mod.moduleID} value={mod.moduleCode}>
+                          {mod.moduleCode} - {mod.moduleName}
                         </SelectItem>
-                        <SelectItem value="csci203">
-                          CSCI203 - Algorithms
-                        </SelectItem>
-                        <SelectItem value="all">
-                          All Modules
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="attendanceStatus">
-                      Attendance Status
-                    </Label>
-                    <Select
-                      value={attendanceStatus}
-                      onValueChange={setAttendanceStatus}
-                    >
-                      <SelectTrigger
-                        id="attendanceStatus"
-                        className="h-12 bg-gray-100"
-                      >
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All</SelectItem>
-                        <SelectItem value="present">
-                          Present
-                        </SelectItem>
-                        <SelectItem value="absent">
-                          Absent
-                        </SelectItem>
-                        <SelectItem value="late">
-                          Late
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {/* Generate Button */}
+                {/* 4. Generate Button */}
                 <Button
-                  className="w-full h-12 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 disabled:text-gray-100 disabled:hover:bg-gray-400"
+                  className="w-full h-12 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 disabled:text-gray-100"
                   onClick={handleGenerateReport}
-                  disabled={
-                    !fromDate ||
-                    !toDate ||
-                    !module ||
-                    !attendanceStatus
-                  }
+                  disabled={!fromDate || !toDate}
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Generate and Download
@@ -348,7 +299,7 @@ export function AdminAttendanceReports({
             </Card>
           </div>
 
-          {/* Report Preview/Info */}
+          {/* Report Details / Preview (1 Column) */}
           <div>
             <Card>
               <CardHeader>
@@ -356,108 +307,73 @@ export function AdminAttendanceReports({
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <p className="text-sm text-gray-600">
-                    Report Type
-                  </p>
-                  <p className="capitalize">{reportType}</p>
+                  <p className="text-sm text-gray-600">Report Type</p>
+                  <p className="font-medium text-blue-700">{reportType}</p>
                 </div>
                 {fromDate && toDate && (
                   <div className="space-y-2">
-                    <p className="text-sm text-gray-600">
-                      Date Range
-                    </p>
+                    <p className="text-sm text-gray-600">Date Range</p>
                     <p className="text-sm">
-                      from {formatDisplayDate(fromDate)} to{" "}
-                      {formatDisplayDate(toDate)}
+                      {formatDisplayDate(fromDate)} to {formatDisplayDate(toDate)}
                     </p>
                   </div>
                 )}
-                {module && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-600">
-                      Module
-                    </p>
-                    <p className="text-sm">
-                      {module === "all"
-                        ? "All Modules"
-                        : module.toUpperCase()}
-                    </p>
-                  </div>
-                )}
-                {attendanceStatus && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-600">
-                      Status Filter
-                    </p>
-                    <p className="text-sm capitalize">
-                      {attendanceStatus}
-                    </p>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">Module</p>
+                  <p className="text-sm">
+                    {selectedModule === "All" ? "All Modules" : selectedModule}
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>
         </div>
 
-        {/* Recent Generated Reports */}
+        {/* Recent Generated Reports (Bottom Full Width) */}
         <Card className="mt-6">
           <CardHeader>
             <CardTitle>Recent Generated Reports</CardTitle>
-            <CardDescription>
-              Previously generated attendance reports
-            </CardDescription>
+            <CardDescription>History of generated system files</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {recentReports.map((report) => (
-                <div
-                  key={report.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-blue-100 p-2 rounded">
-                      <FileText className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium">
-                        {report.name}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-sm text-gray-600">
-                          {report.date}
-                        </p>
-                        <Badge
-                          variant="outline"
-                          className="text-xs"
-                        >
-                          {report.type}
-                        </Badge>
-                        <Badge
-                          variant="secondary"
-                          className="text-xs"
-                        >
-                          {report.status}
-                        </Badge>
+              {recentReports.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No reports found.</p>
+              ) : (
+                recentReports.map((report) => (
+                  <div
+                    key={report.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="bg-blue-100 p-2 rounded">
+                        <FileText className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{report.title}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-sm text-gray-600">{report.date}</p>
+                          <Badge variant="outline" className="text-xs">
+                            {report.tags && report.tags.join(" • ")}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleDownloadFile(report.id, report.fileName)}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
       </main>
-
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-4 mt-auto">
-        <div className="container mx-auto px-4 text-center text-gray-600">
-          &copy; 2025 University of Wollongong
-        </div>
-      </footer>
     </div>
   );
 }

@@ -254,7 +254,7 @@ export function AdminDashboard({
           </Card>
 
           {/* User Management */}
-          <Card>
+          <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>User Management</CardTitle>
               <CardDescription>Recent user registrations and updates</CardDescription>
@@ -268,12 +268,11 @@ export function AdminDashboard({
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Joined</TableHead>
-                        <TableHead></TableHead>
+                        <TableHead className="w-[200px]">Name</TableHead>
+                        <TableHead className="w-[250px]">Email</TableHead>
+                        <TableHead className="w-[200px]">Role</TableHead>
+                        <TableHead className="w-[200px]">Status</TableHead>
+                        <TableHead className="text-center w-[100px]">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -289,9 +288,8 @@ export function AdminDashboard({
                               {user.status}
                             </Badge>
                           </TableCell>
-                          <TableCell>{user.joined}</TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="sm" onClick={onNavigateToManageUsers}>
+                          <TableCell className="text-center">
+                            <Button variant="outline" size="sm" onClick={onNavigateToManageUsers}>
                               Manage
                             </Button>
                           </TableCell>
