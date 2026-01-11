@@ -72,7 +72,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       <Card className="w-full max-w-xl shadow-lg">
         <CardHeader className="space-y-6 pb-8">
           <div className="flex flex-col md:flex-row md:relative md:items-start items-center gap-4">
-            <div className="md:absolute md:left-0 flex flex-col items-center justify-center md:min-w-[120px]">
+            <div className="md:absolute md:left-0 flex flex-col items-center justify-center md:min-w-30">
               <div className="text-center">
                 <img
                   src={logoImage}
