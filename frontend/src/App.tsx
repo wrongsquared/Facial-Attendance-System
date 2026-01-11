@@ -1,4 +1,4 @@
-import './styles/index.css';
+import './index.css';
 import { useEffect, useState } from 'react';
 import { useAuth } from './cont/AuthContext';
 import { loginUser, getNotifications, } from './services/api';
