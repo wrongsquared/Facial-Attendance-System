@@ -1,5 +1,6 @@
 import { Button } from './ui/button';
-import logoImage from "figma:asset/737eefd7a203d17ef41c9a4db8356bb5c6df1be7.png";
+import logoImage from "../assets/Logo.png";
+import { MouseEvent } from 'react';
 
 export function Header() {
   const handleNavigation = (page: 'home' | 'about' | 'features' | 'services' | 'registration' | 'login', e: React.MouseEvent) => {
@@ -37,13 +38,13 @@ export function Header() {
           <Button 
             variant="outline" 
             className="bg-transparent text-white border-blue-500 hover:bg-blue-500 hover:text-white"
-            onClick={(e) => handleNavigation('registration', e)}
+            onClick={(e: React.MouseEvent) => handleNavigation('registration', e)}
           >
             Sign Up
           </Button>
           <Button 
             className="bg-blue-500 text-white hover:bg-blue-600"
-            onClick={(e) => handleNavigation('login', e)}
+            onClick={(e: MouseEvent<Element, globalThis.MouseEvent>) => handleNavigation('login', e)}
           >
             Login
           </Button>

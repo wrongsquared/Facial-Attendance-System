@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { ArrowLeft } from "lucide-react";
-import logoImage from "figma:asset/7f4aea41a772ddccb866f53538bcc63281191ac1.png";
+import logoImage from "../assets/Logo.png";
 import { LoginCredentials } from "../services/api";
 
 interface LoginPageProps {

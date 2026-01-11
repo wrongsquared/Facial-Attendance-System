@@ -46,7 +46,6 @@ import { AboutPage } from './components/AboutPage';
 import { FeaturesPage } from './components/FeaturesPage';
 import { ServicesPage } from './components/ServicesPage';
 import { RegistrationPage } from './components/RegistrationPage';
-import { Footer } from './components/Footer';
 import type { AttendanceRecord } from './components/Attendance';
 import { NotificationAlerts } from "./components/NotificationAlerts"; 
 import { NotificationItem } from './types/studentinnards';
@@ -645,7 +644,7 @@ export default function App() {
     );
   }
 
-  // Normalize to lowercase to match your strict comparisons
+  // Normalize to lowercase to match strict comparisons
   const userRole = user.role_name.toLowerCase();
 
 
@@ -856,8 +855,9 @@ export default function App() {
       {userRole === 'admin' && adminView === 'adminReports' && (
         <AdminAttendanceReports
           onLogout={handleLogout}
-          onBack={handleBackToAdminDashboard}
-        />
+          onBack={handleBackToAdminDashboard} onNavigateToProfile={function (): void {
+            throw new Error('Function not implemented.');
+          } }        />
       )}
       {userRole === 'admin' && adminView === 'viewAdminProfile' && (
         <ViewAdminProfile 
