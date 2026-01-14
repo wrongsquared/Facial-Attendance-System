@@ -1,3 +1,4 @@
+#prepare_kaggle_dataset.py
 import os
 import shutil
 
@@ -41,14 +42,14 @@ def process_split(split_dir):
 
         print(f"Processed folder: {folder}")
 
-print("📥 Processing TRAIN dataset...")
+print("Processing TRAIN dataset...")
 process_split(TRAIN_DIR)
 
-print("📥 Processing TEST dataset...")
+print("Processing TEST dataset...")
 process_split(TEST_DIR)
 
-print("\n🎉 Dataset prepared successfully!")
-print("📁 Output structure:")
+print("\n Dataset prepared successfully!")
+print("Output structure:")
 print("antispoof_dataset/")
 print("   real/   → all LIVE images")
 print("   spoof/  → all SPOOF images")

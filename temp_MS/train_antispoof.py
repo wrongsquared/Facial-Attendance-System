@@ -137,11 +137,11 @@ for epoch in range(EPOCHS):
         best = acc
         wait = 0
         torch.save(model.state_dict(), "antispoof_best.pth")
-        print("✅ Saved best model")
+        print("Saved best model")
     else:
         wait += 1
         if wait >= patience:
-            print("⏹ Early stopping")
+            print("Early stopping")
             break
 
 print("Training done. Best acc:", best)

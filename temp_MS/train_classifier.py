@@ -11,7 +11,7 @@ CLS_FILE = "classifier.pkl"
 LBL_FILE = "labels.pkl"
 
 def main():
-    print("📥 Loading embeddings...")
+    print("Loading embeddings...")
     with open(EMB_FILE, "rb") as f:
         data = pickle.load(f)
 
@@ -21,7 +21,7 @@ def main():
     print("Total embeddings:", len(embeddings))
     print("Unique students:", len(set(names)))
 
-    print("📌 Encoding labels...")
+    print("Encoding labels...")
     encoder = LabelEncoder()
     y = encoder.fit_transform(names)
     
