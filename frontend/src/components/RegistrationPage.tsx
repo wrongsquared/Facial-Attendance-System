@@ -1,5 +1,4 @@
 import { Header } from './Header';
-import { Footer } from './Footer';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -238,8 +237,6 @@ export function RegistrationPage() {
         </div>
       </main>
 
-      {/* Footer */}
-      <Footer />
     </div>
   );
 }

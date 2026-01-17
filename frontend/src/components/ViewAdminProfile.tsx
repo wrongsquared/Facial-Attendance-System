@@ -6,30 +6,20 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Button } from "./ui/button";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
-  BookOpen,
-  LogOut,
-  Bell,
-  Settings,
   ArrowLeft,
 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
+import { AdminProfileData } from "../types/adminInnards";
+import { Navbar } from "./Navbar";
+import { useState, useEffect } from "react";
+import { useAuth } from "../cont/AuthContext";
+import { getAdminProfile } from "../services/api";
 
 interface ViewAdminProfileProps {
   onLogout: () => void;
   onBack: () => void;
   onUpdateProfile: () => void;
+  onNavigateToProfile?: () => void;
   adminData?: {
     name?: string;
     email?: string;
@@ -42,12 +32,11 @@ interface ViewAdminProfileProps {
 }
 
 export function ViewAdminProfile({
-  onLogout,
   onBack,
   onUpdateProfile,
   adminData,
+  onNavigateToProfile
 }: ViewAdminProfileProps) {
-  // Mock data for display (in a real app, this would come from props or API)
   const name = adminData?.name || "John Smith";
   const email = adminData?.email || "john.smith@uow.edu.au";
   const contactNumber = adminData?.contactNumber || "+61 2 4221 3456";
@@ -55,62 +44,42 @@ export function ViewAdminProfile({
   const emergencyContactName = adminData?.emergencyContactName || "Jane Smith";
   const emergencyRelationship = adminData?.emergencyRelationship || "Spouse";
   const emergencyContactNumber = adminData?.emergencyContactNumber || "+61 412 345 678";
-
+  const { token, user } = useAuth();
+  const [formData, setFormData] = useState<AdminProfileData>({
+    name: "",
+    email: "",
+    role: "",
+    contactNumber: "",
+    address: "",
+    emergencyContactName: "",
+    emergencyContactRelationship: "",
+    emergencyContactNumber: ""
+  })
+  useEffect(()=>{
+      const fetchData = async () => {
+        if (!token) return;
+        try{
+          const data = await getAdminProfile(token);
+            setFormData({
+            name: data.name || "",
+            email: data.email || "",
+            role: data.role || "",
+            contactNumber: data.contactNumber || "",
+            address: data.address || "",
+            emergencyContactName: data.emergencyContactName || "",
+            emergencyContactRelationship: data.emergencyContactRelationship || "",
+            emergencyContactNumber: data.emergencyContactNumber || ""
+          });
+        }
+        catch (err) {
+          console.error("Failed to load profile", err);
+        }
+      };
+      fetchData();
+    }, [token]);
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">Admin Portal</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback>AD</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>Admin User</p>
-                <p className="text-sm text-gray-600">{name}</p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
+      <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -139,26 +108,26 @@ export function ViewAdminProfile({
                 {/* Name */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-600">Name:</p>
-                  <p className="text-base">{name}</p>
+                  <p className="text-base">{formData.name}</p>
                 </div>
 
                 {/* Email */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-600">Email:</p>
-                  <p className="text-base">{email}</p>
+                  <p className="text-base">{formData.email}</p>
                 </div>
 
                 {/* Contact Number */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-600">Contact Number:</p>
-                  <p className="text-base">{contactNumber}</p>
+                  <p className="text-base">{formData.contactNumber}</p>
                 </div>
 
                 {/* Address - Larger box */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-600">Address:</p>
                   <div className="bg-gray-50 border border-gray-200 rounded-md p-4 min-h-[120px]">
-                    <p className="text-base whitespace-pre-line">{address}</p>
+                    <p className="text-base whitespace-pre-line">{formData.address ? formData.address: "--"}</p>
                   </div>
                 </div>
               </CardContent>
@@ -176,19 +145,19 @@ export function ViewAdminProfile({
                 {/* Contact Name */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-600">Contact Name:</p>
-                  <p className="text-base">{emergencyContactName}</p>
+                  <p className="text-base">{formData.emergencyContactName ? formData.emergencyContactName: "--"} </p>
                 </div>
 
                 {/* Relationship */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-600">Relationship:</p>
-                  <p className="text-base">{emergencyRelationship}</p>
+                  <p className="text-base">{formData.emergencyContactRelationship ? formData.emergencyContactRelationship: "--"}</p>
                 </div>
 
                 {/* Contact Number */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-600">Contact Number:</p>
-                  <p className="text-base">{emergencyContactNumber}</p>
+                  <p className="text-base">{formData.emergencyContactNumber? formData.emergencyContactNumber: "--"}</p>
                 </div>
               </CardContent>
             </Card>
@@ -203,12 +172,6 @@ export function ViewAdminProfile({
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-4">
-        <div className="container mx-auto px-4 text-center text-sm text-gray-600">
-          © 2025 University of Wollongong
-        </div>
-      </footer>
     </div>
   );
 }

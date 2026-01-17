@@ -1,5 +1,5 @@
 import { Header } from './Header';
-import { Footer } from './Footer';
+
 import { Check, X } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -165,8 +165,7 @@ export function ServicesPage() {
           </div>
         </section>
       </main>
-      
-      <Footer />
+
     </div>
   );
 }

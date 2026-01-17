@@ -1,5 +1,4 @@
 import { Header } from './Header';
-import { Footer } from './Footer';
 import { Camera, User, Users, Eye, Activity, PieChart, UserCircle, FileText } from 'lucide-react';
 
 export function FeaturesPage() {
@@ -89,8 +88,7 @@ export function FeaturesPage() {
           </div>
         </section>
       </main>
-      
-      <Footer />
+
     </div>
   );
 }

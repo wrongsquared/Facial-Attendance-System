@@ -9,30 +9,20 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
-  BookOpen,
-  LogOut,
-  Bell,
-  Settings,
   ArrowLeft,
 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
+
 import { useState, useEffect } from "react";
+import { Navbar } from "./Navbar";
+import { AdminProfileData } from "../types/adminInnards";
+import { useAuth } from "../cont/AuthContext";
+import { getAdminProfile } from "../services/api";
 
 interface UpdateAdminProfileProps {
   onLogout: () => void;
   onBack: () => void;
+  onNavigateToProfile?: () => void;
   onSave: (profileData: {
     name: string;
     email: string;
@@ -58,6 +48,7 @@ export function UpdateAdminProfile({
   onBack,
   onSave,
   adminData,
+  onNavigateToProfile
 }: UpdateAdminProfileProps) {
   // Initialize form with current data or defaults
   const [name, setName] = useState(adminData?.name || "John Smith");
@@ -67,102 +58,49 @@ export function UpdateAdminProfile({
   const [emergencyContactName, setEmergencyContactName] = useState(adminData?.emergencyContactName || "Jane Smith");
   const [emergencyRelationship, setEmergencyRelationship] = useState(adminData?.emergencyRelationship || "Spouse");
   const [emergencyContactNumber, setEmergencyContactNumber] = useState(adminData?.emergencyContactNumber || "+61 412 345 678");
-
+  const [saving, setsaving] = useState(true);
   // Track if any changes have been made
   const [hasChanges, setHasChanges] = useState(false);
-
-  // Original values for comparison
-  const originalData = {
-    name: adminData?.name || "John Smith",
-    email: adminData?.email || "john.smith@uow.edu.au",
-    contactNumber: adminData?.contactNumber || "+61 2 4221 3456",
-    address: adminData?.address || "123 Innovation Campus\nSquires Way\nNorth Wollongong NSW 2500\nAustralia",
-    emergencyContactName: adminData?.emergencyContactName || "Jane Smith",
-    emergencyRelationship: adminData?.emergencyRelationship || "Spouse",
-    emergencyContactNumber: adminData?.emergencyContactNumber || "+61 412 345 678",
-  };
-
-  // Check for changes whenever form values update
-  useEffect(() => {
-    const changed = 
-      name !== originalData.name ||
-      email !== originalData.email ||
-      contactNumber !== originalData.contactNumber ||
-      address !== originalData.address ||
-      emergencyContactName !== originalData.emergencyContactName ||
-      emergencyRelationship !== originalData.emergencyRelationship ||
-      emergencyContactNumber !== originalData.emergencyContactNumber;
-    
-    setHasChanges(changed);
-  }, [name, email, contactNumber, address, emergencyContactName, emergencyRelationship, emergencyContactNumber]);
-
-  const handleSave = () => {
-    onSave({
-      name,
-      email,
-      contactNumber,
-      address,
-      emergencyContactName,
-      emergencyRelationship,
-      emergencyContactNumber,
-    });
-  };
-
+  const { token, user } = useAuth();
+  const [formData, setFormData] = useState<AdminProfileData>({
+    name: "",
+    email: "",
+    role: "",
+    contactNumber: "",
+    address: "",
+    emergencyContactName: "",
+    emergencyContactRelationship: "",
+    emergencyContactNumber: ""
+  })
+  const handleSave = async () => {
+    if (!token || !user) return;
+    setsaving(true);
+  }
+  useEffect(()=>{
+    const fetchData = async () => {
+      if (!token) return;
+      try{
+        const data = await getAdminProfile(token);
+          setFormData({
+          name: data.name || "",
+          email: data.email || "",
+          role: data.role || "",
+          contactNumber: data.contactNumber || "",
+          address: data.address || "",
+          emergencyContactName: data.emergencyContactName || "",
+          emergencyContactRelationship: data.emergencyContactRelationship || "",
+          emergencyContactNumber: data.emergencyContactNumber || ""
+        });
+      }
+      catch (err) {
+        console.error("Failed to load profile", err);
+      }
+    };
+    fetchData();
+  }, [token]);
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">Admin Portal</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback>AD</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>Admin User</p>
-                <p className="text-sm text-gray-600">{name}</p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
+      <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -193,7 +131,7 @@ export function UpdateAdminProfile({
                   <Label htmlFor="name">Name:</Label>
                   <Input
                     id="name"
-                    value={name}
+                    value={formData.name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Enter your name"
                   />
@@ -205,7 +143,7 @@ export function UpdateAdminProfile({
                   <Input
                     id="email"
                     type="email"
-                    value={email}
+                    value={formData.email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
                   />
@@ -216,7 +154,7 @@ export function UpdateAdminProfile({
                   <Label htmlFor="contactNumber">Contact Number:</Label>
                   <Input
                     id="contactNumber"
-                    value={contactNumber}
+                    value={formData.contactNumber}
                     onChange={(e) => setContactNumber(e.target.value)}
                     placeholder="Enter your contact number"
                   />
@@ -227,7 +165,7 @@ export function UpdateAdminProfile({
                   <Label htmlFor="address">Address:</Label>
                   <Textarea
                     id="address"
-                    value={address}
+                    value={formData.address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="Enter your address"
                     className="min-h-[120px] resize-none"
@@ -250,7 +188,7 @@ export function UpdateAdminProfile({
                   <Label htmlFor="emergencyContactName">Contact Name:</Label>
                   <Input
                     id="emergencyContactName"
-                    value={emergencyContactName}
+                    value={formData.emergencyContactName} 
                     onChange={(e) => setEmergencyContactName(e.target.value)}
                     placeholder="Enter emergency contact name"
                   />
@@ -261,7 +199,7 @@ export function UpdateAdminProfile({
                   <Label htmlFor="emergencyRelationship">Relationship:</Label>
                   <Input
                     id="emergencyRelationship"
-                    value={emergencyRelationship}
+                    value={formData.emergencyContactRelationship}
                     onChange={(e) => setEmergencyRelationship(e.target.value)}
                     placeholder="Enter relationship"
                   />
@@ -272,7 +210,7 @@ export function UpdateAdminProfile({
                   <Label htmlFor="emergencyContactNumber">Contact Number:</Label>
                   <Input
                     id="emergencyContactNumber"
-                    value={emergencyContactNumber}
+                    value={formData.emergencyContactNumber}
                     onChange={(e) => setEmergencyContactNumber(e.target.value)}
                     placeholder="Enter emergency contact number"
                   />
@@ -297,12 +235,7 @@ export function UpdateAdminProfile({
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-4">
-        <div className="container mx-auto px-4 text-center text-sm text-gray-600">
-          © 2025 University of Wollongong
-        </div>
-      </footer>
+
     </div>
   );
 }
