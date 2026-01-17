@@ -36,7 +36,6 @@ import { StudentProgressTracker } from './components/StudentProgressTracker';
 import { CreateUser } from './components/CreateUser';
 import { UpdateUser } from './components/UpdateUser';
 import { Toast } from './components/Toast';
-<<<<<<< Updated upstream
 import { Header } from './components/Header';
 import { HeroSection } from './components/HeroSection';
 import { AboutSection } from './components/AboutSection';
@@ -47,8 +46,6 @@ import { AboutPage } from './components/AboutPage';
 import { FeaturesPage } from './components/FeaturesPage';
 import { ServicesPage } from './components/ServicesPage';
 import { RegistrationPage } from './components/RegistrationPage';
-=======
->>>>>>> Stashed changes
 import type { AttendanceRecord } from './components/Attendance';
 import { NotificationAlerts } from "./components/NotificationAlerts"; 
 import { NotificationItem } from './types/studentinnards';
@@ -634,7 +631,6 @@ export default function App() {
     
     // Marketing page - Home (default)
     return (
-<<<<<<< Updated upstream
        <div className="min-h-screen bg-black">
         <Header />
         <main>
@@ -644,10 +640,6 @@ export default function App() {
           <TestimonialsSection />
         </main>
         <Footer />
-=======
-      <div className="flex flex-col min-h-screen">
-        <LoginPage onLogin={handleLogin} />
->>>>>>> Stashed changes
       </div>
     );
   }
