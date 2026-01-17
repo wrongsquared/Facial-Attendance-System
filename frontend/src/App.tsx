@@ -856,9 +856,7 @@ export default function App() {
         <AdminAttendanceReports
           onNavigateToProfile = {handleNavigateToAdminProfile}
           onLogout={handleLogout}
-          onBack={handleBackToAdminDashboard} onNavigateToProfile={function (): void {
-            throw new Error('Function not implemented.');
-          } }        />
+          onBack={handleBackToAdminDashboard}/>
       )}
       {userRole === 'admin' && adminView === 'viewAdminProfile' && (
         <ViewAdminProfile 
