@@ -1,3 +1,5 @@
+import { Key, ReactNode } from "react";
+
 export interface AdminStats {
   overall_attendance_rate: number;
   monthly_absences: number;
@@ -21,7 +23,7 @@ export interface UserManagementItem {
   joined: ReactNode;
   id: Key | null | undefined;
   user_id: string;
-  name: string;
+  name: string; 
   email: string;
   role: string;
   status: "active" | "pending" | "inactive";

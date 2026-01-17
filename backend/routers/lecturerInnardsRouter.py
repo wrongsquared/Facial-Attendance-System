@@ -12,7 +12,7 @@ from database.db import (
                          AttdCheck, 
                          StudentModules,  
                          LecMod,
-                         EntLeave)
+                         EntLeave,)
 
 from schemas import(Literal,
                     viewUserProfile,
@@ -23,8 +23,7 @@ from schemas import(Literal,
                     DailyTimetable,
                     Weeklytimetable,
                     MonthlyTimetable,
-                    AttendanceDetailRow,
-                    OverallClassAttendanceDetails)
+                    AttendanceLogResponse)
 from io import StringIO
 from routers import studentDashboardRouter
 from typing import Union, List
@@ -198,13 +197,13 @@ def generate_and_download_report(
     }
 
 # Lecturer Attendance Log with Dynamic Filtering
-@router.get("/lecturer/attendance-log", response_model=List[AttendanceLogEntry])
+@router.get("/lecturer/attendance-log", response_model=AttendanceLogResponse)
 def get_lecturer_attendance_log_filtered(
     search_term: str = Query(None, description="Search by Student Name or ID"),
     module_code: str = Query(None, description="Filter by Module Code"),
     status: Literal['Present', 'Absent', 'Late'] = Query(None, description="Filter by Status"),
     date: date = Query(None, description="Filter by specific date (YYYY-MM-DD)"),
-    limit: int = Query(50, gt=0),
+    limit: int = Query(10, gt=0),
     offset: int = Query(0, ge=0),
     
     user_id: str = Depends(get_current_user_id),
@@ -306,10 +305,10 @@ def get_lecturer_attendance_log_filtered(
             date=lesson.startDateTime.strftime("%d %b %Y"),
             lesson_id=lesson.lessonID
         ))
+    total_records = len(log_entries)
+    paginated_data = log_entries[offset : offset + limit]
 
-    # 5. PAGINATION
-    # Since we filtered by status in Python, we apply pagination at the very end
-    return log_entries[offset : offset + limit]
+    return {"data": paginated_data, "total": total_records, "page": (offset // limit) + 1,"limit": limit}
 
 # Detailed Attendance Record
 @router.get("/lecturer/attendance/details/{lesson_id}/{student_num}", response_model=DetailedAttendanceRecord)
@@ -347,7 +346,7 @@ def get_detailed_attendance_record(
     is_late = db.query(EntLeave).filter(
         EntLeave.lessonID == lesson_id, 
         EntLeave.studentID == student_num,
-        EntLeave.enter > lesson.startDateTime + timedelta(minutes=5)
+        EntLeave.enter > lesson.startDateTime + timedelta(minutes=30)
     ).first()
 
     # C. Final Status Assignment
@@ -541,4 +540,22 @@ def get_monthly_timetable(
 
     return results
 
-
+@router.get("/lecturer/modules", response_model=List[str])
+def get_lecturer_modules(
+    user_id: str = Depends(get_current_user_id), 
+    db: Session = Depends(get_db)
+):
+    """
+    Fetches a list of unique module codes (e.g. ['CSCI334', 'CSCI203']) 
+    assigned to this lecturer.
+    """
+    results = (
+        db.query(Module.moduleCode)
+        .join(LecMod, Module.moduleID == LecMod.moduleID)
+        .filter(LecMod.lecturerID == user_id)
+        .distinct() # Remove duplicates if multiple classes exist for one module
+        .all()
+    )
+    
+    # SQLAlchemy returns tuples like [('CSCI334',), ('CSCI203',)], flatten it:
+    return [row[0] for row in results]

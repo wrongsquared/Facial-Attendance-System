@@ -1,11 +1,9 @@
 
-import { LoginCredentials, AuthResponse } from "../types/auth";
-import { AttendanceLogFilters } from "../types/lecturerinnards";
+import { LoginCredentials, AuthResponse, ProfileUpdateData } from "../types/auth";
+import { AttendanceLogFilters, AttendanceLogResponse } from "../types/lecturerinnards";
 
 
 const API_URL = "http://127.0.0.1:8000"; // The FASTAPI URL
-
-
 
 // The Login Function
 export const loginUser = async (creds: LoginCredentials): Promise<AuthResponse> => {
@@ -51,7 +49,21 @@ export const logoutUser = async (token: string) => {
     }
   });
 };
+const sendUpdate = async (endpoint: string, token: string, data: any) => {
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    method: "PUT", 
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify(data) 
+  });
 
+  if (!response.ok) {
+    throw new Error("Failed to update profile");
+  }
+  return await response.json();
+};
 
 //Student Dashboard begin
 export const getStudentProfile = async (token: string) => {
@@ -116,6 +128,10 @@ export const getNotifications = async (token: string) => {
   return await fetchProtected("/student/notifications", token);
 };
 
+export const updateStudentProfile = async (token: string, data: ProfileUpdateData) => {
+  return await sendUpdate("/student/profile/update", token, data);
+};
+
 //Student Routes End
 //Lecturer Routes Begin
 
@@ -159,7 +175,7 @@ export const getLecturerMonthlyTimetable = async (token: string, year: number, m
   return await fetchProtected(`/lecturer/timetable/monthly?year=${year}&month=${month}`, token);
 };
 
-export const getAttendanceLog = async(token:string, filters:AttendanceLogFilters) =>{
+export const getAttendanceLog = async(token:string, filters:AttendanceLogFilters) : Promise<AttendanceLogResponse>=>{
   const params = new URLSearchParams();
   if (filters.searchTerm) params.append("search_term", filters.searchTerm);
   if (filters.moduleCode && filters.moduleCode !== "All") params.append("module_code", filters.moduleCode);
@@ -167,24 +183,29 @@ export const getAttendanceLog = async(token:string, filters:AttendanceLogFilters
   if (filters.date) params.append("date", filters.date);
   
   
-  const limit = 10;
+  const limit = filters.limit || 10;
   const offset = ((filters.page || 1) - 1) * limit;
   params.append("limit", limit.toString());
   params.append("offset", offset.toString());
-  return await fetchProtected(`/lecturer/attendance-log?${params.toString()}`, token);
+  const response = await fetchProtected(`/lecturer/attendance-log?${params.toString()}`, token);
+  return response as AttendanceLogResponse;
 }
 
 
-// export const getRecentStudents = async (token: string, lesson_id: string, student_num: string) => {
-//   return await fetchProtected(`/lecturer/attendance/details/?lesson_id=${lesson_id}/?student_num=${student_num}`, token);
-// };
+export const updateLecturerProfile = async (token: string, data: ProfileUpdateData) => {
+  console.log(data);
+  return await sendUpdate("/lecturer/profile/update", token, data);
+};
+
+export const getLecturerModuleList = async (token: string) => {
+  return await fetchProtected("/lecturer/modules", token);
+};
 //Lecturer Routes End
 //Admin Routes Begin
 
 export const getAdminProfile = async (token: string) => {
   return await fetchProtected('/admin/my-profile', token);
 }
-
 
 export const getAdminStats = async (token: string) => {
   return await fetchProtected("/admin/stats", token);
@@ -196,6 +217,20 @@ export const getCoursesRequiringAttention = async (token: string) => {
 
 export const getRecentUsers = async (token: string) => {
   return await fetchProtected("/admin/users/recent", token);
+};
+
+export const getManageUsers = async (
+  token: string, 
+  search: string, 
+  role: string, 
+  status: string
+) => {
+  const params = new URLSearchParams();
+  if (search) params.append("search_term", search);
+  if (role && role !== "All Roles") params.append("role_filter", role);
+  if (status && status !== "All Status") params.append("status_filter", status);
+
+  return await fetchProtected(`/admin/users/manage?${params.toString()}`, token);
 };
 //Admin Routes end
 

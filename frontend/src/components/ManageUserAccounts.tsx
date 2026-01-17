@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -8,16 +8,13 @@ import {
 } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Navbar } from "./Navbar";
+import { getManageUsers } from "../services/api";
+import { AdminUserAccount } from "../types/adminInnards";
 import {
-  BookOpen,
-  LogOut,
   ArrowLeft,
-  Bell,
   Search,
-  Settings,
   UserPlus,
 } from "lucide-react";
 import {
@@ -29,13 +26,6 @@ import {
   TableRow,
 } from "./ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -46,11 +36,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
+import { useAuth } from "../cont/AuthContext";
 
 interface ManageUserAccountsProps {
   onLogout: () => void;
   onBack: () => void;
   onCreateUser: () => void;
+  onNavigateToProfile?: () => void;
   onUpdateUser: (userData: {
     userId: string;
     name: string;
@@ -59,101 +51,41 @@ interface ManageUserAccountsProps {
   }) => void;
 }
 
-// Mock data for user accounts
-const userAccounts = [
-  {
-    userId: "U1001",
-    name: "Dr. Rachel Wong",
-    role: "Lecturer",
-    status: "Active",
-  },
-  {
-    userId: "U1002",
-    name: "John Smith",
-    role: "Student",
-    status: "Active",
-  },
-  {
-    userId: "U1003",
-    name: "Emma Johnson",
-    role: "Student",
-    status: "Active",
-  },
-  {
-    userId: "U1004",
-    name: "Michael Brown",
-    role: "Student",
-    status: "Inactive",
-  },
-  {
-    userId: "U1005",
-    name: "Sophia Davis",
-    role: "Student",
-    status: "Active",
-  },
-  {
-    userId: "U1006",
-    name: "Prof. James Wilson",
-    role: "Lecturer",
-    status: "Active",
-  },
-  {
-    userId: "U1007",
-    name: "Olivia Martinez",
-    role: "Student",
-    status: "Inactive",
-  },
-  {
-    userId: "U1008",
-    name: "William Taylor",
-    role: "Admin",
-    status: "Active",
-  },
-  {
-    userId: "U1009",
-    name: "Ava Anderson",
-    role: "Student",
-    status: "Active",
-  },
-  {
-    userId: "U1010",
-    name: "Benjamin Thomas",
-    role: "Lecturer",
-    status: "Active",
-  },
-];
 
 export function ManageUserAccounts({
   onLogout,
   onBack,
   onCreateUser,
-  onUpdateUser,
+  onNavigateToProfile,
 }: ManageUserAccountsProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedRole, setSelectedRole] = useState("all");
-  const [selectedStatus, setSelectedStatus] = useState("all");
-  const [users, setUsers] = useState(userAccounts);
-  const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const {token} = useAuth()
+  const [users, setUsers] = useState<AdminUserAccount[]>([]);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("All Roles");
+  const [statusFilter, setStatusFilter] = useState("All Status");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 500);
+    return () => clearTimeout(timer);
+  }, [search]);
 
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!token) return;
+      try {
+        const data = await getManageUsers(token, debouncedSearch, roleFilter, statusFilter);
+        setUsers(data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchData();
+  }, [token, debouncedSearch, roleFilter, statusFilter]);
   // Filter users
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.userId.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesRole = selectedRole === "all" || user.role === selectedRole;
-
-    const matchesStatus =
-      selectedStatus === "all" || user.status === selectedStatus;
-
-    return matchesSearch && matchesRole && matchesStatus;
-  });
-
-  const handleDeleteUser = (userId: string) => {
-    setUsers(users.filter((user) => user.userId !== userId));
-    setUserToDelete(null);
-  };
+  // const handleDeleteUser = (userId: string) => {
+  //   setUsers(users.filter((user) => user.userId !== userId));
+  //   setUserToDelete(null);
+  // };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -182,7 +114,7 @@ export function ManageUserAccounts({
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <Navbar title="Admin Portal" />
+      <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile}/>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -208,14 +140,14 @@ export function ManageUserAccounts({
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search by name or ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  // value={searchQuery}
+                  // onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
                 />
               </div>
 
               {/* Filter Roles Dropdown */}
-              <Select value={selectedRole} onValueChange={setSelectedRole}>
+              {/* <Select value={selectedRole} onValueChange={setSelectedRole}>
                 <SelectTrigger className="w-full md:w-[180px]">
                   <SelectValue placeholder="Filter Roles" />
                 </SelectTrigger>
@@ -225,10 +157,10 @@ export function ManageUserAccounts({
                   <SelectItem value="Lecturer">Lecturer</SelectItem>
                   <SelectItem value="Student">Student</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select>*/}
 
               {/* Status Dropdown */}
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              {/* <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                 <SelectTrigger className="w-full md:w-[180px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -237,7 +169,7 @@ export function ManageUserAccounts({
                   <SelectItem value="Active">Active</SelectItem>
                   <SelectItem value="Inactive">Inactive</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select>  */}
 
               {/* Create New User Button */}
               <Button className="w-full md:w-auto" onClick={onCreateUser}>
@@ -259,10 +191,10 @@ export function ManageUserAccounts({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.length > 0 ? (
-                    filteredUsers.map((user) => (
-                      <TableRow key={user.userId}>
-                        <TableCell>{user.userId}</TableCell>
+                  {users.length > 0 ? (
+                    users.map((user, index) => (
+                      <TableRow key={`${user.uuid}-${index}`}>
+                        <TableCell>{user.uuid}</TableCell>
                         <TableCell>{user.name}</TableCell>
                         <TableCell>
                           <Badge className={getRoleBadgeColor(user.role)}>
@@ -279,7 +211,7 @@ export function ManageUserAccounts({
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => onUpdateUser(user)}
+                              // onClick={() => onUpdateUser(user)}
                             >
                               Update
                             </Button>
@@ -288,7 +220,7 @@ export function ManageUserAccounts({
                                 <Button
                                   variant="destructive"
                                   size="sm"
-                                  onClick={() => setUserToDelete(user.name)}
+                                  // onClick={() => setUserToDelete(user.name)}
                                 >
                                   Delete
                                 </Button>
@@ -305,7 +237,7 @@ export function ManageUserAccounts({
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={() => handleDeleteUser(user.userId)}
+                                    // onClick={() => handleDeleteUser(user.uuid)}
                                     className="bg-red-600 hover:bg-red-700"
                                   >
                                     Delete

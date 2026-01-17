@@ -29,7 +29,8 @@ import {
 import { Navbar } from "./Navbar";
 import { useAuth } from "../cont/AuthContext";
 import { StudentProfileData } from "../types/studentinnards";
-import { getStudentFullProfile } from "../services/api";
+import { getStudentFullProfile, updateStudentProfile } from "../services/api";
+import { ProfileUpdateData } from "../types/auth";
 
 interface StudentProfileProps {
   onLogout: () => void;
@@ -43,7 +44,7 @@ export function StudentProfile({
   onBack,
   onOpenNotifications
 }: StudentProfileProps) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [loading, setLoading] = useState(true);
 
   // Biometric enrollment state - true if enrolled, false if not
@@ -71,6 +72,7 @@ export function StudentProfile({
     { id: 3, label: "Right Profile" },
   ];
 
+  const [saving, setSaving] = useState(false);
   // Form State
   const [formData, setFormData] = useState<StudentProfileData>({
     name: "",
@@ -82,7 +84,31 @@ export function StudentProfile({
     emergencyContactRelationship: "",
     emergencyContactNumber: ""
   });
+  const handleSave = async () => {
+    if (!token || !user) return;
+    setSaving(true); // Disable button while saving
 
+    // Prepare Data (Only send what is editable)
+    const payload: ProfileUpdateData = {
+      name: formData.name,
+      email: formData.email,
+      contactNumber: formData.contactNumber || "",
+      address: formData.address || "",
+      emergencyContactName: formData.emergencyContactName || "",
+      emergencyContactRelationship: formData.emergencyContactRelationship || "",
+      emergencyContactNumber: formData.emergencyContactNumber || ""
+    };
+    try {
+        await updateStudentProfile(token, payload);
+        alert("Profile updated successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save changes. Please try again.");
+    } finally {
+      setSaving(false);
+      setIsEditMode(false);
+    }
+  };
   // Fetch Data on Mount
   useEffect(() => {
     const fetchData = async () => {
@@ -109,10 +135,13 @@ export function StudentProfile({
     };
     fetchData();
   }, [token]);
-
   // Handle Input Changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.id]: e.target.value });
+    const { id, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
   };
 
 
@@ -343,6 +372,7 @@ export function StudentProfile({
                   id="email"
                   type="email"
                   value={formData.email}
+                  onChange={handleChange}
                   className="h-12"
                   disabled // Shouldn't be allowed to change
                 />
@@ -356,6 +386,7 @@ export function StudentProfile({
                   id="contactNumber"
                   type="tel"
                   value={formData.contactNumber}
+                  onChange={handleChange}
                   className="h-12"
                   disabled = {!isEditMode}
                 />
@@ -367,6 +398,7 @@ export function StudentProfile({
                   id="address"
                   type="text"
                   value={formData.address}
+                  onChange={handleChange}
                   className="h-12"
                   disabled={!isEditMode}
                 />
@@ -384,12 +416,13 @@ export function StudentProfile({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="emergencyName">
+                <Label htmlFor="emergencyContactName">
                   Contact Name:
                 </Label>
                 <Input
-                  id="emergencyName"
+                  id="emergencyContactName"
                   type="text"
+                  onChange={handleChange}
                   value={formData.emergencyContactName}
                   className="h-12"
                   disabled={!isEditMode}
@@ -397,12 +430,13 @@ export function StudentProfile({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="relationship">
+                <Label htmlFor="emergencyContactRelationship">
                   Relationship:
                 </Label>
                 <Input
-                  id="relationship"
+                  id="emergencyContactRelationship"
                   type="text"
+                  onChange={handleChange}
                   value={formData.emergencyContactRelationship}
                   className="h-12"
                   disabled={!isEditMode}
@@ -410,12 +444,13 @@ export function StudentProfile({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="emergencyContact">
+                <Label htmlFor="emergencyContactNumber">
                   Contact Number:
                 </Label>
                 <Input
-                  id="emergencyContact"
+                  id="emergencyContactNumber"
                   type="tel"
+                  onChange={handleChange}
                   value={formData.emergencyContactNumber}
                   className="h-12"
                   disabled={!isEditMode}
@@ -438,7 +473,8 @@ export function StudentProfile({
 
               <Button
                 size="lg"
-                onClick={handleChange}
+                onClick={handleSave}
+                disabled={saving}
                 className="w-40 bg-blue-600 text-white hover:bg-blue-700"
               >
                 Save Changes

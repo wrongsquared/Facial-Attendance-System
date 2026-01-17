@@ -14,8 +14,9 @@ import {
 } from "lucide-react";
 import { useAuth } from "../cont/AuthContext";
 import { LecturerProfileData } from "../types/lecturerinnards";
-import { getLecturerFullProfile  } from "../services/api";
+import { getLecturerFullProfile, updateLecturerProfile } from "../services/api";
 import { Navbar } from "./Navbar";
+import { ProfileUpdateData } from "../types/auth";
 
 interface UpdateProfileProps {
   onLogout: () => void;
@@ -29,58 +30,60 @@ export function UpdateProfile({
   onNavigateToProfile
 }: UpdateProfileProps) {
   // Edit mode state
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [formData, setFormData] = useState<LecturerProfileData>({
     name: "",
     email: "",
     specialistIn: "",
-    phone: "",
-    fulladdress: "",
+    contactNumber: "",
+    address: "",
     emergencyContactName: "",
     emergencyContactRelationship: "",
     emergencyContactNumber: "",
   });
   const [isEditMode, setIsEditMode] = useState(false);
-
-  // Personal Information
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [contactNumber, setContactNumber] = useState(
-    ""
-  );
-  const [address, setAddress] = useState(
-    ""
-  );
-
-  // Emergency Contact
-  const [emergencyName, setEmergencyName] =
-    useState("Michael Wong");
-  const [relationship, setRelationship] = useState("");
-  const [emergencyContact, setEmergencyContact] = useState(
-    "",
-  );
-
-  const handleSave = () => {
-    // Mock save logic
-    console.log("Saving profile:", {
-      name,
-      email,
-      contactNumber,
-      address,
-      emergencyName,
-      relationship,
-      emergencyContact,
-    });
-    alert("Profile updated successfully!");
-    setIsEditMode(false);
-  };
+  const [saving, setSaving] = useState(false);
 
   const handleCancel = () => {
     setIsEditMode(false);
   };
-
+    // Handle Input Changes
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [id]: value, // Updates the field matching the input's ID
+    }));
+  };
   const handleUpdateProfile = () => {
     setIsEditMode(true);
+  };
+
+  const handleSave = async () => {
+    if (!token || !user) return;
+    setSaving(true); // Disable button while saving
+
+    // Prepare Data (Only send what is editable)
+    const payload: ProfileUpdateData = {
+      name: formData.name,
+      email: formData.email,
+      contactNumber: formData.contactNumber || "",
+      address: formData.address || "",
+      emergencyContactName: formData.emergencyContactName || "",
+      emergencyContactRelationship: formData.emergencyContactRelationship || "",
+      emergencyContactNumber: formData.emergencyContactNumber || ""
+    };
+    try {
+        
+        await updateLecturerProfile(token, payload);
+        alert("Profile updated successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save changes. Please try again.");
+    } finally {
+      setSaving(false);
+      setIsEditMode(false);
+    }
   };
   // Fetch Data on Mount
   useEffect(() => {
@@ -94,8 +97,8 @@ export function UpdateProfile({
           name: data.name || "",
           email: data.email || "",
           specialistIn: data.specialistIn || "",
-          phone: data.contactNumber || "",
-          fulladdress: data.address || "",
+          contactNumber: data.contactNumber || "",
+          address: data.address || "",
           emergencyContactName: data.emergencyContactName || "",
           emergencyContactRelationship: data.emergencyContactRelationship || "",
           emergencyContactNumber: data.emergencyContactNumber || ""
@@ -148,7 +151,6 @@ export function UpdateProfile({
                   id="name"
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setName(e.target.value)}
                   className="h-12"
                   disabled={!isEditMode}
                 />
@@ -160,7 +162,6 @@ export function UpdateProfile({
                   id="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setEmail(e.target.value)}
                   className="h-12"
                   disabled={!isEditMode}
                 />
@@ -173,10 +174,8 @@ export function UpdateProfile({
                 <Input
                   id="contactNumber"
                   type="tel"
-                  value={formData.phone}
-                  onChange={(e) =>
-                    setContactNumber(e.target.value)
-                  }
+                  value={formData.contactNumber}
+                  onChange={handleChange}
                   className="h-12"
                   disabled={!isEditMode}
                 />
@@ -187,8 +186,8 @@ export function UpdateProfile({
                 <Input
                   id="address"
                   type="text"
-                  value={formData.fulladdress}
-                  onChange={(e) => setAddress(e.target.value)}
+                  value={formData.address}
+                  onChange={handleChange}
                   className="h-12"
                   disabled={!isEditMode}
                 />
@@ -206,48 +205,42 @@ export function UpdateProfile({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="emergencyName">
+                <Label htmlFor="emergencyContactName">
                   Contact Name:
                 </Label>
                 <Input
-                  id="emergencyName"
+                  id="emergencyContactName"
                   type="text"
                   value={formData.emergencyContactName}
-                  onChange={(e) =>
-                    setEmergencyName(e.target.value)
-                  }
+                  onChange={handleChange}
                   className="h-12"
                   disabled={!isEditMode}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="relationship">
+                <Label htmlFor="emergencyContactRelationship">
                   Relationship:
                 </Label>
                 <Input
-                  id="relationship"
+                  id="emergencyContactRelationship"
                   type="text"
                   value={formData.emergencyContactRelationship}
-                  onChange={(e) =>
-                    setRelationship(e.target.value)
-                  }
+                  onChange={handleChange}
                   className="h-12"
                   disabled={!isEditMode}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="emergencyContact">
+                <Label htmlFor="emergencyContactNumber">
                   Contact Number:
                 </Label>
                 <Input
-                  id="emergencyContact"
+                  id="emergencyContactNumber"
                   type="tel"
                   value={formData.emergencyContactNumber}
-                  onChange={(e) =>
-                    setEmergencyContact(e.target.value)
-                  }
+                  onChange={handleChange}
                   className="h-12"
                   disabled={!isEditMode}
                 />
@@ -270,6 +263,7 @@ export function UpdateProfile({
               <Button
                 size="lg"
                 onClick={handleSave}
+                disabled={saving} 
                 className="w-40 bg-blue-600 text-white hover:bg-blue-700"
               >
                 Save Changes

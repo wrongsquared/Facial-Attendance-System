@@ -31,21 +31,11 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
-
+import { Navbar } from "./Navbar";
 interface ManageUserProfileProps {
   onLogout: () => void;
   onBack: () => void;
+  onNavigateToProfile?: () => void;
   onNavigateToCreateCustomGoal: (userData: {
     userId: string;
     name: string;
@@ -179,6 +169,7 @@ export function ManageUserProfile({
   onNavigateToUpdateUserProfile,
   userGoals,
   userProfiles,
+  onNavigateToProfile
 }: ManageUserProfileProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -257,55 +248,7 @@ export function ManageUserProfile({
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">Admin Portal</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback>AD</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>Admin User</p>
-                <p className="text-sm text-gray-600">Administrator</p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
+      <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">

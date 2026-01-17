@@ -36,9 +36,8 @@ from schemas import( timetableEntry,
                             AttendanceDetailRow,
                             ReportHistoryEntry,
                             OverallClassAttendanceDetails)
-from io import StringIO
 from routers import studentDashboardRouter
-from typing import Union, List
+from typing import List
 import pandas as pd
 
 router = APIRouter() 
@@ -616,138 +615,6 @@ def download_generated_report(
         filename=report.fileName,
         media_type='text/csv' 
     )
-
-# Lecturer Attendance Log with Dynamic Filtering
-@router.get("/lecturer/attendance-log", response_model=List[AttendanceLogEntry])
-def get_lecturer_attendance_log_filtered(
-    # URL QUERY PARAMETERS
-    search_term: str = Query(None, description="Search by Student Name or ID"),
-    module_code: str = Query(None, description="Filter by Module Code"),
-    status: Literal['Present', 'Absent', 'Late'] = Query(None, description="Filter by Status"),
-    date: date = Query(None, description="Filter by specific date (YYYY-MM-DD)"),
-    limit: int = Query(50, gt=0),
-    offset: int = Query(0, ge=0),
-    
-    user_id: str = Depends(get_current_user_id),
-    db: Session = Depends(get_db)
-):
-    
-    # Define Core Lesson Sets (Filter Lessons by Lecturer & Date) 
-    
-    relevant_lessons_query = db.query(
-        Lesson.lessonID, Lesson.startDateTime, Lesson.endDateTime, LecMod.moduleID
-    ).join(LecMod).filter(
-        LecMod.lecturerID == user_id,
-        Lesson.endDateTime < datetime.now() # Only completed lessons
-    )
-    
-    # Apply URL DATE filter if provided
-    if date:
-        start_of_day = datetime.combine(date, time.min) # Note: time.min must be imported/defined
-        end_of_day = datetime.combine(date, time.max)   # Note: time.max must be imported/defined
-        relevant_lessons_query = relevant_lessons_query.filter(
-            Lesson.startDateTime.between(start_of_day, end_of_day)
-        )
-        
-    relevant_lessons = relevant_lessons_query.subquery()
-
-    # All student enrollments relevant to the lecturer
-    enrolled_students = db.query(StudentModules.studentID, StudentModules.modulesID).subquery()
-    
-    # Full Cartesian Product (A row for every Student X Lesson pairing)
-    attendance_slots = db.query(
-        enrolled_students.c.studentID,
-        relevant_lessons.c.lessonID,
-        relevant_lessons.c.startDateTime,
-        relevant_lessons.c.moduleID
-    ).join(
-        relevant_lessons,
-        enrolled_students.c.modulesID == relevant_lessons.c.moduleID
-    ).subquery()
-    
-    
-    #LATE Status Subquery (Corrected Syntax)
-    late_check = db.query(
-        EntLeave.studentID, EntLeave.lessonID,
-        # Corrected syntax: func.count(case(condition, result))
-        func.count(case(
-            (EntLeave.enter > relevant_lessons.c.startDateTime + timedelta(minutes=5), 1)
-        , else_=None)).label('late_count')
-    ).group_by(EntLeave.studentID, EntLeave.lessonID).subquery()
-    
-    
-    # Final Query Construction 
-    
-    # The calculated status expression (Corrected Syntax)
-    status_expr = case(
-        (func.count(AttdCheck.AttdCheckID) > 0, # <-- CRITICAL FIX: This is now an aggregate function
-         case( 
-             (func.max(late_check.c.late_count) > 0, 'Late') 
-         , else_='Present')
-        )
-    , else_='Absent').label('status')
-    
-    # Base SELECT statement joins all necessary data
-    final_query = db.query(
-        Student.studentNum.label('user_id'),
-        Student.name.label('student_name'),
-        Module.moduleCode.label('module_code'),
-        attendance_slots.c.startDateTime.label('date_time'),
-        attendance_slots.c.lessonID.label('lesson_id'),
-        status_expr
-    ).select_from(attendance_slots).join(
-        Student, Student.studentID == attendance_slots.c.studentID
-    ).join(
-        Module, Module.moduleID == attendance_slots.c.moduleID
-    ).outerjoin(
-        AttdCheck, and_(AttdCheck.lessonID == attendance_slots.c.lessonID, AttdCheck.studentID == attendance_slots.c.studentID)
-    ).outerjoin(
-        late_check, and_(late_check.c.lessonID == attendance_slots.c.lessonID, late_check.c.studentID == attendance_slots.c.studentID)
-    ).group_by(
-    Student.studentNum, 
-    Student.name, 
-    Module.moduleCode, 
-    attendance_slots.c.startDateTime, 
-    attendance_slots.c.lessonID
-)
-
-    # Apply Dynamic Filters 
-    
-    if module_code:
-        final_query = final_query.filter(Module.moduleCode == module_code)
-
-    if search_term:
-        search_like = f"%{search_term}%"
-        # Search by Student Name OR Student ID (studentNum)
-        search_filter = or_(
-            Student.name.ilike(search_like),
-            Student.studentNum.ilike(search_like)
-        )
-        final_query = final_query.filter(search_filter)
-        
-
-    # Execute the query (LIMIT and OFFSET are applied to the full dataset)
-    final_records = final_query.order_by(
-        attendance_slots.c.startDateTime.desc()
-    ).all()
-
-    log_entries = []
-    for row in final_records:
-        entry = AttendanceLogEntry(
-            user_id=row.user_id,
-            student_name=row.student_name,
-            module_code=row.module_code,
-            status=row.status,
-            date=row.date_time.strftime("%d %b %Y"),
-            lesson_id=row.lesson_id
-        )
-        
-        # Apply Status Filter (Python-side filtering)
-        if not status or entry.status == status:
-            log_entries.append(entry)
-
-    # Apply Pagination to the final list
-    return log_entries[offset:offset + limit]
 
 # Detailed Attendance Record
 @router.get("/lecturer/attendance/details/{lesson_id}/{student_num}", response_model=DetailedAttendanceRecord)

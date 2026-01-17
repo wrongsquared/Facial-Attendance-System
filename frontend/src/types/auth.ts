@@ -18,3 +18,13 @@ export interface AuthResponse {
   specialistIn?: string | null;
   job?: string | null; 
 }
+
+export interface ProfileUpdateData {
+  name: string;
+  email: string;
+  contactNumber: string;
+  address: string;
+  emergencyContactName: string;
+  emergencyContactRelationship: string;
+  emergencyContactNumber: string;
+}

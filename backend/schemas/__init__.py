@@ -1,5 +1,5 @@
 # Import everything from the sub-files
-from .auth import UserLogin, TokenResponse, UserSignUp
+from .auth import UserLogin, TokenResponse, UserSignUp, viewUserProfile, UserProfileUpdate
 from .student import (StudentLessons, 
                       WeeklyLesson, 
                       TodaysLessons, 
@@ -21,8 +21,6 @@ from .lecturer import( timetableEntry,
                         courseoverviewcard, 
                         ClassToday,
                         Literal,
-                        viewUserProfile,
-                        UserProfileUpdate,
                         ReportCriteria,
                         AttendanceLogEntry,
                         DetailedAttendanceRecord,
@@ -31,10 +29,12 @@ from .lecturer import( timetableEntry,
                         MonthlyTimetable,
                         AttendanceDetailRow,
                         OverallClassAttendanceDetails,
-                        ReportHistoryEntry)
+                        ReportHistoryEntry,
+                        AttendanceLogResponse)
 from .admin import (AdminDashboardStats, 
                     CourseAttentionItem, 
-                    UserManagementItem)
+                    UserManagementItem,
+                    UserListItem)
 from .platformManager import (PlatformManagerDashboard, 
                               DashboardStats, 
                               UniversityDisplay, 

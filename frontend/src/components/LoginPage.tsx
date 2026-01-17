@@ -17,7 +17,7 @@ import {
 } from "./ui/select";
 import { ArrowLeft } from "lucide-react";
 import logoImage from "../assets/Logo.png";
-import { LoginCredentials } from "../services/api";
+import { LoginCredentials } from "../types/auth";
 
 interface LoginPageProps {
   onLogin: (creds: LoginCredentials, selectedRole: string) => void;
