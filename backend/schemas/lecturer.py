@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import Literal, List
 from datetime import date
 
@@ -53,31 +53,8 @@ class LecturerDashboardSummary(BaseModel):
     overall_attendance_rate: float # 0.0 to 100.0
     students_at_risk_count: int
 
-class viewUserProfile(BaseModel):
-    name: str
-    email: EmailStr
-    contactNumber: str | None
-    address: str | None
-    
-    emergencyContactName: str | None
-    emergencyContactRelationship: str | None
-    emergencyContactNumber: str | None
-    class Config:
-        from_attributes = True
 
-class UserProfileUpdate(BaseModel):
-    # Personal Info Fields
-    name: str | None = None
-    email: EmailStr | None = None
-    contactNumber: str | None = None
-    address: str | None = None
-    
-    # Emergency Contact Fields
-    emergencyContactName: str | None = None
-    emergencyContactRelationship: str | None = None
-    emergencyContactNumber: str | None = None
-    class Config:
-        from_attributes = True
+
 
 class ReportCriteria(BaseModel):
     """Defines the input parameters for generating an attendance report."""
@@ -190,14 +167,9 @@ class ReportHistoryEntry(BaseModel):
     date: str            # Display date (e.g. "08 Jan 2026")
     tags: List[str]      # e.g. ["Daily", "Absent"]
     fileName: str
-# class ReportHistoryEntry(BaseModel):
-#     id: int
-#     title: str       # e.g. "CSCI334 - Daily Report"
-#     date: str        # e.g. "28 Oct 2025"
-#     tags: List[str]  # e.g. ["Daily", "Present"]
-#     fileName: str    # e.g. "CSCI334_Daily_123.xlsx"
 
-#     class Config:
-#         from_attributes = True
-
-
+class AttendanceLogResponse(BaseModel):
+    data: List[AttendanceLogEntry]
+    total: int
+    page: int
+    limit: int

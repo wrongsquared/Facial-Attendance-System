@@ -30,3 +30,26 @@ class TokenResponse(BaseModel):
     specialistIn: Optional[str] = None
     job: Optional[str] = None
 
+class viewUserProfile(BaseModel):
+    name: str
+    email: EmailStr
+    contactNumber: str | None
+    address: str | None
+    
+    emergencyContactName: str | None
+    emergencyContactRelationship: str | None
+    emergencyContactNumber: str | None
+    class Config:
+        from_attributes = True
+
+class UserProfileUpdate(BaseModel):
+    name: str | None = None
+    email: EmailStr | None = None
+    contactNumber: str | None = None
+    address: str | None = None
+    
+    emergencyContactName: str | None = None
+    emergencyContactRelationship: str | None = None
+    emergencyContactNumber: str | None = None
+    class Config:
+        from_attributes = True

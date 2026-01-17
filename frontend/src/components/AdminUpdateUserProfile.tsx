@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -7,12 +7,8 @@ import {
 } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
-  BookOpen,
-  LogOut,
   ArrowLeft,
-  Bell,
   Fingerprint,
 } from "lucide-react";
 import {
@@ -22,21 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
+
+import { Navbar } from "./Navbar";
 
 interface AdminUpdateUserProfileProps {
   onLogout: () => void;
   onBack: () => void;
+  onNavigateToProfile?: () => void;
   onNavigateToBiometricProfile: () => void;
   userData: {
     userId: string;
@@ -74,15 +62,17 @@ interface AdminUpdateUserProfileProps {
 }
 
 export function AdminUpdateUserProfile({
-  onLogout,
   onBack,
   onNavigateToBiometricProfile,
   userData,
   userProfileData,
   onUpdateProfile,
   showToast,
+  onNavigateToProfile
 }: AdminUpdateUserProfileProps) {
   // Personal Information - use userProfileData if available, otherwise defaults
+
+
   const [name, setName] = useState(userProfileData?.name || userData.name);
   const [email, setEmail] = useState(userProfileData?.email || "john.smith@uow.edu.au");
   const [dateOfBirth, setDateOfBirth] = useState(userProfileData?.dateOfBirth || "1998-05-15");
@@ -119,56 +109,7 @@ export function AdminUpdateUserProfile({
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">Admin Portal</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback>AM</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>Admin User</p>
-                <p className="text-sm text-gray-600">System Administrator</p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
+      <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -339,12 +280,6 @@ export function AdminUpdateUserProfile({
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-4 mt-auto">
-        <div className="container mx-auto px-4 text-center text-gray-600">
-          &copy; 2025 University of Wollongong
-        </div>
-      </footer>
     </div>
   );
 }

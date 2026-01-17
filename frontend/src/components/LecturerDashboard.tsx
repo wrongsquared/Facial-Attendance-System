@@ -391,11 +391,11 @@ export function LecturerDashboard({
                   <TableRow>
                     <TableHead>Subject</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Attended</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Percentage</TableHead>
-                    <TableHead></TableHead>
+                    <TableHead className="w-[200px]">Time</TableHead>
+                    <TableHead className="w-[200px]">Attended</TableHead>
+                    <TableHead className="w-[200px]">Total</TableHead>
+                    <TableHead className="w-[200px]">Percentage</TableHead>
+                    <TableHead className="text-center w-[100px]">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -420,7 +420,7 @@ export function LecturerDashboard({
                       </TableCell>
                       <TableCell>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => handleViewDetails(session)}
                         >

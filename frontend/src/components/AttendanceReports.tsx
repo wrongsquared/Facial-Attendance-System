@@ -38,6 +38,7 @@ import {
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
 import { useAuth } from "../cont/AuthContext";
+import { Navbar } from "./Navbar";
 
 interface AttendanceReportsProps {
   onLogout: () => void;
@@ -262,69 +263,48 @@ export function AttendanceReports({
     }
   }
 
+  // Add this inside your component, before the return statement
+  const handleDownloadFromList = async (reportID: number, fileName: string) => {
+    if (!token) return;
+
+    try {
+      // 1. Fetch the file blob from the API
+      const res = await fetch(`http://localhost:8000/lecturer/reports/download/${reportID}`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!res.ok) throw new Error("Download failed");
+
+      // 2. Convert to Blob
+      const blob = await res.blob();
+
+      // 3. Create a temporary invisible link to trigger the browser download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName; // Uses the filename saved in the database
+      document.body.appendChild(a);
+      a.click();
+
+      // 4. Cleanup
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      alert("Failed to download file. Please try again.");
+    }
+  };
 
   const dailyActive = reportType === "Daily";
   const monthlyActive = reportType === "Monthly";
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">
-                Lecturer Portal
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <div
-              className="flex items-center gap-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
-              onClick={onNavigateToProfile}
-            >
-              <Avatar>
-                <AvatarFallback>DR</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>Dr. Rachel Wong</p>
-                <p className="text-sm text-gray-600">
-                  Computer Science
-                </p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
+      <Navbar title="Lecturer Portal" onNavigateToProfile={onNavigateToProfile} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -564,38 +544,45 @@ export function AttendanceReports({
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {recentReports.map((report) => (
-                <div
-                  key={report.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-blue-100 p-2 rounded">
-                      <FileText className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium">
-                        {report.title}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-sm text-gray-600">
-                          {report.date}
-                        </p>
-                        <Badge
-                          variant="outline"
-                          className="text-xs"
-                        >
-                          {report.tags.map(tag => tag).join(", ")}
-                        </Badge>
+              {recentReports.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No reports found.</p>
+              ) : (
+                recentReports.map((report) => (
+                  <div
+                    key={report.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="bg-blue-100 p-2 rounded">
+                        <FileText className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{report.title}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-sm text-gray-600">{report.date}</p>
+                          <Badge variant="outline" className="text-xs">
+                            {/* Join tags (e.g., "Daily • Present") */}
+                            {report.tags && report.tags.join(" • ")}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
+
+                    {/* --- THIS IS THE UPDATE --- */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      // Call the function with the specific Report ID and Filename
+                      onClick={() => handleDownloadFromList(report.id, report.fileName)}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                    {/* -------------------------- */}
+
                   </div>
-                  <Button variant="ghost" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

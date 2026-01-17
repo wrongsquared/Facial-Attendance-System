@@ -25,4 +25,4 @@ torch.onnx.export(
     dynamic_axes={"input": {0: "batch"}}
 )
 
-print("✅ Exported antispoof_best.onnx (112x112)")
+print(" Exported antispoof_best.onnx (112x112)")

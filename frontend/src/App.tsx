@@ -1,4 +1,4 @@
-import './styles/globals.css';
+import './index.css';
 import { useEffect, useState } from 'react';
 import { useAuth } from './cont/AuthContext';
 import { loginUser, getNotifications, } from './services/api';
@@ -36,7 +36,16 @@ import { StudentProgressTracker } from './components/StudentProgressTracker';
 import { CreateUser } from './components/CreateUser';
 import { UpdateUser } from './components/UpdateUser';
 import { Toast } from './components/Toast';
+import { Header } from './components/Header';
+import { HeroSection } from './components/HeroSection';
+import { AboutSection } from './components/AboutSection';
+import { FeaturesSection } from './components/FeaturesSection';
+import { TestimonialsSection } from './components/TestimonialsSection';
 import { Footer } from './components/Footer';
+import { AboutPage } from './components/AboutPage';
+import { FeaturesPage } from './components/FeaturesPage';
+import { ServicesPage } from './components/ServicesPage';
+import { RegistrationPage } from './components/RegistrationPage';
 import type { AttendanceRecord } from './components/Attendance';
 import { NotificationAlerts } from "./components/NotificationAlerts"; 
 import { NotificationItem } from './types/studentinnards';
@@ -61,9 +70,11 @@ type LecturerView = 'dashboard' | 'reports' | 'profile' | 'timetable' | 'records
 type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'manageCustomGoals' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser' | 'viewAdminProfile' | 'updateAdminProfile';
 type StudentView = 'dashboard' | 'attendanceHistory' | 'timetable' | 'profile' | 'progress';
 type PlatformManagerView = 'dashboard' | 'manageInstitutions' | 'viewInstitution' | 'updateInstitution' | 'createInstitution';
+type MarketingPage = 'home' | 'about' | 'features' | 'services' | 'registration' | 'login';
 
 export default function App() {
-  const { user, login, logout, loading, token } = useAuth(); 
+  const { user, login, logout, loading, token } = useAuth();
+  const [currentPage, setCurrentPage] = useState<MarketingPage>('home');
   const [lecturerView, setLecturerView] = useState<LecturerView>('dashboard');
   const [adminView, setAdminView] = useState<AdminView>('dashboard');
   const [studentView, setStudentView] = useState<StudentView>('dashboard');
@@ -588,17 +599,52 @@ export default function App() {
     console.log("Institution updated in App.tsx:", updatedData);
   };
 
-  // Show login page if no user is logged in
+  // Make setCurrentPage available globally for navigation from marketing website Header
+  (window as any).navigateTo = setCurrentPage;
+
+  // Show marketing website pages if no user is logged in
   if (!user) {
+     // Marketing page - About
+    if (currentPage === 'about') {
+      return <AboutPage />;
+    }
+    
+    // Marketing page - Features
+    if (currentPage === 'features') {
+      return <FeaturesPage />;
+    }
+    
+    // Marketing page - Services
+    if (currentPage === 'services') {
+      return <ServicesPage />;
+    }
+    
+    // Marketing page - Registration
+    if (currentPage === 'registration') {
+      return <RegistrationPage />;
+    }
+    
+    // Marketing page - Login
+    if (currentPage === 'login') {
+      return <LoginPage onLogin={handleLogin} />;
+    }
+    
+    // Marketing page - Home (default)
     return (
-      <div className="flex flex-col min-h-screen">
-        <LoginPage onLogin={handleLogin} />
+       <div className="min-h-screen bg-black">
+        <Header />
+        <main>
+          <HeroSection />
+          <AboutSection />
+          <FeaturesSection />
+          <TestimonialsSection />
+        </main>
         <Footer />
       </div>
     );
   }
 
-  // Normalize to lowercase to match your strict comparisons
+  // Normalize to lowercase to match strict comparisons
   const userRole = user.role_name.toLowerCase();
 
 
@@ -808,9 +854,9 @@ export default function App() {
       )}
       {userRole === 'admin' && adminView === 'adminReports' && (
         <AdminAttendanceReports
+          onNavigateToProfile = {handleNavigateToAdminProfile}
           onLogout={handleLogout}
-          onBack={handleBackToAdminDashboard}
-        />
+          onBack={handleBackToAdminDashboard}/>
       )}
       {userRole === 'admin' && adminView === 'viewAdminProfile' && (
         <ViewAdminProfile 

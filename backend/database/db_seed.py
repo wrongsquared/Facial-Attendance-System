@@ -98,6 +98,7 @@ def userProfileSeeder(dbSessionLocalInstance: Session, spbase: Client):
 
 def platSeed(dbSessionLocalInstance: Session, spbase: Client):
     uni = dbSessionLocalInstance.query(University).all()
+    fake = Faker()
     for u in uni:
         # grab the first campus found for a university.
         target_campus = dbSessionLocalInstance.query(Campus).filter_by(universityID=u.universityID).first()
@@ -131,7 +132,7 @@ def platSeed(dbSessionLocalInstance: Session, spbase: Client):
             print(f"  - Error creating Auth user for {email}: {e}")
             # Optional: Try to fetch existing UID if create failed
             continue
-
+        address = fake.address()
         # Create the PManager
         new_manager = PlatformMgr(
             userID=uuid.UUID(str(user_uuid)),
@@ -139,7 +140,8 @@ def platSeed(dbSessionLocalInstance: Session, spbase: Client):
             role = "Platform Manager",
             email=email,
             name=name,
-            photo = None
+            photo = None,
+            fulladdress = address
         )
         
         dbSessionLocalInstance.add(new_manager)
@@ -178,6 +180,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
     baseemail = "student@uow.edu.au"
     basepass = "Valid123"
     user_uuid = createAccountgetuuid(baseemail, basepass, True)
+    address = fake.address()
     dbSessionLocalInstance.add(Student(userID = uuid.UUID(str(user_uuid)),
                                        profileType = studentProfile,
                                        email = baseemail,
@@ -185,7 +188,8 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
                                        studentNum = "190036",
                                        attendanceMinimum = 75.0,
                                        course = rCourse,
-                                        photo = None))
+                                        photo = None,
+                                        fulladdress= address))
     studNums.append("190036")
     while len(specialNames) > 0:
         name = specialNames.pop()
@@ -204,7 +208,8 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
                 break
         if not user_uuid:
             print(f" Skipping {name} ({email}): Auth creation failed (User might exist or error).")
-            continue # Skip to next loop iteration, DO NOT try to insert into DB
+            continue # Skip to next loop
+        address = fake.address()
         dbSessionLocalInstance.add(Student(
                                         userID = uuid.UUID(str(user_uuid)),
                                         profileType = studentProfile,
@@ -213,9 +218,9 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
                                         studentNum = studNumGenstr,
                                         attendanceMinimum = 75.0,
                                         course = rCourse,
-                                        photo = None))
-                                        #EntLeave
-                                        #StudentModules
+                                        photo = None,
+                                        fulladdress= address ))
+
     dbSessionLocalInstance.commit()
 
     return None
@@ -231,12 +236,14 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client):
     baseemail = "Admin@uow.edu.au"
     basepass = "Valid123"
     user_uuid = createAccountgetuuid(baseemail, basepass, True)
+    address = fake.address()
     dbSessionLocalInstance.add(Admin(userID = uuid.UUID(str(user_uuid)),
                                     profileType = AdminProfile, 
                                     name = "James Looker",
                                     role = "System Administrator",
                                     email = baseemail,
-                                    photo = None))
+                                    photo = None,
+                                    fulladdress= address ))
 
 
     userNames = []
@@ -263,13 +270,15 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client):
         email = username + "@uow.edu.au"
         # For simplicity's sake username is the password.
         user_uuid = createAccountgetuuid(email, "Valid123", True)
+        address = fake.address()
         # Ghost Users that can not be logged in to
         dbSessionLocalInstance.add(Admin(userID = uuid.UUID(str(user_uuid)),
                                         profileType = AdminProfile,
                                         email = email,
                                         role = "System Administrator",
                                         name = name, 
-                                        photo = None))
+                                        photo = None,
+                                        fulladdress= address ))
 
     dbSessionLocalInstance.commit()
 
@@ -286,13 +295,14 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client):
     basepass = "Valid123"
 
     user_uuid = createAccountgetuuid(baseemail, basepass, True)
-
+    address = fake.address()
     dbSessionLocalInstance.add(Lecturer(userID = uuid.UUID(str(user_uuid)),
                                         profileType = LecturerProfile, 
                                         name = "Agnes Lam",
                                         specialistIn = "Computer Science",
                                         email = baseemail, 
-                                        photo = None))
+                                        photo = None,
+                                        fulladdress = address))
     
     userNames = []
     specialNames = []
@@ -319,12 +329,14 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client):
             spec = random.choice(['Computer Science', 'Business'])
             #For simplicity, Username is the password!
             user_uuid = createAccountgetuuid(email, "Valid123", True)
+            address = fake.address()
             dbSessionLocalInstance.add(Lecturer(userID = uuid.UUID(str(user_uuid)),
                                                 profileType = LecturerProfile, 
                                                 name = name,
                                                 specialistIn = spec,
                                                 email = email,
-                                                photo = None))
+                                                photo = None,
+                                                fulladdress = address))
     dbSessionLocalInstance.commit()
 
     return None

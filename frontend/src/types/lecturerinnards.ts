@@ -2,8 +2,8 @@ export interface LecturerProfileData {
   name: string;
   email: string;
   specialistIn: string;
-  phone?: string;
-  fulladdress?: string;
+  contactNumber?: string;
+  address?: string;
   emergencyContactName?: string;
   emergencyContactRelationship?: string;
   emergencyContactNumber?: string;
@@ -35,12 +35,12 @@ export interface MonthlyTimetable{
 
 
 export interface AttendanceLogEntry{
-    user_id: string;               
-    student_name: string;          
-    module_code: string;           
-    status: 'Present' | 'Absent' | 'Late';
-    date: string;                 
-    lesson_id: number;
+  user_id: string;               
+  student_name: string;          
+  module_code: string;           
+  status: 'Present' | 'Absent' | 'Late';
+  date: string;                 
+  lesson_id: number;
 
   liveCheck?: string;
   cameraLocation?: string;
@@ -55,4 +55,12 @@ export interface AttendanceLogFilters {
   status?: "Present" | "Absent" | "Late" | "All";
   date?: string; // "YYYY-MM-DD"
   page?: number;
+  limit?: number;
+}
+
+export interface AttendanceLogResponse {
+  data: AttendanceLogEntry[];
+  total: number;
+  page: number;
+  limit: number;
 }

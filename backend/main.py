@@ -26,7 +26,8 @@ from routers import (adminDashboardRouter,
                      lecturerDashboardRouter, 
                      lecturerInnardsRouter,
                      PlatformManagerRouter, 
-                     studentInnardsRouter)
+                     studentInnardsRouter,
+                     adminInnardsRouter)
 
 
 app = FastAPI()
@@ -288,3 +289,4 @@ app.include_router(lecturerDashboardRouter.router, tags=['lecturer'])
 app.include_router(PlatformManagerRouter.router)
 app.include_router(studentInnardsRouter.router)
 app.include_router(lecturerInnardsRouter.router)
+app.include_router(adminInnardsRouter.router)

@@ -15,8 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import logoImage from "figma:asset/7f4aea41a772ddccb866f53538bcc63281191ac1.png";
-import { LoginCredentials } from "../services/api";
+import { ArrowLeft } from "lucide-react";
+import logoImage from "../assets/Logo.png";
+import { LoginCredentials } from "../types/auth";
 
 interface LoginPageProps {
   onLogin: (creds: LoginCredentials, selectedRole: string) => void;
@@ -50,12 +51,28 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     }
   };
 
+  const handleBackToHome = () => {
+    if ((window as any).navigateTo) {
+      (window as any).navigateTo("home");
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 relative">
+      {/* Back Button */}
+      <Button
+        variant="ghost"
+        className="absolute top-4 left-4 flex items-center gap-2 text-gray-600 hover:text-gray-900"
+        onClick={handleBackToHome}
+      >
+        <ArrowLeft className="w-5 h-5" />
+        <span>Back to Home</span>
+      </Button>
+      
       <Card className="w-full max-w-xl shadow-lg">
         <CardHeader className="space-y-6 pb-8">
           <div className="flex flex-col md:flex-row md:relative md:items-start items-center gap-4">
-            <div className="md:absolute md:left-0 flex flex-col items-center justify-center md:min-w-[120px]">
+            <div className="md:absolute md:left-0 flex flex-col items-center justify-center md:min-w-30">
               <div className="text-center">
                 <img
                   src={logoImage}

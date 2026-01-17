@@ -10,7 +10,6 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import {
-  LogOut,
   ArrowLeft,
   Search,
   ChevronLeft,
@@ -39,7 +38,7 @@ import {
 } from "./ui/popover";
 import { Calendar } from "./ui/calendar";
 import { AttendanceLogEntry } from "../types/lecturerinnards";
-import { getAttendanceLog } from "../services/api";
+import { getAttendanceLog, getLecturerModuleList } from "../services/api";
 import {
   Dialog,
   DialogContent,
@@ -56,7 +55,7 @@ interface LecturerAttendanceRecordsProps {
   onNavigateToProfile: () => void;
 }
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 10;
 
 export function LecturerAttendanceRecords({
   onLogout,
@@ -74,7 +73,8 @@ export function LecturerAttendanceRecords({
   const [recentAttendanceLog, setRecentAttendanceLog] = useState<AttendanceLogEntry[]>([]);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [loading, setLoading] = useState(false);
-
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [moduleList, setModuleList] = useState<string[]>([]);
 
   // Filter records
     const formatDate = (date: Date) => {
@@ -84,7 +84,27 @@ export function LecturerAttendanceRecords({
       year: "numeric",
     });
   };
+    useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1); // Important: Reset to Page 1 when searching
+      }, 500);
 
+      return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    useEffect(() => {
+    const fetchModules = async () => {
+      if (!token) return;
+      try {
+        const modules = await getLecturerModuleList(token);
+        setModuleList(modules);
+      } catch (err) {
+        console.error("Failed to load module list", err);
+      }
+    };
+    fetchModules();
+  }, [token]);
     useEffect(() => {
     const fetchData = async () => {
       if (!token) return;
@@ -97,17 +117,18 @@ export function LecturerAttendanceRecords({
            // Trick: use the 'en-CA' locale to get YYYY-MM-DD
            dateStr = selectedDate.toLocaleDateString("en-CA");
         }
-        console.log("SENDING DATE:", dateStr); 
 
-        const data = await getAttendanceLog(token, {
+        const response = await getAttendanceLog(token, {
           searchTerm: debouncedSearch,
           moduleCode: selectedModule === "all" ? undefined : selectedModule,
           status: selectedStatus === "all" ? undefined : (selectedStatus as any),
-          date: dateStr, // Sends "2026-01-06"
-          page: 1
+          date: dateStr, 
+          page: currentPage,
+          limit: ITEMS_PER_PAGE
         });
-        setRecentAttendanceLog(data);
-        setCurrentPage(1);
+        console.log("API RESPONSE RAW:", response); 
+        setRecentAttendanceLog(response.data || []); 
+        setTotalRecords(response.total || 0);
       } catch (err) {
         console.error(err);
       } finally {
@@ -115,11 +136,9 @@ export function LecturerAttendanceRecords({
       }
     };
     fetchData();
-  }, [token, debouncedSearch, selectedModule, selectedStatus, selectedDate]);
+  }, [token, debouncedSearch, selectedModule, selectedStatus, selectedDate, currentPage]);
   
-  const totalPages = Math.ceil(recentAttendanceLog.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentRecords = recentAttendanceLog.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(totalRecords / ITEMS_PER_PAGE);
 
   // Helper for Status Badge Color
   const getStatusColor = (status: string) => {
@@ -171,8 +190,11 @@ export function LecturerAttendanceRecords({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Modules</SelectItem>
-                  <SelectItem value="CSCI334">CSCI334</SelectItem>
-                  <SelectItem value="CSCI203">CSCI203</SelectItem>
+                  {moduleList.map((mod: any) => (
+                    <SelectItem key={mod.moduleCode} value={mod.moduleCode}>
+                      {mod.moduleCode}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
@@ -232,9 +254,13 @@ export function LecturerAttendanceRecords({
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
-                  {currentRecords.length > 0 ? (
-                    currentRecords.map((record, index) => (
+                <TableBody> 
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">Loading records...</TableCell>
+                    </TableRow>
+                  ) : recentAttendanceLog?.length > 0 ? (
+                    recentAttendanceLog.map((record, index) => (
                       <TableRow key={`${record.user_id}-${index}`}>
                         <TableCell>{record.user_id}</TableCell>
                         <TableCell>{record.student_name}</TableCell>

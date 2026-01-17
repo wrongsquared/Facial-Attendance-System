@@ -30,7 +30,7 @@ def is_real_face_raw(img_bgr):
     x = preprocess(img_bgr)
     logits = sess.run(None, {"input": x})[0][0]
 
-    # 🔥 Temperature scaling
+    # Temperature scaling
     logits = logits / TEMPERATURE
 
     probs = softmax(logits)

@@ -8,9 +8,11 @@ from schemas import( WeeklyLesson,
                      StudentProgressResponse,
                      AttendanceLogItem,
                      StudentProfileDetails,
-                     NotificationItem
+                     NotificationItem,
+                     UserProfileUpdate,
+                     viewUserProfile
                      )
-from database.db import  Lesson, Module,  StudentModules, LecMod, AttdCheck, Student
+from database.db import  Lesson, Module,  StudentModules, LecMod, AttdCheck, Student, User
 
 
 router = APIRouter() 
@@ -322,3 +324,36 @@ def get_student_notifications(
             })
 
     return alerts
+
+
+@router.put("/student/profile/update", response_model=viewUserProfile)
+def update_user_profile(
+    updates: UserProfileUpdate, # The data sent from the frontend
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Updates the user's personal information and emergency contact in a single transaction.
+    """
+    
+    # Find the User Record
+    user_record = db.query(User).filter(User.userID == user_id).first()
+    
+    if not user_record:
+        raise HTTPException(status_code=404, detail="User profile not found.")
+
+    # Get the non-None values from the Pydantic input model
+    # We use .model_dump(exclude_none=True) to only get fields the user submitted
+    update_data = updates.model_dump(exclude_unset=True)
+
+    # Apply the updates to the ORM object
+    for key, value in update_data.items():
+        # Use setattr to dynamically update the ORM attribute (e.g., user_record.name = "new name")
+        setattr(user_record, key, value)
+    
+    # Commit and Refresh
+    db.commit()
+    db.refresh(user_record)
+    
+    # Return the full, updated profile
+    return user_record

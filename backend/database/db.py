@@ -77,7 +77,7 @@ class User(Base): #User
 
     profileTypeID: Mapped[int] = mapped_column(ForeignKey("userprofiles.profileTypeID"))
     profileType: Mapped[UserProfile] = relationship(back_populates="users")
-    creationDate: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default= func.now())
+    creationDate: Mapped[datetime.datetime|None]
 
     #Basic Details
     name: Mapped[str] = mapped_column(String(50))
@@ -92,7 +92,7 @@ class User(Base): #User
 
     # Password is not required as it is stored as hash in the hidden supabase password table
     photo: Mapped[str | None] #Allows for None, as we figure out how we want to store the photo.
-    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    active: Mapped[bool| None] = mapped_column(Boolean, default=True)
 
 #Add a Platform Manager
 class PlatformMgr(User): #Admin, Child of User
@@ -162,8 +162,8 @@ class Module(Base): #Modules
     moduleCode: Mapped[str] = mapped_column(String(8))
     lecMod: Mapped[list[LecMod]] = relationship(back_populates="modules")
     studentModules: Mapped[list[StudentModules]] = relationship(back_populates="modules")
-    startDate: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True))
-    endDate: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True))
+    startDate: Mapped[datetime.datetime|None]
+    endDate: Mapped[datetime.datetime|None]
 
 class Lesson(Base): # Lessons by Lecturers, belongs to Modules
     __tablename__ = "lessons"
