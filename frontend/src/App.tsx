@@ -639,7 +639,6 @@ export default function App() {
           <FeaturesSection />
           <TestimonialsSection />
         </main>
-        <Footer />
       </div>
     );
   }
@@ -863,6 +862,7 @@ export default function App() {
           onLogout={handleLogout} 
           onBack={handleBackToAdminDashboard}
           onUpdateProfile={handleNavigateToUpdateAdminProfile}
+          onSave={handleSaveAdminProfile}
           adminData={adminProfileData}
         />
       )}

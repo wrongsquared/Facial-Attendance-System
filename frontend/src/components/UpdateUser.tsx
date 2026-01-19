@@ -217,7 +217,7 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
                 <Button variant="outline" onClick={handleCancel}>
                   Cancel
                 </Button>
-                <Button onClick={handleSaveChanges}>
+                <Button onClick={handleSaveChanges} className="bg-blue-600 text-white hover:bg-blue-700">
                   Save Changes
                 </Button>
               </div>

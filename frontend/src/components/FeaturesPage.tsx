@@ -71,7 +71,7 @@ export function FeaturesPage() {
                 const Icon = feature.icon;
                 return (
                   <div key={index} className="flex gap-6">
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                       <Icon className="w-12 h-12 text-white" strokeWidth={1.5} />
                     </div>
                     <div>
@@ -89,7 +89,6 @@ export function FeaturesPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </div>
   );
 }

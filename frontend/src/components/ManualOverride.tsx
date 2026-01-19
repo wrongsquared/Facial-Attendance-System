@@ -240,6 +240,7 @@ export function ManualOverride({
               <Button
                 onClick={handleSave}
                 disabled={!selectedStatus || !selectedReason}
+                className="bg-blue-600 text-white hover:bg-blue-700"
               >
                 Save Changes
               </Button>

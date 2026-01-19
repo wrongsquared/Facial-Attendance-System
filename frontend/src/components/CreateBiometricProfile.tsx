@@ -223,6 +223,7 @@ export function CreateBiometricProfile({
               <Button
                 onClick={handleSave}
                 disabled={!userId || !userName || !role}
+                className="bg-blue-600 text-white hover:bg-blue-700"
               >
                 Save Changes
               </Button>
@@ -230,7 +231,6 @@ export function CreateBiometricProfile({
           </CardContent>
         </Card>
       </main>
-
     </div>
   );
 }

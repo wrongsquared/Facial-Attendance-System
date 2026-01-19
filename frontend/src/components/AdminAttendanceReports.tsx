@@ -230,7 +230,7 @@ export function AdminAttendanceReports({
                   <div className="flex gap-3">
                     <Button
                       type="button"
-                      className={`flex-1 h-12 rounded-xl text-sm font-medium transition-colors border !border-blue-600 
+                      className={`flex-1 h-12 rounded-xl text-sm font-medium transition-colors border border-blue-600! 
                         ${reportType === "Module Performance"
                           ? "bg-blue-600 text-white hover:bg-blue-700"
                           : "bg-white text-blue-600 hover:bg-blue-50"
@@ -243,7 +243,7 @@ export function AdminAttendanceReports({
 
                     <Button
                       type="button"
-                      className={`flex-1 h-12 rounded-xl text-sm font-medium transition-colors border !border-blue-600 
+                      className={`flex-1 h-12 rounded-xl text-sm font-medium transition-colors border border-blue-600! 
                         ${reportType === "Low Attendance Rate"
                           ? "bg-blue-600 text-white hover:bg-blue-700"
                           : "bg-white text-blue-600 hover:bg-blue-50"

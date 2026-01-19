@@ -236,7 +236,6 @@ export function RegistrationPage() {
           </form>
         </div>
       </main>
-
     </div>
   );
 }

@@ -207,7 +207,6 @@ export function CreateCustomGoal({
           </CardContent>
         </Card>
       </main>
-
     </div>
   );
 }

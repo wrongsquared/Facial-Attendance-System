@@ -271,7 +271,6 @@ export function UpdateBiometricProfile({
           </CardContent>
         </Card>
       </main>
-
     </div>
   );
 }

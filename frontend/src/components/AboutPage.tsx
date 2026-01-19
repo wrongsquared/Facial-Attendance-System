@@ -148,28 +148,28 @@ export function AboutPage() {
             
             <div className="space-y-6">
               <div className="flex gap-4">
-                <div className="flex-shrink-0 w-2 h-2 bg-white rounded-full mt-2" />
+                <div className="shrink-0 w-2 h-2 bg-white rounded-full mt-2" />
                 <p className="text-white/90 text-lg leading-relaxed">
                   <span className="font-semibold">Efficiency:</span> Real-time attendance logging with no delays.
                 </p>
               </div>
 
               <div className="flex gap-4">
-                <div className="flex-shrink-0 w-2 h-2 bg-white rounded-full mt-2" />
+                <div className="shrink-0 w-2 h-2 bg-white rounded-full mt-2" />
                 <p className="text-white/90 text-lg leading-relaxed">
                   <span className="font-semibold">Security:</span> Strong data protection with encrypted student profiles and compliance with GDPR.
                 </p>
               </div>
 
               <div className="flex gap-4">
-                <div className="flex-shrink-0 w-2 h-2 bg-white rounded-full mt-2" />
+                <div className="shrink-0 w-2 h-2 bg-white rounded-full mt-2" />
                 <p className="text-white/90 text-lg leading-relaxed">
                   <span className="font-semibold">Scalability:</span> Designed for large lecture halls, providing seamless attendance tracking for hundreds of students.
                 </p>
               </div>
 
               <div className="flex gap-4">
-                <div className="flex-shrink-0 w-2 h-2 bg-white rounded-full mt-2" />
+                <div className="shrink-0 w-2 h-2 bg-white rounded-full mt-2" />
                 <p className="text-white/90 text-lg leading-relaxed">
                   <span className="font-semibold">User-Friendly:</span> Easy-to-use interface for students, lecturers, and admins across both desktop and mobile devices.
                 </p>
@@ -178,8 +178,6 @@ export function AboutPage() {
           </div>
         </section>
       </main>
-      
-      <Footer />
     </div>
   );
 }
