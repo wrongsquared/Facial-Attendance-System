@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
-import { useAuth } from "../cont/AuthContext"; 
+import { useAuth } from "../cont/AuthContext";
 import { Navbar } from "./Navbar";
 
 interface AdminAttendanceReportsProps {
@@ -76,20 +76,20 @@ export function AdminAttendanceReports({
 }: AdminAttendanceReportsProps) {
   // 1. State Management
   const [reportType, setReportType] = useState<"Module Performance" | "Low Attendance Rate">
-  ("Module Performance");
-  
+    ("Module Performance");
+
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [selectedModule, setSelectedModule] = useState("All"); 
-  
+  const [selectedModule, setSelectedModule] = useState("All");
+
   // Data from API
   const [recentReports, setRecentReports] = useState<Report[]>([]);
   const [modulesList, setModulesList] = useState<Module[]>([]);
-  
+
   const { token } = useAuth();
 
   // 2. Fetch Data
-// Replace your existing fetchData with this:
+  // Replace your existing fetchData with this:
   const fetchData = async () => {
     console.log("--- FETCHING DATA START ---");
     console.log("Current Token:", token);
@@ -104,9 +104,9 @@ export function AdminAttendanceReports({
       const res = await fetch("http://localhost:8000/admin/reports/history", {
         headers: { "Authorization": `Bearer ${token}` }
       });
-      
+
       console.log("History Status:", res.status);
-      
+
       if (res.ok) {
         const data = await res.json();
         console.log("History Data Received:", data);
@@ -115,8 +115,8 @@ export function AdminAttendanceReports({
         const errText = await res.text();
         console.error("History Error Response:", errText);
       }
-    } catch (e) { 
-      console.error("History Network Error:", e); 
+    } catch (e) {
+      console.error("History Network Error:", e);
     }
 
     // 2. Fetch Modules
@@ -132,8 +132,8 @@ export function AdminAttendanceReports({
         console.log("Modules Data Received:", data);
         setModulesList(data);
       }
-    } catch (e) { 
-      console.error("Modules Network Error:", e); 
+    } catch (e) {
+      console.error("Modules Network Error:", e);
     }
   };
 
@@ -155,7 +155,7 @@ export function AdminAttendanceReports({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = fileName.endsWith('.csv') ? fileName : `${fileName}.csv`; 
+      a.download = fileName.endsWith('.csv') ? fileName : `${fileName}.csv`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -214,7 +214,7 @@ export function AdminAttendanceReports({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
+
           {/* Report Generation Form (2 Columns) */}
           <div className="lg:col-span-2">
             <Card>
@@ -223,7 +223,7 @@ export function AdminAttendanceReports({
                 <CardDescription>Configure and Generate attendance reports</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                
+
                 {/* 1. Report Type Buttons (Large Toggle Style) */}
                 <div className="space-y-3">
                   <Label>Report Type</Label>
@@ -232,8 +232,8 @@ export function AdminAttendanceReports({
                       type="button"
                       className={`flex-1 h-12 rounded-xl text-sm font-medium transition-colors border !border-blue-600 
                         ${reportType === "Module Performance"
-                            ? "bg-blue-600 text-white hover:bg-blue-700"
-                            : "bg-white text-blue-600 hover:bg-blue-50"
+                          ? "bg-blue-600 text-white hover:bg-blue-700"
+                          : "bg-white text-blue-600 hover:bg-blue-50"
                         }
                       `}
                       onClick={() => setReportType("Module Performance")}
@@ -245,8 +245,8 @@ export function AdminAttendanceReports({
                       type="button"
                       className={`flex-1 h-12 rounded-xl text-sm font-medium transition-colors border !border-blue-600 
                         ${reportType === "Low Attendance Rate"
-                            ? "bg-blue-600 text-white hover:bg-blue-700"
-                            : "bg-white text-blue-600 hover:bg-blue-50"
+                          ? "bg-blue-600 text-white hover:bg-blue-700"
+                          : "bg-white text-blue-600 hover:bg-blue-50"
                         }
                       `}
                       onClick={() => setReportType("Low Attendance Rate")}
@@ -359,8 +359,8 @@ export function AdminAttendanceReports({
                         </div>
                       </div>
                     </div>
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="sm"
                       onClick={() => handleDownloadFile(report.id, report.fileName)}
                     >

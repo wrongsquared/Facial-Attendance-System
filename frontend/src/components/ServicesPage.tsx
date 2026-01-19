@@ -2,6 +2,7 @@ import { Header } from './Header';
 
 import { Check, X } from 'lucide-react';
 import { Button } from './ui/button';
+import { Footer } from './Footer';
 
 export function ServicesPage() {
   const comparisonFeatures = [
@@ -165,7 +166,7 @@ export function ServicesPage() {
           </div>
         </section>
       </main>
-
+      <Footer />
     </div>
   );
 }

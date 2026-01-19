@@ -6,34 +6,41 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Button } from "./ui/button";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import {
-  BookOpen,
-  LogOut,
-  Bell,
-  Settings,
   ArrowLeft,
   Users,
   Mail,
   Phone,
   ShieldCheck,
-  MapPin
+  MapPin,
+  Search,
+  Plus,
+  Filter,
+  CheckCircle2,
+  XCircle
 } from "lucide-react";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
-import { Badge } from "./ui/badge";
-
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useAuth } from "../cont/AuthContext";
+import { Navbar } from "./Navbar";
 
 interface ViewInstitutionProfileProps {
   onLogout: () => void;
@@ -45,37 +52,26 @@ interface ViewInstitutionProfileProps {
   };
 }
 
-// 1. Represents an Administrative User (linked via UserProfile -> Campus)
 export interface AdminUser {
-  userID: string;       // UUID from your backend
+  userID: string;
   name: string;
   email: string;
-  phone: string | null; // mapped from 'contactNumber' in your DB
-  type: string;         // 'admin'
-  status: string;       // Usually hardcoded as "Active" or mapped from isActive
+  phone: string | null;
+  type: string;
+  isActive: boolean;
 }
 
-// 2. Represents the University details
 export interface UniversityDetails {
   campusID: number;
   campusName: string;
   campusAddress: string;
-  subscriptionDate: string; // Date string from ISO format
+  subscriptionDate: string;
   isActive: boolean;
 }
 
-// 3. The final response structure from your FastAPI /institution/{id} call
 export interface InstitutionFullProfile {
   details: UniversityDetails;
   admins: AdminUser[];
-}
-
-// 4. (Optional) If you ever fetch just the list of campuses for a university
-export interface Campus {
-  campusID: number;
-  campusName: string;
-  campusAddress: string;
-  universityID: number;
 }
 
 export function ViewInstitutionProfile({
@@ -84,123 +80,168 @@ export function ViewInstitutionProfile({
   onEditProfile,
   institutionData,
 }: ViewInstitutionProfileProps) {
-  
 
-  // 1. Define a state at the top of your component to hold the data
+  // Data State
   const [profileData, setProfileData] = useState<InstitutionFullProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const { token } = useAuth()
+  // Filter States
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  // Modal State
+  const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
+  const [newAdmin, setNewAdmin] = useState({ name: "", email: "", contactNumber: "", password: "" });
+
+  const { token } = useAuth();
+
+  // 1. Fetch Data
+  const fetchInstitutionProfile = async () => {
+    if (!token || !institutionData.institutionId) return;
+
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `http://localhost:8000/platform-manager/institution/${institutionData.institutionId}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to fetch data");
+      const data = await response.json();
+      setProfileData(data);
+    } catch (err) {
+      console.error("Error:", err);
+      toast.error("Failed to load profile");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchInstitutionProfile = async () => {
-      // Ensure we have a token and an ID before fetching
-      if (!token || !institutionData.institutionId) return;
+    fetchInstitutionProfile();
+  }, [token, institutionData.institutionId]);
 
-      try {
-        setLoading(true);
+  // 2. Add Admin Logic (Updated to handle Form Submission)
+  const handleAddAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-        // We call the specific institution endpoint using the ID from props
-        const response = await fetch(
-          `http://localhost:8000/platform-manager/institution/${institutionData.institutionId}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`,
-            },
-          }
-        );
+    try {
+      const response = await fetch(`http://localhost:8000/platform-manager/campus/${institutionData.institutionId}/add-admin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(newAdmin),
+      });
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch institution profile");
+      const data = await response.json();
+      if (!response.ok) {
+
+        if (Array.isArray(data.detail)) {
+          throw new Error("Missing Data or Invalid Field");
         }
 
-        const data = await response.json();
-
-        // This 'data' now contains:
-        // data.details -> University info (Name, Address, etc.)
-        // data.admins  -> The list of Daniel, James, etc.
-        setProfileData(data);
-
-      } catch (err) {
-        console.error("Error while fetching profile:", err);
-      } finally {
-        setLoading(false);
+        if (typeof data.detail === "string") {
+          throw new Error(data.detail);
+        }
       }
-    };
 
-    fetchInstitutionProfile();
-  }, [token, institutionData.institutionId]); // Re-run if token or selected ID changes
+      window.alert("Account has been successfully created!");
+      setIsAddAdminOpen(false);
+      setNewAdmin({ name: "", email: "", contactNumber: "", password: "" });
+      fetchInstitutionProfile();
+
+    } catch (error: any) {
+      console.error("Full Error Object:", error);
+
+      // 1. Show alert with error message
+      window.alert(error.message);
+
+      // 2. The original toast code
+      toast.error("Registration Failed", {
+        description: error.message
+      });
+    }
+  };
+
+  // 3. Change Status Logic
+  const handleStatusChange = async (userId: string, newStatus: string) => {
+    const isActiveBool = newStatus === "active";
+
+    // Optimistic Update
+    setProfileData((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        admins: prev.admins.map((admin) =>
+          admin.userID === userId ? { ...admin, isActive: isActiveBool } : admin
+        ),
+      };
+    });
+
+    try {
+      const response = await fetch(`http://localhost:8000/platform-manager/admin/${userId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isActive: isActiveBool }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update status");
+      toast.success(`User marked as ${newStatus}`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update status");
+      fetchInstitutionProfile();
+    }
+  };
+
+  // 4. Filtering Logic
+  const filteredAdmins = profileData?.admins.filter(admin => {
+    const matchesSearch =
+      admin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      admin.email.toLowerCase().includes(searchQuery.toLowerCase());
+
+    let matchesStatus = true;
+    if (statusFilter === "active") matchesStatus = admin.isActive === true;
+    if (statusFilter === "inactive") matchesStatus = admin.isActive === false;
+
+    return matchesSearch && matchesStatus;
+  }) || [];
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">Platform Manager Portal</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon"><Bell className="h-5 w-5" /></Button>
-            <Button variant="ghost" size="icon"><Settings className="h-5 w-5" /></Button>
-            <div className="flex items-center gap-3">
-              <Avatar><AvatarFallback>PM</AvatarFallback></Avatar>
-              <div className="hidden md:block">
-                <p>Platform Manager</p>
-                <p className="text-sm text-gray-600">System Manager</p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm"><LogOut className="h-4 w-4 mr-2" />Logout</Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>Are you sure?</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>Logout</AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
+      <Navbar title="Platform Manager Portal" />
 
-      <main className="container mx-auto px-4 py-8 flex-1 max-w-6xl">
+      <main className="container mx-auto px-4 py-8 flex-1">
         <Button variant="ghost" onClick={onBack} className="mb-6">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Manage Institutions
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Manage Campus
         </Button>
 
         <div className="space-y-6">
-          {/* 1. HERO SECTION */}
+          {/* HERO SECTION */}
           <Card className="border-none shadow-sm bg-white overflow-hidden">
             <div className="h-1.5 bg-blue-600 w-full" />
             <CardContent className="p-8">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="space-y-4 w-full">
                   <h2 className="text-3xl font-bold text-gray-900">{institutionData.institutionName}</h2>
-
-                  {/* Fixed Spacing for ID, Address, and Badge */}
                   <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-black-500">
                     <span className="text-sm font-bold text-black">ID: {institutionData.institutionId}</span>
-
                     <div className="flex items-center">
-                      <MapPin className="h-5 w-5 text-black-400" />
-                      <span className="text-sm font-bold text-black-600">{profileData ? profileData.details.campusAddress : profileData}</span>
+                      <MapPin className="h-5 w-5 text-black-400 mr-2" />
+                      <span className="text-sm font-bold text-black-600">
+                        {profileData?.details?.campusAddress || "Loading..."}
+                      </span>
                     </div>
-
-
-
                   </div>
                 </div>
                 <Button onClick={onEditProfile} className="bg-blue-600 hover:bg-blue-700">Update Profile</Button>
@@ -208,7 +249,7 @@ export function ViewInstitutionProfile({
             </CardContent>
           </Card>
 
-          {/* 2. SECURITY NOTE */}
+          {/* SECURITY NOTE */}
           <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-center gap-4">
             <ShieldCheck className="h-5 w-5 text-blue-600" />
             <p className="text-sm text-blue-800 font-medium">
@@ -216,7 +257,7 @@ export function ViewInstitutionProfile({
             </p>
           </div>
 
-          {/* 3. UNIVERSITY ADMINS TABLE */}
+          {/* ADMINS TABLE */}
           <Card className="shadow-sm border-gray-200">
             <CardHeader className="flex flex-row items-center justify-between border-b pb-6">
               <div>
@@ -228,52 +269,178 @@ export function ViewInstitutionProfile({
                 </CardDescription>
               </div>
             </CardHeader>
+
+            {/* --- TOOLBAR --- */}
+            <CardContent className="p-4 bg-gray-50/30">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+
+                {/* SEARCH BAR */}
+                <div className="relative flex-1 ">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search admins by name or email..."
+                    className="pl-10 w-full "
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                {/* FILTERS & BUTTON */}
+                <div className="flex items-center gap-3 w-full md:w-auto">
+
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[180px] ">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <SelectValue placeholder="Status" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Suspended</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {/* --- DIALOG MODIFIED TO USE FORM --- */}
+                  <Dialog open={isAddAdminOpen} onOpenChange={setIsAddAdminOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap">
+                        Add Admin
+                      </Button>
+                    </DialogTrigger>
+
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle className="text-3xl text-center">Add New Administrator</DialogTitle>
+                        <DialogDescription className="text-center ">
+                          Create a new admin account linked to {institutionData.institutionName}.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      {/* START FORM */}
+                      <form onSubmit={handleAddAdmin}>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="name">Full Name</Label>
+                            <Input
+                              id="name"
+                              value={newAdmin.name}
+                              onChange={(e) => setNewAdmin({ ...newAdmin, name: e.target.value })}
+                              placeholder="John Doe"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="email">Email Address</Label>
+                            <Input
+                              id="email"
+                              type="email"
+                              value={newAdmin.email}
+                              onChange={(e) => setNewAdmin({ ...newAdmin, email: e.target.value })}
+                              placeholder="admin@uni.edu"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="contactNumber">Contact Number</Label>
+                            <Input
+                              id="contactNumber"
+                              value={newAdmin.contactNumber}
+                              onChange={(e) => setNewAdmin({ ...newAdmin, contactNumber: e.target.value })}
+                              placeholder="+65..."
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="password">Temp Password</Label>
+                            <Input
+                              id="password"
+                              type="password"
+                              value={newAdmin.password}
+                              onChange={(e) => setNewAdmin({ ...newAdmin, password: e.target.value })}
+                              placeholder="Min 6 chars"
+                            />
+                          </div>
+                        </div>
+
+                        <DialogFooter>
+                          {/* Type="submit" makes the form trigger onSubmit */}
+                          <Button type="submit" className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
+                            Create Account
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                      {/* END FORM */}
+
+                    </DialogContent>
+                  </Dialog>
+
+                </div>
+              </div>
+            </CardContent>
+
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-gray-50/50 text-black font-bold uppercase text-[10px] tracking-widest border-b">
                     <tr>
-                      {/* Four distinct headers */}
                       <th className="py-4 px-8">ID</th>
                       <th className="py-4 px-8">Full Name</th>
                       <th className="py-4 px-8">Email Address</th>
-                      <th className="py-4 px-8">Phone Number</th>
+                      <th className="py-4 px-8">Contact Number</th>
+                      <th className="py-4 px-8">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {profileData?.admins.map((user) => (
-                      <tr key={user.userID} className="hover:bg-gray-50/50 transition-colors">
-                        
-                        {/* Column 1: ID */}
-                        <td className="py-6 px-8">
-                          <code className="flex items-center text-black-900 font-bold">
-                            {user.userID}
-                          </code>
-                        </td>
+                    {filteredAdmins.length > 0 ? (
+                      filteredAdmins.map((user) => (
+                        <tr key={user.userID} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="py-6 px-8">
+                            <code className="flex items-center text-black-900 font-bold text-xs break-all">
+                              {user.userID}
+                            </code>
+                          </td>
+                          <td className="py-6 px-8">
+                            <div className="font-bold text-gray-900">{user.name}</div>
+                          </td>
+                          <td className="py-6 px-8">
+                            <div className="flex items-center text-gray-700 font-medium">
+                              <Mail className="h-4 w-4 mr-2 text-blue-500" />
+                              {user.email}
+                            </div>
+                          </td>
+                          <td className="py-6 px-8">
+                            <div className="flex items-center text-gray-700 font-medium">
+                              <Phone className="h-4 w-4 mr-2 text-gray-700" />
+                              {user.phone || <span className="text-gray-300 italic text-xs">Not provided</span>}
+                            </div>
+                          </td>
 
-                        {/* Column 2: Name */}
-                        <td className="py-6 px-8">
-                          <div className="font-bold text-gray-900">{user.name}</div>
+                          <td className="py-6 px-8">
+                            <Select
+                              value={user.isActive ? "active" : "inactive"}
+                              onValueChange={(val: string) => handleStatusChange(user.userID, val)}
+                            >
+                              <SelectTrigger className={`w-[140px] h-9 border-none font-medium transition-colors ${user.isActive
+                                ? "bg-green-100 text-green-700 hover:bg-green-200"
+                                : "bg-red-100 text-red-700 hover:bg-red-200"
+                                }`}>
+                                <div className="flex items-center gap-2">
+                                  <SelectValue />
+                                </div>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="inactive">Suspend</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-gray-500">
+                          {loading ? "Loading..." : "No administrators found."}
                         </td>
-
-                        {/* Column 3: Email */}
-                        <td className="py-6 px-8">
-                          <div className="flex items-center text-gray-700 font-medium">
-                            <Mail className="h-4 w-4 mr-2 text-blue-500" /> 
-                            {user.email}
-                          </div>
-                        </td>
-
-                        {/* Column 4: Phone */}
-                        <td className="py-6 px-8">
-                          <div className="flex items-center text-gray-700 font-medium">
-                            <Phone className="h-4 w-4 mr-2 text-gray-700" /> 
-                            {user.phone || <span className="text-gray-300 italic text-xs">Not provided</span>}
-                          </div>
-                        </td>
-                        
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>

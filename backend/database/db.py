@@ -55,6 +55,7 @@ class Campus(Base):
     profiles: Mapped[list["UserProfile"]] = relationship(back_populates="campus")
     # Has Different Courses
     courses: Mapped[list["Courses"]] = relationship(back_populates="campus")
+    created_at = mapped_column(DateTime, default=datetime.datetime)
 
 
 class UserProfile(Base): #User Profiles, Student, Lecturer, Admins
@@ -249,4 +250,11 @@ class GeneratedReport(Base):
     # File Location (Where we saved the Excel file)
     fileName: Mapped[str] = mapped_column(String(255))
     filePath: Mapped[str] = mapped_column(String(500))
-
+class InstitutionRegistration(BaseModel):
+    institutionName: str
+    institutionType: str
+    address: str
+    fullName: str
+    email: str
+    phoneNumber: str
+    password: str
