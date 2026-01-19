@@ -71,8 +71,10 @@ class AttendanceLogEntry(BaseModel):
     module_code: str           
     status: Literal['Present', 'Absent', 'Late'] 
     date: str                 
-    lesson_id: int             
-    
+    lesson_id: int
+    location: str
+    timestamp: str             
+    method: str
     class Config:
         from_attributes = True
 
@@ -85,14 +87,11 @@ class DetailedAttendanceRecord(BaseModel):
     
     # Details Section (Left Column)
     attendance_status: Literal['Present', 'Absent', 'Late']
-    live_check: Literal['Passed', 'Failed', 'N/A']
     timestamp: str 
-    virtual_tripwire: Literal['Triggered', 'Untriggered', 'N/A']
     
     # Details Section (Right Column)
     attendance_method: str
     camera_location: str
-    verification_type: str
     
     class Config:
         from_attributes = True

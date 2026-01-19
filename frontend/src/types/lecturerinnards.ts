@@ -42,12 +42,9 @@ export interface AttendanceLogEntry{
   date: string;                 
   lesson_id: number;
 
-  liveCheck?: string;
-  cameraLocation?: string;
-  verificationType?: string;
-  virtualTripwire?: string;
+  location?: string;
   timestamp?: string;
-  attendanceMethod?: string;
+  method?: string;
 }
 export interface AttendanceLogFilters {
   searchTerm?: string;
