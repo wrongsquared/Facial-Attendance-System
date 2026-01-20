@@ -52,176 +52,78 @@ def read_root(db: Session= Depends(get_db)):
     response = (supabase_adm.table("users").select("*").execute())
     return {"Message": response}
 
-@app.post("/register/institution", status_code=status.HTTP_201_CREATED)
-def register_institution(
-    form_data: InstitutionRegistration, 
-    db: Session = Depends(get_db)
-):
+@app.post("/register-institution", status_code=status.HTTP_201_CREATED)
+def register_user(payload: InstitutionRegistration, db: Session = Depends(get_db)):
+    
+    # 1. Check if University Name already exists
+    existing_uni = db.query(University).filter(University.universityName == payload.universityName).first()
+    if existing_uni:
+        raise HTTPException(status_code=400, detail="University Name already registered.")
+
+    # 2. Create User in Supabase Auth
+    new_uuid = None
     try:
-        # --- Step 1: Create University ---
-        # new_uni = University(
-        #     universityName=form_data.institutionName,
-        #     universityAddress=form_data.address,
-        #     subscriptionDate=datetime.now(),
-        #     isActive=True
-
-        # )
-        # db.add(new_uni)
-        # db.flush() # Generate ID
-
-        # # --- Step 2: Create Main Campus ---
-        # new_campus = Campus(
-        #     campusName=f"{form_data.institutionName}",
-        #     campusAddress=form_data.address,
-        #     universityID=new_uni.universityID,
-        #     created_at=datetime.now()
-        # )
-        # db.add(new_campus)
-        # db.flush() # Generate ID
-
-        # --- Step 3: Create Supabase Auth User ---
-        # We use supabase_adm (Service Role) because we are creating an admin
-        user_uuid = None
-        try:
-            user_payload = {
-                "email": form_data.email,
-                "password": form_data.password,
-                "email_confirm": True,
-                "user_metadata": { "name": form_data.fullName }
+        auth_response = supabase_adm.auth.admin.create_user({
+            "email": payload.email,
+            "password": payload.password,
+            "email_confirm": True,
+            "user_metadata": {
+                "name": payload.universityName,
+                "role": "Platform Manager" 
             }
-            auth_response = supabase_adm.auth.admin.create_user(user_payload)
-            user_uuid = auth_response.user.id
-        except Exception as auth_error:
-            print(f"Auth Error: {auth_error}")
-            raise HTTPException(status_code=400, detail="Email already registered or invalid password.")
+        })
+        new_uuid = UUID(auth_response.user.id)
+    except Exception as e:
+        # Handle specific Supabase errors (like email already exists)
+        raise HTTPException(status_code=400, detail=f"Auth Error: {str(e)}")
 
-        # --- Step 4: Handle User Profile ---
-        # Check/Create PManager Profile Type for this specific Campus
-        pm_profile = db.query(UserProfile).filter_by(
-            profileTypeName="PManager", 
-            campusID=new_campus.campusID
-        ).first()
+    # 3. Create Database Entries (University + Manager)
+    try:
+        # A. Create the University Row
+        new_university = University(
+            universityName=payload.universityName,
+            universityAddress="N/A", # Or pass from frontend if you uncomment address
+            subscriptionDate=datetime.now(),
+            isActive=True
+        )
+        db.add(new_university)
+        db.flush() # Flush to generate the new_university.universityID without committing yet
 
-        if not pm_profile:
-            pm_profile = UserProfile(
-                profileTypeName="PManager",
-                campusID=new_campus.campusID
-            )
-            db.add(pm_profile)
+        # B. Get or Create the 'Platform Manager' Profile Type
+        pm_profile_type = db.query(UserProfile).filter(UserProfile.profileTypeName == "PManager").first()
+        if not pm_profile_type:
+            # Fallback if seed didn't run
+            pm_profile_type = UserProfile(profileTypeName="PManager")
+            db.add(pm_profile_type)
             db.flush()
 
-        # --- Step 5: Create Platform Manager Record ---
+        # C. Create the Platform Manager User
         new_manager = PlatformMgr(
-            userID=UUID(str(user_uuid)),
-            profileTypeID=pm_profile.profileTypeID, 
+            userID=new_uuid,
+            profileTypeID=pm_profile_type.profileTypeID,
+            universityID=new_university.universityID, # Link to the new Uni
+            email=payload.email,
+            name=f"Manger of {payload.universityName}",
             role="Platform Manager",
-            email=form_data.email,
-            name=form_data.fullName,
-            photo=None,
-            address=form_data.address,
-            phone=form_data.phoneNumber
+            address="N/A",
+            
         )
         
         db.add(new_manager)
         db.commit()
+        
+        return {"Institution registered successfully"}
 
-        return {
-            "message": "Institution registered successfully",
-            "uni_id": new_uni.universityID,
-            "user_id": user_uuid
-        }
-
-    except HTTPException as he:
-        db.rollback()
-        raise he
     except Exception as e:
         db.rollback()
-        print(f"Registration Error: {str(e)}")
-        # Optional: Delete auth user if DB failed to prevent ghost users
-        if 'user_uuid' in locals() and user_uuid:
+        # Clean up Supabase user so they aren't stuck with an account but no DB data
+        if new_uuid:
             try:
-                supabase_adm.auth.admin.delete_user(user_uuid)
+                supabase_adm.auth.admin.delete_user(str(new_uuid))
             except:
                 pass
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/createAcc", status_code=status.HTTP_201_CREATED)
-def register_user(user: UserSignUp, db: Session = Depends(get_db)):
-    # Create User in Supabase Auth
-    try:
-        # This contacts Supabase Cloud to create the login
-        auth_response = supabase_adm.auth.admin.create_user({
-            "email": user.email,
-            "password": user.password,
-            # Optional: Add metadata so it lives in the JWT
-            "options": {
-                "data": {
-                    "name": user.name,
-                    "role": user.role
-                }
-            }
-        })
-        
-        if not auth_response.user:
-            raise HTTPException(status_code=400, detail="Signup failed (User already exists?)")
-            
-        # Capture the UUID generated by Supabase
-        new_uuid = UUID(auth_response.user.id)
-
-    except Exception as e:
-        # Catch Supabase errors (like "Password too short" or "Email exists")
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-    # Create Profile in Postgres
-    try:
-        new_db_user = None
-
-        if user.role.lower() == "student":
-            # Ensure course_id is provided for students
-            if not user.course_id:
-                raise HTTPException(status_code=400, detail="Student requires a course_id")
-
-            new_db_user = Student(
-                userID=new_uuid,  # LINKING THE UUID
-                name=user.name,
-                email=user.email,
-                profileTypeID=user.profile_type_id,
-                courseID=user.course_id,
-                # Default values
-                photo=None
-            )
-            
-        elif user.role.lower() == "lecturer":
-            new_db_user = Lecturer(
-                userID=new_uuid, # <--- LINKING THE UUID
-                name=user.name,
-                email=user.email,
-                profileTypeID=user.profile_type_id,
-                photo=None
-            )
-        else:
-            # If role is invalid, we have a problem. 
-            # We created an Auth User but can't create a DB Profile.
-            # We should technically delete the Auth User here to clean up.
-            raise HTTPException(status_code=400, detail="Invalid Role")
-
-        # Save to Database
-        db.add(new_db_user)
-        db.commit()
-        db.refresh(new_db_user)
-
-        return {"message": "User created successfully", "user_id": new_uuid}
-
-    except Exception as e:
-        # CRITICAL: If DB insert fails (e.g. Course ID doesn't exist), 
-        # we have a "Ghost User" in Supabase Auth but no profile in DB.
-        db.rollback()
-        
-        # Cleanup: Delete the Auth user so they can try again
-        # Note: Requires Service Role Key to delete. If using Anon key, you can't cleanup easily.
-        print(f"Database error: {e}") 
-        raise HTTPException(status_code=500, detail="Profile creation failed. Please contact support.")
+        print(f"Database Error: {e}")
+        raise HTTPException(status_code=500, detail="Registration failed during database creation.")
 
 @app.delete("/delacc/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(user_id: UUID, db: Session = Depends(get_db)):

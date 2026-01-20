@@ -16,7 +16,7 @@ from sqlalchemy import (
 import datetime
 import enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import List
 
 
@@ -271,7 +271,7 @@ class InstitutionRegistration(BaseModel):
     # institutionName: str
     # institutionType: str
     # address: str
-    fullName: str
-    email: str
+    universityName: str
+    email: EmailStr
     phoneNumber: str
     password: str
