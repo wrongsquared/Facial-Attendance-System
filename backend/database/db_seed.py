@@ -40,11 +40,22 @@ def uniCampusSeed(dbSessionLocalInstance:Session, spbase: Client):
                 "campuses":[{"name":"UON Neverland", "address":"123 Joyful Avenue"}, {"name":"UON Canberra", "address":"146 Funland Road"}]}]
 
     for uni in twoUnis:
-        newuni = University(universityName = uni["name"], universityAddress = uni["address"], subscriptionDate = Faker().date_this_decade())
+        newuni = University(
+            universityName = uni["name"], 
+            universityAddress = uni["address"], 
+            subscriptionDate = Faker().date_this_decade()
+        )
         dbSessionLocalInstance.add(newuni)
+        dbSessionLocalInstance.flush()  # Ensure newuni gets its ID
 
         for campus in uni["campuses"]:
-            dbSessionLocalInstance.add(Campus(campusName = campus["name"], campusAddress = campus["address"], university = newuni))
+            dbSessionLocalInstance.add(
+                Campus(
+                    campusName = campus["name"], 
+                    campusAddress = campus["address"], 
+                    university = newuni,
+                    created_at = Faker().date_this_decade()
+                ))
     
     dbSessionLocalInstance.commit()
     return None
@@ -78,37 +89,36 @@ def userProfileSeeder(dbSessionLocalInstance: Session, spbase: Client):
     campuses = dbSessionLocalInstance.query(Campus).all()
     profileTypeList = ['Pmanager', 'Admin', 'Student', 'Lecturer']
     for campus in campuses:
-        print(f"  - Creating profiles for {campus.campusName}...")
         
         for role_name in profileTypeList:
             # Check if it already exists to prevent duplicates
             exists = dbSessionLocalInstance.query(UserProfile).filter_by(
                 profileTypeName=role_name, 
-                campusID=campus.campusID
+                # campusID=campus.campusID
             ).first()
             
             if not exists:
                 new_profile = UserProfile(
                     profileTypeName=role_name,
-                    campus=campus
+                    # campus=campus
                 )
                 dbSessionLocalInstance.add(new_profile)
     dbSessionLocalInstance.commit()
     return None
 
 def platSeed(dbSessionLocalInstance: Session, spbase: Client):
+    print(f"Seeding Platform Managers: \n")
+
     uni = dbSessionLocalInstance.query(University).all()
     fake = Faker()
     for u in uni:
         # grab the first campus found for a university.
         target_campus = dbSessionLocalInstance.query(Campus).filter_by(universityID=u.universityID).first()
 
-        pm_profile = dbSessionLocalInstance.query(UserProfile).filter_by(profileTypeName="PManager",
-                                                                        campusID=target_campus.campusID).first()
+        pm_profile = dbSessionLocalInstance.query(UserProfile).filter_by(profileTypeName="PManager").first()
         if not pm_profile:
             pm_profile = UserProfile(
-                profileTypeName="PManager",
-                campusID=target_campus.campusID
+                profileTypeName="PManager"
             )
             dbSessionLocalInstance.add(pm_profile)
             dbSessionLocalInstance.commit() 
@@ -134,6 +144,8 @@ def platSeed(dbSessionLocalInstance: Session, spbase: Client):
             continue
         address = fake.address()
         # Create the PManager
+        all_unis = dbSessionLocalInstance.query(University).all()
+        
         new_manager = PlatformMgr(
             userID=uuid.UUID(str(user_uuid)),
             profileTypeID=pm_profile.profileTypeID, 
@@ -141,7 +153,8 @@ def platSeed(dbSessionLocalInstance: Session, spbase: Client):
             email=email,
             name=name,
             photo = None,
-            fulladdress = address
+            address = address,
+            university=random.choice(all_unis)
         )
         
         dbSessionLocalInstance.add(new_manager)
@@ -181,6 +194,9 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
     basepass = "Valid123"
     user_uuid = createAccountgetuuid(baseemail, basepass, True)
     address = fake.address()
+
+    all_campus = dbSessionLocalInstance.query(Campus).all()
+
     dbSessionLocalInstance.add(Student(userID = uuid.UUID(str(user_uuid)),
                                        profileType = studentProfile,
                                        email = baseemail,
@@ -189,7 +205,9 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
                                        attendanceMinimum = 75.0,
                                        course = rCourse,
                                         photo = None,
-                                        fulladdress= address))
+                                        address= address,
+                                        campusID=random.choice(all_campus).campusID
+                                        ))
     studNums.append("190036")
     while len(specialNames) > 0:
         name = specialNames.pop()
@@ -219,7 +237,9 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
                                         attendanceMinimum = 75.0,
                                         course = rCourse,
                                         photo = None,
-                                        fulladdress= address ))
+                                        address= address ,
+                                        campusID=random.choice(all_campus).campusID
+                                    ))
 
     dbSessionLocalInstance.commit()
 
@@ -229,7 +249,7 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client):
     #No Primary Keys
     print(f"Seeding Admins: \n")
     AdminProfile = dbSessionLocalInstance.query(UserProfile).filter_by(profileTypeName='Admin').first()
-
+    fake = Faker()
     #Base Admin
     #email:Admin@uow.edu.au
     #Password: Valid123
@@ -237,13 +257,16 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client):
     basepass = "Valid123"
     user_uuid = createAccountgetuuid(baseemail, basepass, True)
     address = fake.address()
+    all_campus = dbSessionLocalInstance.query(Campus).all()
     dbSessionLocalInstance.add(Admin(userID = uuid.UUID(str(user_uuid)),
                                     profileType = AdminProfile, 
                                     name = "James Looker",
                                     role = "System Administrator",
                                     email = baseemail,
                                     photo = None,
-                                    fulladdress= address ))
+                                    address= address ,
+                                    campusID=random.choice(all_campus).campusID
+                                    ))
 
 
     userNames = []
@@ -264,6 +287,7 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client):
             specialNames.append(fakeName)
             i+=1
 
+    all_campus = dbSessionLocalInstance.query(Campus).all()
     while len(specialNames) > 0:
         name = specialNames.pop()
         username = userNames.pop()
@@ -278,7 +302,9 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client):
                                         role = "System Administrator",
                                         name = name, 
                                         photo = None,
-                                        fulladdress= address ))
+                                        address= address,
+                                        campusID=random.choice(all_campus).campusID
+                                        ))
 
     dbSessionLocalInstance.commit()
 
@@ -294,19 +320,22 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client):
     baseemail = "lecturer@uow.edu.au"
     basepass = "Valid123"
 
+    fake = Faker()
     user_uuid = createAccountgetuuid(baseemail, basepass, True)
     address = fake.address()
+    all_campi = dbSessionLocalInstance.query(Campus).all()
     dbSessionLocalInstance.add(Lecturer(userID = uuid.UUID(str(user_uuid)),
                                         profileType = LecturerProfile, 
                                         name = "Agnes Lam",
                                         specialistIn = "Computer Science",
                                         email = baseemail, 
                                         photo = None,
-                                        fulladdress = address))
+                                        address = address,
+                                        campusID=random.choice(all_campi).campusID
+                                        ))
     
     userNames = []
     specialNames = []
-    fake = Faker()
     numRandLecturer = 3 #number of random Lecturers to Generate
     i = 0
     while i < numRandLecturer:
@@ -336,7 +365,9 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client):
                                                 specialistIn = spec,
                                                 email = email,
                                                 photo = None,
-                                                fulladdress = address))
+                                                address = address,
+                                                campusID=random.choice(all_campi).campusID
+                                                ))
     dbSessionLocalInstance.commit()
 
     return None

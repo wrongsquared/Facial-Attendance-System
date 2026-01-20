@@ -4,6 +4,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
+import { Footer } from './Footer';
 
 export function RegistrationPage() {
   const [formData, setFormData] = useState({
@@ -38,22 +39,31 @@ export function RegistrationPage() {
   return (
     <div className="min-h-screen bg-black flex flex-col">
       <Header />
-      
+
       <main className="flex-1 pt-20 px-6 py-12">
         <div className="container mx-auto max-w-6xl">
           <h1 className="text-4xl md:text-5xl text-white text-center mb-12">
             Registration
           </h1>
 
-          <form onSubmit={handleRegister}>
+          <form onSubmit={handleRegister}
+            className="flex flex-col "
+            style={{
+              backgroundColor: 'black',
+              border: '2px solid white',
+              color: 'white', /* Changes text to white */
+              padding: '40px',
+              borderRadius: '8px'
+            }}
+          >
             {/* Institution and Administrator Details */}
             <div className="grid md:grid-cols-2 gap-12 mb-12">
               {/* Institution Details */}
-              <div>
-                <h2 className="text-2xl text-white mb-6 font-semibold">
+              {/* <div>
+                <h2 className="text-2xl text-white mb-6 font-semibold border-b border-gray-700 pb-2 w-fit">
                   Institution Details
                 </h2>
-                <div className="space-y-6">
+                <div className="flex flex-col gap-6">
                   <div>
                     <Label htmlFor="institutionType" className="text-white mb-2 block">
                       Institution Type
@@ -63,7 +73,7 @@ export function RegistrationPage() {
                       name="institutionType"
                       value={formData.institutionType}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 h-12 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-white"
                       required
                     >
                       <option value="">Select Institution Type</option>
@@ -83,7 +93,7 @@ export function RegistrationPage() {
                       type="text"
                       value={formData.institutionName}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 h-12 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-white"
                       required
                     />
                   </div>
@@ -98,19 +108,19 @@ export function RegistrationPage() {
                       type="text"
                       value={formData.address}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 h-12 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-white"
                       required
                     />
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               {/* Administrator Details */}
               <div>
-                <h2 className="text-2xl text-white mb-6 font-semibold">
+                <h2 className="text-2xl text-white mb-6 font-semibold border-b border-gray-700 pb-2 w-fit">
                   Administrator Details
                 </h2>
-                <div className="space-y-6">
+                <div className="flex flex-col gap-6">
                   <div>
                     <Label htmlFor="fullName" className="text-white mb-2 block">
                       Full Name
@@ -121,7 +131,7 @@ export function RegistrationPage() {
                       type="text"
                       value={formData.fullName}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 h-12 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-white"
                       required
                     />
                   </div>
@@ -136,7 +146,7 @@ export function RegistrationPage() {
                       type="email"
                       value={formData.email}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 h-12 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-white"
                       required
                     />
                   </div>
@@ -152,7 +162,7 @@ export function RegistrationPage() {
                         type={showPhoneNumber ? "text" : "tel"}
                         value={formData.phoneNumber}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 h-12 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-white"
                         required
                       />
                       <button
@@ -169,8 +179,8 @@ export function RegistrationPage() {
             </div>
 
             {/* Account Security */}
-            <div className="mb-12">
-              <h2 className="text-2xl text-white mb-6 font-semibold">
+            <div>
+              <h2 className="text-2xl text-white mb-6 font-semibold border-b border-gray-700 pb-2 w-fit">
                 Account Security
               </h2>
               <div className="grid md:grid-cols-2 gap-12">
@@ -185,7 +195,7 @@ export function RegistrationPage() {
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 h-12 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-white"
                       required
                     />
                     <button
@@ -209,7 +219,7 @@ export function RegistrationPage() {
                       type={showConfirmPassword ? "text" : "password"}
                       value={formData.confirmPassword}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 h-12 bg-black border border-white text-white rounded-md focus:outline-none focus:ring-2 focus:ring-white"
                       required
                     />
                     <button
@@ -225,10 +235,10 @@ export function RegistrationPage() {
             </div>
 
             {/* Register Button */}
-            <div className="text-center mb-12">
-              <Button 
+            <div className="mt-6 text-center">
+              <Button
                 type="submit"
-                className="bg-blue-500 text-white hover:bg-blue-600 px-12 py-3 text-lg"
+                className="w-full bg-blue-500 text-white hover:bg-blue-600 py-8 text-xl"
               >
                 Register
               </Button>

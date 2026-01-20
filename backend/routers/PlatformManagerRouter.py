@@ -46,14 +46,14 @@ def get_platform_manager_dashboard(
     pm_user = db.query(User).filter(User.userID == current_user_id).first()
     
     # Safety check: Ensure the user exists and is linked to a campus/university
-    if not pm_user or not pm_user.profileType or not pm_user.profileType.campus:
+    if not pm_user or not pm_user.profileType:
         raise HTTPException(
             status_code=404, 
             detail="Platform Manager is not associated with a valid university."
         )
 
     # Get the ID of the University this manager is responsible for
-    target_university_id = pm_user.profileType.campus.universityID
+    target_university_id = pm_user.universityID
 
     # 2. Count Total Campuses (Scoped to THIS University only)
     total_institutions_count = db.query(Campus).filter(
@@ -69,7 +69,8 @@ def get_platform_manager_dashboard(
         .limit(10)
         .all()
     )
-    
+
+   
     # 4. Map the data
     formatted_subscriptions = []
     
@@ -102,13 +103,13 @@ def get_manager_campuses(
     pm_user = db.query(User).filter(User.userID == current_user_id).first()
     
     # 2. Safety Check (Ensure deep relationships exist)
-    if not pm_user or not hasattr(pm_user, 'profileType') or not pm_user.profileType.campus:
+    if not pm_user or not hasattr(pm_user, 'profileType'):
         raise HTTPException(
             status_code=404, 
             detail="Platform Manager's primary university association not found."
         )
 
-    target_university_id = pm_user.profileType.campus.universityID
+    target_university_id = pm_user.universityID
 
     # 3. Query Campuses
     campuses = db.query(Campus).filter(
@@ -143,9 +144,8 @@ def get_institution_details(
         raise HTTPException(status_code=404, detail="Campus not found")
 
     # Fetch admins
-    admins = db.query(User).join(UserProfile).filter(
-        UserProfile.campusID == campus_id,
-        User.type == "admin"
+    admins = db.query(Admin).filter(
+        Admin.campusID == campus_id
     ).all()
 
     admin_list = []
@@ -277,10 +277,10 @@ def create_campus_only(
     # 1. Identify the Platform Manager's University
     pm_user = db.query(User).filter(User.userID == current_user_id).first()
     
-    if not pm_user or not pm_user.profileType or not pm_user.profileType.campus:
+    if not pm_user or not pm_user.profileType:
          raise HTTPException(status_code=404, detail="Manager university not found")
          
-    university_id = pm_user.profileType.campus.universityID
+    university_id = pm_user.universityID
 
     try:
         # 2. Create the Campus
@@ -323,10 +323,10 @@ def delete_campus_profile(
     # 1. Identify the Platform Manager's University
     pm_user = db.query(User).filter(User.userID == current_user_id).first()
     
-    if not pm_user or not pm_user.profileType or not pm_user.profileType.campus:
+    if not pm_user or not pm_user.profileType:
          raise HTTPException(status_code=403, detail="Not authorized")
          
-    my_university_id = pm_user.profileType.campus.universityID
+    my_university_id = pm_user.universityID
 
     # 2. Find the Campus to delete
     campus_to_delete = db.query(Campus).filter(Campus.campusID == campus_id).first()
@@ -387,7 +387,7 @@ def getsupabaseclient():
 
 @router.post("/campus/{campus_id}/add-admin", status_code=status.HTTP_201_CREATED)
 def add_admin_to_campus(
-    campus_id: int, 
+    campus_id: int, #Mark for Deletion - Rx
     payload: AdminCreate, 
     db: Session = Depends(get_db),
     supabase_client: supabase.Client = Depends(getsupabaseclient)
@@ -421,7 +421,6 @@ def add_admin_to_campus(
         # 3. Create the Profile Object (BUT DO NOT ADD TO DB YET)
         # We create a new profile specifically for THIS campus
         new_profile_object = UserProfile(
-            campusID=campus_id,
             profileTypeName="Admin"
         )
 
@@ -436,7 +435,8 @@ def add_admin_to_campus(
             role="System Administrator",
             contactNumber=payload.contactNumber,
             type="admin",
-            active=True
+            active=True,
+            campusID = campus_id
         )
 
         # 5. Add only the User (SQLAlchemy adds the Profile automatically)

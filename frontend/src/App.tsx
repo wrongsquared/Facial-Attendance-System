@@ -47,7 +47,7 @@ import { FeaturesPage } from './components/FeaturesPage';
 import { ServicesPage } from './components/ServicesPage';
 import { RegistrationPage } from './components/RegistrationPage';
 import type { AttendanceRecord } from './components/Attendance';
-import { NotificationAlerts } from "./components/NotificationAlerts"; 
+import { NotificationAlerts } from "./components/NotificationAlerts";
 import { NotificationItem } from './types/studentinnards';
 
 // User profile data type
@@ -135,7 +135,7 @@ export default function App() {
       if (token && user?.role_name.toLowerCase() === 'student') {
         try {
           const data = await getNotifications(token);
-          setNotificationAlerts(data); 
+          setNotificationAlerts(data);
         } catch (err) {
           console.error("Failed to load notifications", err);
         }
@@ -536,7 +536,7 @@ export default function App() {
   }) => {
     // Generate new institution ID
     const newId = `INS${String(institutions.length + 1).padStart(3, '0')}`;
-    
+
     // Add new institution to the list
     const newInstitution = {
       id: newId,
@@ -548,12 +548,12 @@ export default function App() {
       adminPhone: institutionData.phoneNumber,
       tempPassword: institutionData.tempPassword,
     };
-    
+
     setInstitutions(prev => [...prev, newInstitution]);
-    
+
     // Show success toast
     showToast(`Institution "${institutionData.institutionName}" created successfully!`);
-    
+
     // Navigate back to manage institutions
     setPlatformManagerView('manageInstitutions');
   };
@@ -604,34 +604,34 @@ export default function App() {
 
   // Show marketing website pages if no user is logged in
   if (!user) {
-     // Marketing page - About
+    // Marketing page - About
     if (currentPage === 'about') {
       return <AboutPage />;
     }
-    
+
     // Marketing page - Features
     if (currentPage === 'features') {
       return <FeaturesPage />;
     }
-    
+
     // Marketing page - Services
     if (currentPage === 'services') {
       return <ServicesPage />;
     }
-    
+
     // Marketing page - Registration
     if (currentPage === 'registration') {
       return <RegistrationPage />;
     }
-    
+
     // Marketing page - Login
     if (currentPage === 'login') {
       return <LoginPage onLogin={handleLogin} />;
     }
-    
+
     // Marketing page - Home (default)
     return (
-       <div className="min-h-screen bg-black">
+      <div className="min-h-screen bg-black">
         <Header />
         <main>
           <HeroSection />
@@ -853,13 +853,13 @@ export default function App() {
       )}
       {userRole === 'admin' && adminView === 'adminReports' && (
         <AdminAttendanceReports
-          onNavigateToProfile = {handleNavigateToAdminProfile}
+          onNavigateToProfile={handleNavigateToAdminProfile}
           onLogout={handleLogout}
-          onBack={handleBackToAdminDashboard}/>
+          onBack={handleBackToAdminDashboard} />
       )}
       {userRole === 'admin' && adminView === 'viewAdminProfile' && (
-        <ViewAdminProfile 
-          onLogout={handleLogout} 
+        <ViewAdminProfile
+          onLogout={handleLogout}
           onBack={handleBackToAdminDashboard}
           onUpdateProfile={handleNavigateToUpdateAdminProfile}
           onSave={handleSaveAdminProfile}
@@ -867,8 +867,8 @@ export default function App() {
         />
       )}
       {userRole === 'admin' && adminView === 'updateAdminProfile' && (
-        <UpdateAdminProfile 
-          onLogout={handleLogout} 
+        <UpdateAdminProfile
+          onLogout={handleLogout}
           onBack={handleBackToViewAdminProfile}
           onSave={handleSaveAdminProfile}
           adminData={adminProfileData}
@@ -904,18 +904,18 @@ export default function App() {
         />
       )}
       {userRole === 'pmanager' && platformManagerView === 'createInstitution' && (
-        <CreateInstitutionProfile 
+        <CreateInstitutionProfile
           onLogout={handleLogout}
           onBack={handleBackToManageInstitutions}
           onCreate={handleCreateInstitution}
         />
       )}
       <Toast message={toastMessage} onClose={hideToast} />
-      <NotificationAlerts 
+      <NotificationAlerts
         isOpen={isNotificationOpen}
         onClose={() => setIsNotificationOpen(false)}
         alerts={notificationAlerts}
-        onDismissAlert = {handleDismissAlert}
+        onDismissAlert={handleDismissAlert}
       />
     </div>
   );

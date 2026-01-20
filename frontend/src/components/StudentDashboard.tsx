@@ -15,18 +15,19 @@ import {
 
 } from "lucide-react";
 import { Progress } from "./ui/progress";
-import { useAuth } from "../cont/AuthContext"; 
-import { lessonInfo, TodaysLessons, AttendanceRecord, WeeklyLesson, OverallLessonsStat,ModuleStat } from "../types/studentdash";
-import { 
-  getStudentProfile, 
-  getStudentTimetable, 
-  getTodaysLessons, 
-  getOverallLessons, 
+import { useAuth } from "../cont/AuthContext";
+import { lessonInfo, TodaysLessons, AttendanceRecord, WeeklyLesson, OverallLessonsStat, ModuleStat } from "../types/studentdash";
+import {
+  getStudentProfile,
+  getStudentTimetable,
+  getTodaysLessons,
+  getOverallLessons,
   getStatsByModule,
   getRecentHistory,
   getWeeklyTimetable,
-  getNotifications} from "../services/api";
-  import { Navbar } from "./Navbar";
+  getNotifications
+} from "../services/api";
+import { Navbar } from "./Navbar";
 import { NotificationItem } from "../types/studentinnards";
 
 interface StudentDashboardProps {
@@ -35,7 +36,7 @@ interface StudentDashboardProps {
   onNavigateToTimetable: () => void;
   onNavigateToProfile: () => void;
   onNavigateToProgress: () => void;
-  onOpenNotifications:() => void;
+  onOpenNotifications: () => void;
 }
 
 export function StudentDashboard({
@@ -47,7 +48,7 @@ export function StudentDashboard({
   onOpenNotifications
 }: StudentDashboardProps) {
   const today = new Date();
-  const todaysdate = today.toLocaleDateString('en-GB',{
+  const todaysdate = today.toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'long',
     year: 'numeric'
@@ -70,15 +71,15 @@ export function StudentDashboard({
   const [recentHistory, setRecentHistory] = useState<AttendanceRecord[]>([]);
   const [weeklyLessons, setWeeklyLessons] = useState<WeeklyLesson[]>([]);
 
-useEffect(() => {
+  useEffect(() => {
     const fetchDashboardData = async () => {
       if (!token) return;
 
       try {
         const [
-          lessonData, 
-          profileData, 
-          todaysData, 
+          lessonData,
+          profileData,
+          todaysData,
           overallLessonsData,
           moduleStatsData,
           historyData,
@@ -114,6 +115,8 @@ useEffect(() => {
       }
     };
 
+    console.log("Overall lesson:", oAS);
+
     fetchDashboardData();
   }, [token]);
 
@@ -129,7 +132,7 @@ useEffect(() => {
       const dayName = date
         .toLocaleDateString("en-GB", { weekday: "short" })
         .toUpperCase();
-      
+
       const key = dayName.substring(0, 3);
 
       if (grouped[key]) {
@@ -143,13 +146,13 @@ useEffect(() => {
   const weeklySchedule = groupWeeklySchedule();
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      
-      <Navbar title="Student Portal" onNavigateToProfile={onNavigateToProfile} onOpenNotifications={onOpenNotifications}  />
+
+      <Navbar title="Student Portal" onNavigateToProfile={onNavigateToProfile} onOpenNotifications={onOpenNotifications} />
 
 
       <main className="container mx-auto px-4 py-8 flex-1">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          
+
           <Card className="flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm">Overall Attendance</CardTitle>
@@ -175,7 +178,7 @@ useEffect(() => {
             </CardContent>
           </Card>
 
-        {/* Card 2: Timetable */}
+          {/* Card 2: Timetable */}
           <Card className="flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm">Timetable</CardTitle>
@@ -184,7 +187,7 @@ useEffect(() => {
             <CardContent className="flex-1 flex flex-col">
               <div className="flex-1">
                 <div className="space-y-3 max-h-32 overflow-y-auto pr-2">
-                  
+
                   {/* Check if the entire week is empty */}
                   {Object.values(weeklySchedule).every((arr) => arr.length === 0) ? (
                     <p className="text-xs text-gray-400 text-center mt-4">
@@ -225,7 +228,7 @@ useEffect(() => {
                               return (
                                 <div key={lesson.lessonID} className="text-m text-gray-600 flex flex-wrap gap-1">
                                   {/* Format: CSCI334 - 9:00 AM */}
-                                  <span className="text-gray-700 font-medium">{lesson.module_code}</span> 
+                                  <span className="text-gray-700 font-medium">{lesson.module_code}</span>
                                   <span className="text-gray-400"> • </span>
                                   <span>
                                     {timeString} - {endString}
@@ -246,7 +249,7 @@ useEffect(() => {
                   )}
                 </div>
               </div>
-              
+
               <div className="mt-4">
                 <Button
                   variant="outline"
@@ -270,23 +273,23 @@ useEffect(() => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {todaysClasses.length === 0? (
+                {todaysClasses.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">No classes today.</p>
                 ) : (
                   todaysClasses.map((classItem) => (
                     <div key={classItem.lessonID} className="flex flex-col gap-2 p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-medium">{classItem.ModuleCode} - {classItem.ModuleName}  {classItem.lessonType}</p>
-                      <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                         {new Date(classItem.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                         {" - "}
-                         {new Date(classItem.end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">{classItem.location}</p>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-medium">{classItem.ModuleCode} - {classItem.ModuleName}  {classItem.lessonType}</p>
+                          <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                            {new Date(classItem.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {" - "}
+                            {new Date(classItem.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">{classItem.location}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
                   ))
                 )}
               </div>
@@ -305,21 +308,21 @@ useEffect(() => {
               <div className="space-y-6">
                 {subjectStats.length === 0 ? (
                   <p className="text-sm text-gray-500 text-center">No past lessons recorded.</p>
-                  ) : (
-                  subjectStats.map((stat, index) =>(
-                  <div key={index} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm">{stat.subject}</p>
-                      <span className="text-sm">{stat.percentage}%</span>
+                ) : (
+                  subjectStats.map((stat, index) => (
+                    <div key={index} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm">{stat.subject}</p>
+                        <span className="text-sm">{stat.percentage}%</span>
+                      </div>
+
+                      <Progress value={stat.percentage} className="h-2" />
+
+                      <p className="text-xs text-gray-600">
+                        {stat.attended} of {stat.total} classes attended
+                      </p>
                     </div>
-
-                    <Progress value={stat.percentage} className="h-2" />
-
-                    <p className="text-xs text-gray-600">
-                      {stat.attended} of {stat.total} classes attended
-                    </p>
-                  </div>
-                ))
+                  ))
                 )}
               </div>
             </CardContent>
@@ -336,39 +339,39 @@ useEffect(() => {
 
             <CardContent>
               <div className="space-y-3">
-              {recentHistory.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">No recent history found.</p>
+                {recentHistory.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">No recent history found.</p>
                 ) : (
-                recentHistory.map((record) => (
-                  <div
-                    key={record.lessonID}
-                    className="flex items-center justify-between p-3 border rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      {record.status === "present" ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-600" />
-                      ) : (
-                        <XCircle className="h-5 w-5 text-red-600" />
-                      )}
+                  recentHistory.map((record) => (
+                    <div
+                      key={record.lessonID}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        {record.status === "present" ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-red-600" />
+                        )}
 
-                      <div>
-                        <p className="font-medium">{record.subject}</p>
-                        {new Date(record.date).toLocaleDateString('en-GB', {
-                          day: 'numeric', 
-                          month: 'short', 
-                          year: 'numeric'
-                  })}
+                        <div>
+                          <p className="font-medium">{record.subject}</p>
+                          {new Date(record.date).toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
+                        </div>
                       </div>
-                    </div>
 
-                    {record.status === "present" ? (
-                      <Badge className="bg-green-600 text-white">Present</Badge>
-                    ) : (
-                      <Badge className="bg-red-600 text-white">Absent</Badge>
-                    )}
-                  </div>
-                ))
-              )}
+                      {record.status === "present" ? (
+                        <Badge className="bg-green-600 text-white">Present</Badge>
+                      ) : (
+                        <Badge className="bg-red-600 text-white">Absent</Badge>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className="mt-4">

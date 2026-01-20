@@ -6,21 +6,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, joinedload
 from database.db_config import get_db #Gets the Initialized db session
-from database.db import (UserProfile, #This was really long so I had to bracket it
+from database.db import (InstitutionRegistration, UserProfile, #This was really long so I had to bracket it
                          User, 
                          Lecturer, 
                          Student,
                          Admin,
                          Campus,
-                         University)
+                         University,
+                        PlatformMgr
+                         )
 
 from uuid import UUID
 from schemas import (UserSignUp, #This was really long so I had to bracket it
-                             UserLogin, 
-                             TokenResponse)
+                     UserLogin, 
+                     TokenResponse)
+
 from dependencies.deps import get_current_user_id
 from client import supabase, supabase_adm
-import datetime
+from datetime import datetime
 from routers import (adminDashboardRouter, 
                      studentDashboardRouter, 
                      lecturerDashboardRouter, 
@@ -44,11 +47,103 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-
 @app.get("/")
 def read_root(db: Session= Depends(get_db)):
     response = (supabase_adm.table("users").select("*").execute())
     return {"Message": response}
+
+@app.post("/register/institution", status_code=status.HTTP_201_CREATED)
+def register_institution(
+    form_data: InstitutionRegistration, 
+    db: Session = Depends(get_db)
+):
+    try:
+        # --- Step 1: Create University ---
+        # new_uni = University(
+        #     universityName=form_data.institutionName,
+        #     universityAddress=form_data.address,
+        #     subscriptionDate=datetime.now(),
+        #     isActive=True
+
+        # )
+        # db.add(new_uni)
+        # db.flush() # Generate ID
+
+        # # --- Step 2: Create Main Campus ---
+        # new_campus = Campus(
+        #     campusName=f"{form_data.institutionName}",
+        #     campusAddress=form_data.address,
+        #     universityID=new_uni.universityID,
+        #     created_at=datetime.now()
+        # )
+        # db.add(new_campus)
+        # db.flush() # Generate ID
+
+        # --- Step 3: Create Supabase Auth User ---
+        # We use supabase_adm (Service Role) because we are creating an admin
+        user_uuid = None
+        try:
+            user_payload = {
+                "email": form_data.email,
+                "password": form_data.password,
+                "email_confirm": True,
+                "user_metadata": { "name": form_data.fullName }
+            }
+            auth_response = supabase_adm.auth.admin.create_user(user_payload)
+            user_uuid = auth_response.user.id
+        except Exception as auth_error:
+            print(f"Auth Error: {auth_error}")
+            raise HTTPException(status_code=400, detail="Email already registered or invalid password.")
+
+        # --- Step 4: Handle User Profile ---
+        # Check/Create PManager Profile Type for this specific Campus
+        pm_profile = db.query(UserProfile).filter_by(
+            profileTypeName="PManager", 
+            campusID=new_campus.campusID
+        ).first()
+
+        if not pm_profile:
+            pm_profile = UserProfile(
+                profileTypeName="PManager",
+                campusID=new_campus.campusID
+            )
+            db.add(pm_profile)
+            db.flush()
+
+        # --- Step 5: Create Platform Manager Record ---
+        new_manager = PlatformMgr(
+            userID=UUID(str(user_uuid)),
+            profileTypeID=pm_profile.profileTypeID, 
+            role="Platform Manager",
+            email=form_data.email,
+            name=form_data.fullName,
+            photo=None,
+            address=form_data.address,
+            phone=form_data.phoneNumber
+        )
+        
+        db.add(new_manager)
+        db.commit()
+
+        return {
+            "message": "Institution registered successfully",
+            "uni_id": new_uni.universityID,
+            "user_id": user_uuid
+        }
+
+    except HTTPException as he:
+        db.rollback()
+        raise he
+    except Exception as e:
+        db.rollback()
+        print(f"Registration Error: {str(e)}")
+        # Optional: Delete auth user if DB failed to prevent ghost users
+        if 'user_uuid' in locals() and user_uuid:
+            try:
+                supabase_adm.auth.admin.delete_user(user_uuid)
+            except:
+                pass
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/createAcc", status_code=status.HTTP_201_CREATED)
 def register_user(user: UserSignUp, db: Session = Depends(get_db)):
@@ -177,10 +272,11 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
             "email": credentials.email,
             "password": credentials.password
         })
+
         session = auth_response.session
         user = auth_response.user
         if not session or not user:
-             raise HTTPException(status_code=401, detail="Invalid credentials")
+            raise HTTPException(status_code=401, detail="Invalid credentials")
     except Exception as e:
         # Supabase throws an exception if password is wrong or email not confirmed
         raise HTTPException(status_code=401, detail=str(e))
@@ -191,10 +287,8 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
     
     # Query the 'users' table to get the profileTypeID
     result = (
-        db.query(User, UserProfile, Campus, University)
+        db.query(User, UserProfile)
         .join(UserProfile, User.profileTypeID == UserProfile.profileTypeID)
-        .join(Campus, UserProfile.campusID == Campus.campusID)
-        .join(University, Campus.universityID == University.universityID)
         .filter(User.userID == user_uuid)
         .first()
     )
@@ -205,7 +299,7 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User profile or campus data incomplete.")
 
     # Unpack the results
-    db_user, db_profile, db_campus, db_uni = result
+    db_user, db_profile = result
     role_name = db_profile.profileTypeName 
     studentNums = None
     specialistIns = None
@@ -233,9 +327,9 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
         "role_id": db_profile.profileTypeID,
         "role_name": db_profile.profileTypeName,
         "name": db_user.name,
-        "campus_id": db_campus.campusID,
-        "campus_name": db_campus.campusName,
-        "university_name": db_uni.universityName,
+        # "campus_id": db_campus.campusID,
+        # "campus_name": db_campus.campusName,
+        # "university_name": db_uni.universityName,
 
         "studentNum": studentNums,
         "specialistIn": specialistIns,
@@ -290,3 +384,4 @@ app.include_router(PlatformManagerRouter.router)
 app.include_router(studentInnardsRouter.router)
 app.include_router(lecturerInnardsRouter.router)
 app.include_router(adminInnardsRouter.router)
+

@@ -41,6 +41,7 @@ class University(Base):
 
     #Has Campuses
     campus: Mapped[list["Campus"]] = relationship(back_populates="university")
+    platform_managers: Mapped[list["PlatformMgr"]] = relationship(back_populates="university")
 
 #Adds a Campus
 class Campus(Base):
@@ -52,7 +53,10 @@ class Campus(Base):
     universityID: Mapped[int] = mapped_column(ForeignKey("university.universityID"))
     university: Mapped[University] = relationship(back_populates="campus")
     # Has User Profiles
-    profiles: Mapped[list["UserProfile"]] = relationship(back_populates="campus")
+    # profiles: Mapped[list["UserProfile"]] = relationship(back_populates="campus")
+    student_profiles: Mapped[list["Student"]] = relationship(back_populates="campus")
+    lecturer_profiles: Mapped[list["Lecturer"]] = relationship(back_populates="campus")
+    admin_profiles: Mapped[list["Admin"]] = relationship(back_populates="campus")
     # Has Different Courses
     courses: Mapped[list["Courses"]] = relationship(back_populates="campus")
     created_at = mapped_column(DateTime, default=datetime.datetime)
@@ -64,8 +68,7 @@ class UserProfile(Base): #User Profiles, Student, Lecturer, Admins
     profileTypeName: Mapped[str] = mapped_column(String(500))
     users: Mapped[list["User"]] = relationship(back_populates="profileType")
     # Belongs to a Campus
-    campusID: Mapped[int] = mapped_column(ForeignKey("campus.campusID"))
-    campus:  Mapped[Campus] = relationship(back_populates="profiles")
+
 
 class User(Base): #User
 
@@ -102,6 +105,10 @@ class PlatformMgr(User): #Admin, Child of User
     
     pmanagerID: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.userID"), primary_key = True)
     role: Mapped[str]
+
+    universityID: Mapped[int] = mapped_column(ForeignKey("university.universityID"))
+    university: Mapped[University] = relationship(back_populates="platform_managers")
+
 class Admin(User): #Admin, Child of User
     __tablename__ = "admins"
     __mapper_args__ = {"polymorphic_identity": "admin"}
@@ -109,12 +116,18 @@ class Admin(User): #Admin, Child of User
     adminID: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.userID"), primary_key = True)
     role: Mapped[str]
 
+    campusID: Mapped[int] = mapped_column(ForeignKey("campus.campusID"))
+    campus:  Mapped[Campus] = relationship(back_populates="admin_profiles")
+
 class Lecturer(User): #Lecturer, Child of User
     __tablename__ = "lecturers"
     __mapper_args__ = {"polymorphic_identity": "lecturer"}
     lecturerID: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.userID"), primary_key = True)
     specialistIn: Mapped[str]
     lecMod: Mapped[list[LecMod]] = relationship(back_populates="lecturers")
+    
+    campusID: Mapped[int] = mapped_column(ForeignKey("campus.campusID"))
+    campus:  Mapped[Campus] = relationship(back_populates="lecturer_profiles")
 
 class Student(User): #Student, child of User
     __tablename__ = "students"
@@ -134,6 +147,9 @@ class Student(User): #Student, child of User
     studentmodules: Mapped[list[StudentModules]] = relationship(back_populates="student")
 
     angles: Mapped[list[studentAngles]] = relationship(back_populates="student")
+
+    campusID: Mapped[int] = mapped_column(ForeignKey("campus.campusID"))
+    campus:  Mapped[Campus] = relationship(back_populates="student_profiles")
 
 class EntLeave(Base): # Camera marks time student is detected coming in, time student is detected leaving.
     __tablename__ = "entleave"
@@ -250,10 +266,11 @@ class GeneratedReport(Base):
     # File Location (Where we saved the Excel file)
     fileName: Mapped[str] = mapped_column(String(255))
     filePath: Mapped[str] = mapped_column(String(500))
+    
 class InstitutionRegistration(BaseModel):
-    institutionName: str
-    institutionType: str
-    address: str
+    # institutionName: str
+    # institutionType: str
+    # address: str
     fullName: str
     email: str
     phoneNumber: str
