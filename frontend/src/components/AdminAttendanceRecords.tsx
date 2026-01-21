@@ -107,7 +107,7 @@ export function AdminAttendanceRecords({
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRecord, setSelectedRecord] = useState<typeof attendanceRecords[0] | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  //const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Helper function to format date - must be declared before it's used
