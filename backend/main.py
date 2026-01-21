@@ -36,7 +36,7 @@ from routers import (adminDashboardRouter,
 app = FastAPI()
 
 origins = [
-    "http://localhost:3000",  # React Create App
+    "http://localhost:3001",  # React Create App
 ]
 
 app.add_middleware(
