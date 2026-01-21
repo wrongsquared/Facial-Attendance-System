@@ -1,0 +1,12 @@
+backend/.env.example
+backend/.env.example
+/backend
+frontend/src/components/AdminAttendanceRecords.tsx
+*.tsx
+*.example
+backend/.env.example
+backend/.env.example
+backend/schemas/admin.py
+/backend/schemas
+frontend/src/components/AdminAttendanceRecords.tsx
+frontend/src/components/AdminAttendanceRecords.tsx
