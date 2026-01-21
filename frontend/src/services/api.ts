@@ -51,12 +51,12 @@ export const logoutUser = async (token: string) => {
 };
 const sendUpdate = async (endpoint: string, token: string, data: any) => {
   const response = await fetch(`${API_URL}${endpoint}`, {
-    method: "PUT", 
+    method: "PUT",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`
     },
-    body: JSON.stringify(data) 
+    body: JSON.stringify(data)
   });
 
   if (!response.ok) {
@@ -113,9 +113,9 @@ export const getFullAttendanceHistory = async (token: string) => {
 
 export const getTimetableRange = async (token: string, start: string, end: string) => {
   // We use URLSearchParams to safely encode the dates
-  const params = new URLSearchParams({ 
-    start_date: start, 
-    end_date: end 
+  const params = new URLSearchParams({
+    start_date: start,
+    end_date: end
   });
   return await fetchProtected(`/student/timetable/range?${params.toString()}`, token);
 };
@@ -135,7 +135,7 @@ export const updateStudentProfile = async (token: string, data: ProfileUpdateDat
 //Student Routes End
 //Lecturer Routes Begin
 
-export const getLecturerModulesCount = async(token: string) =>{
+export const getLecturerModulesCount = async (token: string) => {
   return await fetchProtected("/lecturer/dashboard/summary", token);
 }
 
@@ -147,8 +147,8 @@ export const getavgatt = async (token: string) => {
   return await fetchProtected("/lecturer/dashboard/average-attendance", token);
 }
 
-export const getClassesToday = async(token:string) =>{
-  return await fetchProtected("/lecturer/dashboard/classes-today",token);
+export const getClassesToday = async (token: string) => {
+  return await fetchProtected("/lecturer/dashboard/classes-today", token);
 }
 
 export const getCourseOverview = async (token: string) => {
@@ -164,10 +164,10 @@ export const getLecturerFullProfile = async (token: string) => {
 };
 
 
-export const getLecDailyTimetable = async (token: string, dateStr: string) =>{
+export const getLecDailyTimetable = async (token: string, dateStr: string) => {
   return await fetchProtected(`/lecturer/timetable/daily?date_str=${dateStr}`, token);
 }
-export const getLecWeeklyTimetable = async (token: string, startDateStr: string) =>{
+export const getLecWeeklyTimetable = async (token: string, startDateStr: string) => {
   return await fetchProtected(`/lecturer/timetable/weekly?start_date_str=${startDateStr}`, token);
 }
 
@@ -175,14 +175,14 @@ export const getLecturerMonthlyTimetable = async (token: string, year: number, m
   return await fetchProtected(`/lecturer/timetable/monthly?year=${year}&month=${month}`, token);
 };
 
-export const getAttendanceLog = async(token:string, filters:AttendanceLogFilters) : Promise<AttendanceLogResponse>=>{
+export const getAttendanceLog = async (token: string, filters: AttendanceLogFilters): Promise<AttendanceLogResponse> => {
   const params = new URLSearchParams();
   if (filters.searchTerm) params.append("search_term", filters.searchTerm);
   if (filters.moduleCode && filters.moduleCode !== "All") params.append("module_code", filters.moduleCode);
   if (filters.status && filters.status !== "All") params.append("status", filters.status);
   if (filters.date) params.append("date", filters.date);
-  
-  
+
+
   const limit = filters.limit || 10;
   const offset = ((filters.page || 1) - 1) * limit;
   params.append("limit", limit.toString());
@@ -220,9 +220,9 @@ export const getRecentUsers = async (token: string) => {
 };
 
 export const getManageUsers = async (
-  token: string, 
-  search: string, 
-  role: string, 
+  token: string,
+  search: string,
+  role: string,
   status: string
 ) => {
   const params = new URLSearchParams();

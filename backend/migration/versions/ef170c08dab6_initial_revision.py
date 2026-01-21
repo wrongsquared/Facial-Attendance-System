@@ -1,8 +1,8 @@
-"""first_postassessor_db
+"""Initial revision
 
-Revision ID: dfdf3df56ead
+Revision ID: ef170c08dab6
 Revises: 
-Create Date: 2025-12-27 08:28:36.391684
+Create Date: 2026-01-20 12:48:31.926411
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'dfdf3df56ead'
+revision: str = 'ef170c08dab6'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,40 +25,37 @@ def upgrade() -> None:
     sa.Column('moduleID', sa.Integer(), nullable=False),
     sa.Column('moduleName', sa.String(length=25), nullable=False),
     sa.Column('moduleCode', sa.String(length=8), nullable=False),
+    sa.Column('startDate', sa.DateTime(), nullable=True),
+    sa.Column('endDate', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('moduleID')
     )
     op.create_table('university',
     sa.Column('universityID', sa.Integer(), nullable=False),
     sa.Column('universityName', sa.String(), nullable=False),
     sa.Column('universityAddress', sa.String(), nullable=False),
+    sa.Column('subscriptionDate', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('isActive', sa.Boolean(), server_default=sa.text('true'), nullable=False),
     sa.PrimaryKeyConstraint('universityID')
+    )
+    op.create_table('userprofiles',
+    sa.Column('profileTypeID', sa.Integer(), nullable=False),
+    sa.Column('profileTypeName', sa.String(length=500), nullable=False),
+    sa.PrimaryKeyConstraint('profileTypeID')
     )
     op.create_table('campus',
     sa.Column('campusID', sa.Integer(), nullable=False),
     sa.Column('campusName', sa.String(), nullable=False),
     sa.Column('campusAddress', sa.String(), nullable=False),
     sa.Column('universityID', sa.Integer(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['universityID'], ['university.universityID'], ),
     sa.PrimaryKeyConstraint('campusID')
-    )
-    op.create_table('courses',
-    sa.Column('courseID', sa.Integer(), nullable=False),
-    sa.Column('courseCode', sa.String(length=10), nullable=False),
-    sa.Column('campusID', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['campusID'], ['campus.campusID'], ),
-    sa.PrimaryKeyConstraint('courseID')
-    )
-    op.create_table('userprofiles',
-    sa.Column('profileTypeID', sa.Integer(), nullable=False),
-    sa.Column('profileTypeName', sa.String(length=500), nullable=False),
-    sa.Column('campusID', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['campusID'], ['campus.campusID'], ),
-    sa.PrimaryKeyConstraint('profileTypeID')
     )
     op.create_table('users',
     sa.Column('type', sa.String(), nullable=False),
     sa.Column('userID', sa.UUID(), nullable=False),
     sa.Column('profileTypeID', sa.Integer(), nullable=False),
+    sa.Column('creationDate', sa.DateTime(), nullable=True),
     sa.Column('name', sa.String(length=50), nullable=False),
     sa.Column('email', sa.String(length=40), nullable=False),
     sa.Column('phone', sa.String(length=15), nullable=True),
@@ -67,35 +64,53 @@ def upgrade() -> None:
     sa.Column('eRole', sa.String(length=50), nullable=True),
     sa.Column('ePhone', sa.String(length=20), nullable=True),
     sa.Column('photo', sa.String(), nullable=True),
+    sa.Column('active', sa.Boolean(), nullable=True),
     sa.ForeignKeyConstraint(['profileTypeID'], ['userprofiles.profileTypeID'], ),
     sa.PrimaryKeyConstraint('userID')
     )
     op.create_table('admins',
     sa.Column('adminID', sa.UUID(), nullable=False),
     sa.Column('role', sa.String(), nullable=False),
+    sa.Column('campusID', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['adminID'], ['users.userID'], ),
+    sa.ForeignKeyConstraint(['campusID'], ['campus.campusID'], ),
     sa.PrimaryKeyConstraint('adminID')
+    )
+    op.create_table('courses',
+    sa.Column('courseID', sa.Integer(), nullable=False),
+    sa.Column('courseCode', sa.String(length=10), nullable=False),
+    sa.Column('campusID', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['campusID'], ['campus.campusID'], ),
+    sa.PrimaryKeyConstraint('courseID')
+    )
+    op.create_table('generated_reports',
+    sa.Column('reportID', sa.Integer(), nullable=False),
+    sa.Column('lecturerID', sa.UUID(), nullable=False),
+    sa.Column('title', sa.String(length=100), nullable=False),
+    sa.Column('moduleCode', sa.String(length=20), nullable=False),
+    sa.Column('reportType', sa.String(length=50), nullable=False),
+    sa.Column('filterStatus', sa.String(length=50), nullable=False),
+    sa.Column('generatedAt', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('fileName', sa.String(length=255), nullable=False),
+    sa.Column('filePath', sa.String(length=500), nullable=False),
+    sa.ForeignKeyConstraint(['lecturerID'], ['users.userID'], ),
+    sa.PrimaryKeyConstraint('reportID')
     )
     op.create_table('lecturers',
     sa.Column('lecturerID', sa.UUID(), nullable=False),
     sa.Column('specialistIn', sa.String(), nullable=False),
+    sa.Column('campusID', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['campusID'], ['campus.campusID'], ),
     sa.ForeignKeyConstraint(['lecturerID'], ['users.userID'], ),
     sa.PrimaryKeyConstraint('lecturerID')
     )
     op.create_table('pmanager',
     sa.Column('pmanagerID', sa.UUID(), nullable=False),
     sa.Column('role', sa.String(), nullable=False),
+    sa.Column('universityID', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['pmanagerID'], ['users.userID'], ),
+    sa.ForeignKeyConstraint(['universityID'], ['university.universityID'], ),
     sa.PrimaryKeyConstraint('pmanagerID')
-    )
-    op.create_table('students',
-    sa.Column('studentID', sa.UUID(), nullable=False),
-    sa.Column('studentNum', sa.String(length=6), nullable=False),
-    sa.Column('courseID', sa.Integer(), nullable=False),
-    sa.Column('attendanceMinimum', sa.Float(), nullable=False),
-    sa.ForeignKeyConstraint(['courseID'], ['courses.courseID'], ),
-    sa.ForeignKeyConstraint(['studentID'], ['users.userID'], ),
-    sa.PrimaryKeyConstraint('studentID')
     )
     op.create_table('lecmods',
     sa.Column('lecModID', sa.Integer(), nullable=False),
@@ -104,6 +119,28 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['lecturerID'], ['lecturers.lecturerID'], ),
     sa.ForeignKeyConstraint(['moduleID'], ['modules.moduleID'], ),
     sa.PrimaryKeyConstraint('lecModID')
+    )
+    op.create_table('students',
+    sa.Column('studentID', sa.UUID(), nullable=False),
+    sa.Column('studentNum', sa.String(length=6), nullable=False),
+    sa.Column('courseID', sa.Integer(), nullable=False),
+    sa.Column('attendanceMinimum', sa.Float(), nullable=False),
+    sa.Column('campusID', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['campusID'], ['campus.campusID'], ),
+    sa.ForeignKeyConstraint(['courseID'], ['courses.courseID'], ),
+    sa.ForeignKeyConstraint(['studentID'], ['users.userID'], ),
+    sa.PrimaryKeyConstraint('studentID')
+    )
+    op.create_table('lessons',
+    sa.Column('lessonID', sa.Integer(), nullable=False),
+    sa.Column('lecModID', sa.Integer(), nullable=False),
+    sa.Column('building', sa.String(length=50), nullable=True),
+    sa.Column('room', sa.String(length=50), nullable=True),
+    sa.Column('lessontype', sa.String(length=10), nullable=False),
+    sa.Column('startDateTime', sa.DateTime(), nullable=False),
+    sa.Column('endDateTime', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['lecModID'], ['lecmods.lecModID'], ),
+    sa.PrimaryKeyConstraint('lessonID')
     )
     op.create_table('studentangles',
     sa.Column('studentID', sa.UUID(), nullable=False),
@@ -119,21 +156,11 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['studentID'], ['students.studentID'], ),
     sa.PrimaryKeyConstraint('studentModulesID')
     )
-    op.create_table('lessons',
-    sa.Column('lessonID', sa.Integer(), nullable=False),
-    sa.Column('lecModID', sa.Integer(), nullable=False),
-    sa.Column('building', sa.String(length=50), nullable=True),
-    sa.Column('room', sa.String(length=50), nullable=True),
-    sa.Column('lessontype', sa.String(length=10), nullable=False),
-    sa.Column('startDateTime', sa.DateTime(), nullable=False),
-    sa.Column('endDateTime', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['lecModID'], ['lecmods.lecModID'], ),
-    sa.PrimaryKeyConstraint('lessonID')
-    )
     op.create_table('attdcheck',
     sa.Column('AttdCheckID', sa.Integer(), nullable=False),
     sa.Column('lessonID', sa.Integer(), nullable=False),
     sa.Column('studentID', sa.UUID(), nullable=False),
+    sa.Column('remarks', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['lessonID'], ['lessons.lessonID'], ),
     sa.ForeignKeyConstraint(['studentID'], ['students.studentID'], ),
     sa.PrimaryKeyConstraint('AttdCheckID')
@@ -156,18 +183,19 @@ def downgrade() -> None:
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('entleave')
     op.drop_table('attdcheck')
-    op.drop_table('lessons')
     op.drop_table('studentmodules')
     op.drop_table('studentangles')
-    op.drop_table('lecmods')
+    op.drop_table('lessons')
     op.drop_table('students')
+    op.drop_table('lecmods')
     op.drop_table('pmanager')
     op.drop_table('lecturers')
+    op.drop_table('generated_reports')
+    op.drop_table('courses')
     op.drop_table('admins')
     op.drop_table('users')
-    op.drop_table('userprofiles')
-    op.drop_table('courses')
     op.drop_table('campus')
+    op.drop_table('userprofiles')
     op.drop_table('university')
     op.drop_table('modules')
     # ### end Alembic commands ###

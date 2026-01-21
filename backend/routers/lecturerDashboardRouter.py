@@ -28,7 +28,7 @@ from schemas import( timetableEntry,
                             viewUserProfile,
                             UserProfileUpdate,
                             ReportCriteria,
-                            AttendanceLogEntry,
+
                             DetailedAttendanceRecord,
                             DailyTimetable,
                             Weeklytimetable,

@@ -4,8 +4,12 @@ export interface PlatformManagerDash {
     total_institutions: number
   },
   recent_subscriptions: {
-    universityID: number,
-    universityName: string,
-    subscriptionDate: string
+    universityID: number;
+    universityName: string;
+    campusID: number;
+    campusName: string;
+    campusAddress?: string;
+    subscriptionDate: string;
+    isActive: boolean;
   }[]
 }

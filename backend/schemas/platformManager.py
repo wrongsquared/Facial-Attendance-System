@@ -6,6 +6,9 @@ from typing import List, Optional
 class UniversityDisplay(BaseModel):
     universityID: int
     universityName: str
+    campusID: int   
+    campusName: str
+    campusAddress: Optional[str] = None      
     subscriptionDate: datetime.datetime
     isActive: bool
 
@@ -55,6 +58,7 @@ class AdminUserDisplay(BaseModel):
     email: str
     phone: Optional[str] = None # We will map contactNumber to this
     type: str
+    isActive: bool
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -62,6 +66,7 @@ class campusDisplay(BaseModel):
     campusID: int
     campusName: str
     campusAddress: str
+    created_at: datetime.date
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -77,3 +82,18 @@ class InstitutionUpdate(BaseModel):
     campusAddress: str
 
     model_config = ConfigDict(from_attributes=True)
+
+from pydantic import BaseModel, EmailStr
+
+class CampusCreate(BaseModel):
+    campusName: str
+    campusAddress: str
+
+class UserStatusUpdate(BaseModel):
+    isActive: bool
+
+class AdminCreate(BaseModel):
+    name: str
+    email: EmailStr
+    contactNumber: Optional[str] = None
+    password: str

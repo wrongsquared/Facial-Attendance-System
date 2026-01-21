@@ -11,12 +11,12 @@ export interface AuthResponse {
   role_id: number;
   role_name: string;
   name: string;
-  campus_id: number;
-  campus_name: string;
-  uni_name:string;
+  // campus_id: number;
+  // campus_name: string;
+  // uni_name:string;
   studentNum?: string | null;
   specialistIn?: string | null;
-  job?: string | null; 
+  job?: string | null;
 }
 
 export interface ProfileUpdateData {

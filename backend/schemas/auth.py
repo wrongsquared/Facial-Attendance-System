@@ -22,9 +22,6 @@ class TokenResponse(BaseModel):
     role_id: int   # e.g., 1 for Student, 2 for Lecturer
     role_name: str
     name: str
-    campus_id: int
-    campus_name: str
-    university_name: str
     
     studentNum: Optional[str] = None
     specialistIn: Optional[str] = None

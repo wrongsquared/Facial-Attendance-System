@@ -219,6 +219,7 @@ def get_lecturer_attendance_log_filtered(
             Student.studentNum,
             Student.name,
             AttdCheck.AttdCheckID, # If this exists, they are Present
+            AttdCheck.remarks,
             func.min(EntLeave.enter).label("entry_time") # Get the FIRST time they entered
         )
         .select_from(Lesson)
@@ -246,7 +247,8 @@ def get_lecturer_attendance_log_filtered(
             Module.moduleCode, 
             Student.studentNum, 
             Student.name, 
-            AttdCheck.AttdCheckID
+            AttdCheck.AttdCheckID,
+            AttdCheck.remarks
         )
     )
 
@@ -278,7 +280,7 @@ def get_lecturer_attendance_log_filtered(
     # 4. PROCESS LOGIC (Python Side)
     log_entries = []
     
-    for lesson, mod_code, s_id, s_name, attd_id, entry_time in results:
+    for lesson, mod_code, s_id, s_name, attd_id, entry_time, remarks in results:
         
         # --- CALCULATE STATUS ---
         current_status = "Absent"
@@ -290,7 +292,9 @@ def get_lecturer_attendance_log_filtered(
             # entry_time comes from the database (EntLeave table)
             if entry_time and entry_time > (lesson.startDateTime + timedelta(minutes=15)):
                 current_status = "Late"
+        loc = "Building: "+ lesson.building + " Room: " + lesson.room
 
+        entry_time = str(entry_time)
         # --- FILTER BY STATUS ---
         # If the user requested a specific status (e.g. "Late"), skip rows that don't match
         if status and current_status != status:
@@ -303,7 +307,10 @@ def get_lecturer_attendance_log_filtered(
             module_code=mod_code,
             status=current_status,
             date=lesson.startDateTime.strftime("%d %b %Y"),
-            lesson_id=lesson.lessonID
+            lesson_id=lesson.lessonID,
+            location = loc,
+            timestamp = entry_time,
+            method = remarks
         ))
     total_records = len(log_entries)
     paginated_data = log_entries[offset : offset + limit]

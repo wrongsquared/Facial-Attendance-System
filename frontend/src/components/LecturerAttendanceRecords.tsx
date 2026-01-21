@@ -278,12 +278,8 @@ export function LecturerAttendanceRecords({
                             onClick={() => {
                               const detailedRecord = {
                                 ...record,
-                                attendanceMethod: "Biometric Scan", // Mock
-                                liveCheck: "Passed",                // Mock
-                                cameraLocation: "Building 3, Room 205", // Mock or from API
-                                timestamp: "09:00 AM",              // Mock
-                                verificationType: "Single-person",  // Mock
-                                virtualTripwire: "Triggered"        // Mock
+                                cameraLocation: record.location, // Mock or from API
+                                timestamp: record.timestamp,              // Mock
                                 };
                               setSelectedRecord(detailedRecord);
                               setIsDialogOpen(true);
@@ -377,47 +373,17 @@ export function LecturerAttendanceRecords({
                       {selectedRecord.status}
                     </Badge>
                   </div>
-                  <div>
+                  <div> 
                     <p className="text-sm text-gray-600 mb-1">Attendance Method:</p>
-                    <p className="font-medium">{selectedRecord.status}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Live Check:</p>
-                    <Badge 
-                      className={
-                        selectedRecord.liveCheck === "Passed"
-                          ? "bg-green-100 text-green-700 hover:bg-green-100"
-                          : selectedRecord.liveCheck === "Failed"
-                          ? "bg-red-100 text-red-700 hover:bg-red-100"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-100"
-                      }
-                    >
-                      {selectedRecord.liveCheck}
-                    </Badge>
+                    <p className="font-medium">{selectedRecord.method ?? "Camera Capture"} </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Camera Location:</p>
-                    <p className="font-medium">{selectedRecord.cameraLocation}</p>
+                    <p className="font-medium">{selectedRecord.location}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Timestamp:</p>
                     <p className="font-medium">{selectedRecord.timestamp}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Verification Type:</p>
-                    <p className="font-medium">{selectedRecord.verificationType}</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <p className="text-sm text-gray-600 mb-1">Virtual Tripwire:</p>
-                    <Badge 
-                      className={
-                        selectedRecord.virtualTripwire === "Triggered"
-                          ? "bg-blue-100 text-blue-700 hover:bg-blue-100"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-100"
-                      }
-                    >
-                      {selectedRecord.virtualTripwire}
-                    </Badge>
                   </div>
                 </div>
               </div>

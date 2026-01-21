@@ -103,20 +103,23 @@ def get_total_lessons(
     user_id: str = Depends(get_current_user_id), 
     db: Session = Depends(get_db)
 ):
+    print("Fetching overall attendance stats for user:", user_id)
     total_count = (db.query(func.count(Lesson.lessonID))
                .join(LecMod, Lesson.lecModID == LecMod.lecModID)
                .join(Module, LecMod.moduleID == Module.moduleID)
                .join(StudentModules, Module.moduleID == StudentModules.modulesID)
                .filter(StudentModules.studentID == user_id).scalar()) or 0
-    
+    print("Total lessons found:", total_count)
     attended_count = (
         db.query(func.count(AttdCheck.AttdCheckID))
         .filter(AttdCheck.studentID == user_id)
         .scalar()
     ) or 0 
+    print("Attended lessons found:", attended_count)
     percentage = 0.0
     if total_count > 0:
         percentage = round((attended_count/total_count)* 100 , 1)
+    print("Calculated attendance percentage:", percentage)
     return {"total_lessons": total_count, "attended_lessons": attended_count, "percentage": percentage}
 
 @router.get("/student/stats/by-module", response_model=list[AttendancePerModule])

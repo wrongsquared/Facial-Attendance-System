@@ -276,10 +276,9 @@ export function AdminUpdateUserProfile({
           <Button variant="outline" onClick={onBack}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>Save Changes</Button>
+          <Button onClick={handleSave} className="bg-blue-600 text-white hover:bg-blue-700">Save Changes</Button>
         </div>
       </main>
-
     </div>
   );
 }

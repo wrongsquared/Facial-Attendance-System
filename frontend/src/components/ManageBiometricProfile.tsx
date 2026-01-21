@@ -462,7 +462,6 @@ export function ManageBiometricProfile({
         </Card>
       </main>
 
-
       {/* Delete Confirmation Dialog */}
       {userToDelete && (
         <AlertDialog open={!!userToDelete} onOpenChange={(open: any) => !open && cancelDelete()}>

@@ -6,6 +6,8 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
 import {
   ArrowLeft,
 } from "lucide-react";
@@ -14,11 +16,21 @@ import { Navbar } from "./Navbar";
 import { useState, useEffect } from "react";
 import { useAuth } from "../cont/AuthContext";
 import { getAdminProfile } from "../services/api";
+import React from "react";
 
 interface ViewAdminProfileProps {
   onLogout: () => void;
   onBack: () => void;
   onUpdateProfile: () => void;
+  onSave?: (profileData: {
+    name: string;
+    email: string;
+    contactNumber: string;
+    address: string;
+    emergencyContactName: string;
+    emergencyRelationship: string;
+    emergencyContactNumber: string;
+  }) => void;
   onNavigateToProfile?: () => void;
   adminData?: {
     name?: string;
@@ -35,15 +47,64 @@ export function ViewAdminProfile({
   onBack,
   onUpdateProfile,
   adminData,
-  onNavigateToProfile
+  onNavigateToProfile,
+  onSave
 }: ViewAdminProfileProps) {
-  const name = adminData?.name || "John Smith";
-  const email = adminData?.email || "john.smith@uow.edu.au";
-  const contactNumber = adminData?.contactNumber || "+61 2 4221 3456";
-  const address = adminData?.address || "123 Innovation Campus\nSquires Way\nNorth Wollongong NSW 2500\nAustralia";
-  const emergencyContactName = adminData?.emergencyContactName || "Jane Smith";
-  const emergencyRelationship = adminData?.emergencyRelationship || "Spouse";
-  const emergencyContactNumber = adminData?.emergencyContactNumber || "+61 412 345 678";
+   // State for edit mode
+  const [isEditing, setIsEditing] = React.useState(false);
+
+  // Form state
+  const [name, setName] = React.useState(adminData?.name || "John Smith");
+  const [email, setEmail] = React.useState(adminData?.email || "john.smith@uow.edu.au");
+  const [contactNumber, setContactNumber] = React.useState(adminData?.contactNumber || "+61 2 4221 3456");
+  const [address, setAddress] = React.useState(adminData?.address || "123 Innovation Campus\nSquires Way\nNorth Wollongong NSW 2500\nAustralia");
+  const [emergencyContactName, setEmergencyContactName] = React.useState(adminData?.emergencyContactName || "Jane Smith");
+  const [emergencyRelationship, setEmergencyRelationship] = React.useState(adminData?.emergencyRelationship || "Spouse");
+  const [emergencyContactNumber, setEmergencyContactNumber] = React.useState(adminData?.emergencyContactNumber || "+61 412 345 678");
+
+  // Update form when adminData changes
+  React.useEffect(() => {
+    if (adminData) {
+      setName(adminData.name || "John Smith");
+      setEmail(adminData.email || "john.smith@uow.edu.au");
+      setContactNumber(adminData.contactNumber || "+61 2 4221 3456");
+      setAddress(adminData.address || "123 Innovation Campus\nSquires Way\nNorth Wollongong NSW 2500\nAustralia");
+      setEmergencyContactName(adminData.emergencyContactName || "Jane Smith");
+      setEmergencyRelationship(adminData.emergencyRelationship || "Spouse");
+      setEmergencyContactNumber(adminData.emergencyContactNumber || "+61 412 345 678");
+    }
+  }, [adminData]);
+
+  const handleUpdateClick = () => {
+    setIsEditing(true);
+  };
+
+  const handleSave = () => {
+    if (onSave) {
+      onSave({
+        name,
+        email,
+        contactNumber,
+        address,
+        emergencyContactName,
+        emergencyRelationship,
+        emergencyContactNumber,
+      });
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    // Reset form to current adminData
+    setName(adminData?.name || "John Smith");
+    setEmail(adminData?.email || "john.smith@uow.edu.au");
+    setContactNumber(adminData?.contactNumber || "+61 2 4221 3456");
+    setAddress(adminData?.address || "123 Innovation Campus\nSquires Way\nNorth Wollongong NSW 2500\nAustralia");
+    setEmergencyContactName(adminData?.emergencyContactName || "Jane Smith");
+    setEmergencyRelationship(adminData?.emergencyRelationship || "Spouse");
+    setEmergencyContactNumber(adminData?.emergencyContactNumber || "+61 412 345 678");
+    setIsEditing(false);
+  };
   const { token, user } = useAuth();
   const [formData, setFormData] = useState<AdminProfileData>({
     name: "",
@@ -108,27 +169,59 @@ export function ViewAdminProfile({
                 {/* Name */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-600">Name:</p>
-                  <p className="text-base">{formData.name}</p>
+                   {isEditing ? (
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full"
+                    />
+                  ) : (
+                    <p className="text-base">{name}</p>
+                  )}
                 </div>
 
                 {/* Email */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-600">Email:</p>
-                  <p className="text-base">{formData.email}</p>
+                  {isEditing ? (
+                    <Input
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full"
+                    />
+                  ) : (
+                    <p className="text-base">{email}</p>
+                  )}
                 </div>
 
                 {/* Contact Number */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-600">Contact Number:</p>
-                  <p className="text-base">{formData.contactNumber}</p>
+                  {isEditing ? (
+                    <Input
+                      value={contactNumber}
+                      onChange={(e) => setContactNumber(e.target.value)}
+                      className="w-full"
+                    />
+                  ) : (
+                    <p className="text-base">{contactNumber}</p>
+                  )}
                 </div>
 
                 {/* Address - Larger box */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-600">Address:</p>
-                  <div className="bg-gray-50 border border-gray-200 rounded-md p-4 min-h-[120px]">
-                    <p className="text-base whitespace-pre-line">{formData.address ? formData.address: "--"}</p>
-                  </div>
+                  {isEditing ? (
+                    <Textarea
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="w-full min-h-[120px]"
+                    />
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-md p-4 min-h-[120px]">
+                      <p className="text-base whitespace-pre-line">{address}</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -145,33 +238,67 @@ export function ViewAdminProfile({
                 {/* Contact Name */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-600">Contact Name:</p>
-                  <p className="text-base">{formData.emergencyContactName ? formData.emergencyContactName: "--"} </p>
+                  {isEditing ? (
+                    <Input
+                      value={emergencyContactName}
+                      onChange={(e) => setEmergencyContactName(e.target.value)}
+                      className="w-full"
+                    />
+                  ) : (
+                    <p className="text-base">{emergencyContactName}</p>
+                  )}
                 </div>
 
                 {/* Relationship */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-600">Relationship:</p>
-                  <p className="text-base">{formData.emergencyContactRelationship ? formData.emergencyContactRelationship: "--"}</p>
+                  {isEditing ? (
+                    <Input
+                      value={emergencyRelationship}
+                      onChange={(e) => setEmergencyRelationship(e.target.value)}
+                      className="w-full"
+                    />
+                  ) : (
+                    <p className="text-base">{emergencyRelationship}</p>
+                  )}
                 </div>
 
                 {/* Contact Number */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-600">Contact Number:</p>
-                  <p className="text-base">{formData.emergencyContactNumber? formData.emergencyContactNumber: "--"}</p>
+                  {isEditing ? (
+                    <Input
+                      value={emergencyContactNumber}
+                      onChange={(e) => setEmergencyContactNumber(e.target.value)}
+                      className="w-full"
+                    />
+                  ) : (
+                    <p className="text-base">{emergencyContactNumber}</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
             {/* Update Profile Button - Centered */}
             <div className="flex justify-center items-center pt-4">
-              <Button onClick={onUpdateProfile} size="lg">
-                Update Profile
-              </Button>
+              {isEditing ? (
+                <>
+                  <Button onClick={handleCancel} size="lg" variant="outline" className="mr-4">
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSave} size="lg" className="bg-blue-600 text-white hover:bg-blue-700">
+                    Save Changes
+                  </Button>
+                </>
+              ) : (
+                <Button onClick={handleUpdateClick} size="lg" className="bg-blue-600 text-white hover:bg-blue-700">
+                  Update Profile
+                </Button>
+              )}
             </div>
           </div>
         </div>
       </main>
-
     </div>
   );
 }

@@ -26,7 +26,7 @@ import {
   TableRow,
 } from "./ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { useAuth } from "../cont/AuthContext"; 
+import { useAuth } from "../cont/AuthContext";
 import { useEffect, useState } from "react";
 import { AdminStats, CourseAttention, UserManagementItem } from "../types/admindash";
 import {

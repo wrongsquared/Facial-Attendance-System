@@ -227,6 +227,7 @@ export function UpdateAdminProfile({
                 onClick={handleSave} 
                 size="lg"
                 disabled={!hasChanges}
+                className="bg-blue-600 text-white hover:bg-blue-700"
               >
                 Save Changes
               </Button>
@@ -234,8 +235,6 @@ export function UpdateAdminProfile({
           </div>
         </div>
       </main>
-
-
     </div>
   );
 }
