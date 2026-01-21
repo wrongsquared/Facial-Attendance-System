@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { useEffect } from "react";
-import { getAttendanceRecords } from "../services/api";
-import { useAuth } from "../context/AuthContext";
+import { useState, } from "react";
+// import { useEffect } from "react";
+// import { getAttendanceRecords } from "../services/api";
+// import { useAuth } from "../context/AuthContext";
 
 import {
   Card,
@@ -65,30 +65,30 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 interface AttendanceRecord {
-  userId: string;
-  studentName: string;
-  module: string;
+  user_id: string;
+  student_name: string;
+  module_code: string;
   status: string;
   date: string;
-  attendanceMethod: string;
-  liveCheck: string;
-  cameraLocation: string;
+  attendance_method: string;
+  live_check: string;
+  camera_location: string;
   timestamp: string;
-  verificationType: string;
-  virtualTripwire: string;
+  verification_type: string;
+  virtual_tripwire: string;
 }
 
 interface AdminAttendanceRecordsProps {
   onLogout: () => void;
   onBack: () => void;
   onNavigateToManualOverride: (studentData: {
-    userId: string;
-    studentName: string;
+    user_id: string;
+    student_name: string;
     date: string;
     status: string;
   }) => void;
   attendanceRecords: AttendanceRecord[];
-  updateAttendanceRecord: (userId: string, date: string, newStatus: string) => void;
+  updateAttendanceRecord: (user_id: string, date: string, newStatus: string) => void;
 }
 
 const ITEMS_PER_PAGE = 8;
@@ -105,10 +105,11 @@ export function AdminAttendanceRecords({
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedRecord, setSelectedRecord] = useState<typeof attendanceRecords[0] | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
+  // const [selectedRecord, setSelectedRecord] = useState<typeof attendanceRecords[0] | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  // const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  // const [loading, setLoading] = useState(true);
   
   // Helper function to format date - must be declared before it's used
   const formatDate = (date: Date) => {
@@ -123,11 +124,11 @@ export function AdminAttendanceRecords({
   const filteredRecords = attendanceRecords.filter((record) => {
     const matchesSearch =
       searchQuery === "" ||
-      record.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.userId.toLowerCase().includes(searchQuery.toLowerCase());
+      record.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      record.user_id.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesModule =
-      selectedModule === "all" || record.module === selectedModule;
+      selectedModule === "all" || record.module_code === selectedModule;
     
     const matchesStatus =
       selectedStatus === "all" || record.status === selectedStatus;
@@ -314,10 +315,10 @@ export function AdminAttendanceRecords({
                 <TableBody>
                   {currentRecords.length > 0 ? (
                     currentRecords.map((record, index) => (
-                      <TableRow key={`${record.userId}-${index}`}>
-                        <TableCell>{record.userId}</TableCell>
-                        <TableCell>{record.studentName}</TableCell>
-                        <TableCell>{record.module}</TableCell>
+                      <TableRow key={`${record.user_id}-${index}`}>
+                        <TableCell>{record.user_id}</TableCell>
+                        <TableCell>{record.student_name}</TableCell>
+                        <TableCell>{record.module_code}</TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(record.status)}>
                             {record.status}
@@ -407,15 +408,15 @@ export function AdminAttendanceRecords({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Student Name:</p>
-                  <p className="font-medium">{selectedRecord.studentName}</p>
+                  <p className="font-medium">{selectedRecord.student_name}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 mb-1">User ID:</p>
-                  <p className="font-medium">{selectedRecord.userId}</p>
+                  <p className="font-medium">{selectedRecord.user_id}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Module:</p>
-                  <p className="font-medium">{selectedRecord.module}</p>
+                  <p className="font-medium">{selectedRecord.module_code}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Date:</p>
@@ -433,25 +434,25 @@ export function AdminAttendanceRecords({
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Attendance Method:</p>
-                    <p className="font-medium">{selectedRecord.attendanceMethod}</p>
+                    <p className="font-medium">{selectedRecord.attendance_method}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Live Check:</p>
                     <Badge 
                       className={
-                        selectedRecord.liveCheck === "Passed"
+                        selectedRecord.live_check === "Passed"
                           ? "bg-green-100 text-green-700 hover:bg-green-100"
-                          : selectedRecord.liveCheck === "Failed"
+                          : selectedRecord.live_check === "Failed"
                           ? "bg-red-100 text-red-700 hover:bg-red-100"
                           : "bg-gray-100 text-gray-700 hover:bg-gray-100"
                       }
                     >
-                      {selectedRecord.liveCheck}
+                      {selectedRecord.live_check}
                     </Badge>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Camera Location:</p>
-                    <p className="font-medium">{selectedRecord.cameraLocation}</p>
+                    <p className="font-medium">{selectedRecord.camera_location}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Timestamp:</p>
@@ -459,18 +460,18 @@ export function AdminAttendanceRecords({
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Verification Type:</p>
-                    <p className="font-medium">{selectedRecord.verificationType}</p>
+                    <p className="font-medium">{selectedRecord.verification_type}</p>
                   </div>
                   <div className="md:col-span-2">
                     <p className="text-sm text-gray-600 mb-1">Virtual Tripwire:</p>
                     <Badge 
                       className={
-                        selectedRecord.virtualTripwire === "Triggered"
+                        selectedRecord.virtual_tripwire === "Triggered"
                           ? "bg-blue-100 text-blue-700 hover:bg-blue-100"
                           : "bg-gray-100 text-gray-700 hover:bg-gray-100"
                       }
                     >
-                      {selectedRecord.virtualTripwire}
+                      {selectedRecord.virtual_tripwire}
                     </Badge>
                   </div>
                 </div>
@@ -489,8 +490,8 @@ export function AdminAttendanceRecords({
               <Button
                 onClick={() => {
                   onNavigateToManualOverride({
-                    userId: selectedRecord.userId,
-                    studentName: selectedRecord.studentName,
+                    user_id: selectedRecord.user_id,
+                    student_name: selectedRecord.student_name,
                     date: selectedRecord.date,
                     status: selectedRecord.status,
                   });
