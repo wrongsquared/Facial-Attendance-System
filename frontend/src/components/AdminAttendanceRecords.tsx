@@ -1,5 +1,5 @@
-import { useState, } from "react";
-// import { useEffect } from "react";
+import { useState } from "react";
+import { useEffect } from "react";
 // import { getAttendanceRecords } from "../services/api";
 // import { useAuth } from "../context/AuthContext";
 
@@ -64,31 +64,33 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import { Navbar } from "./Navbar";
 interface AttendanceRecord {
-  user_id: string;
-  student_name: string;
-  module_code: string;
+  userId: string;
+  studentName: string;
+  module: string;
   status: string;
   date: string;
-  attendance_method: string;
-  live_check: string;
-  camera_location: string;
+  attendanceMethod: string;
+  liveCheck: string;
+  cameraLocation: string;
   timestamp: string;
-  verification_type: string;
-  virtual_tripwire: string;
+  verificationType: string;
+  virtualTripwire: string;
 }
 
 interface AdminAttendanceRecordsProps {
   onLogout: () => void;
   onBack: () => void;
+  onNavigateToProfile: () => void;
   onNavigateToManualOverride: (studentData: {
-    user_id: string;
-    student_name: string;
+    userId: string;
+    studentName: string;
     date: string;
     status: string;
   }) => void;
   attendanceRecords: AttendanceRecord[];
-  updateAttendanceRecord: (user_id: string, date: string, newStatus: string) => void;
+  updateAttendanceRecord: (userId: string, date: string, newStatus: string) => void;
 }
 
 const ITEMS_PER_PAGE = 8;
@@ -96,6 +98,7 @@ const ITEMS_PER_PAGE = 8;
 export function AdminAttendanceRecords({
   onLogout,
   onBack,
+  onNavigateToProfile,
   onNavigateToManualOverride,
   attendanceRecords,
   updateAttendanceRecord,
@@ -110,6 +113,7 @@ export function AdminAttendanceRecords({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   // const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   // const [loading, setLoading] = useState(true);
+  const [moduleList, setModuleList] = useState<string[]>([]);
   
   // Helper function to format date - must be declared before it's used
   const formatDate = (date: Date) => {
@@ -124,11 +128,11 @@ export function AdminAttendanceRecords({
   const filteredRecords = attendanceRecords.filter((record) => {
     const matchesSearch =
       searchQuery === "" ||
-      record.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.user_id.toLowerCase().includes(searchQuery.toLowerCase());
+      record.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      record.userId.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesModule =
-      selectedModule === "all" || record.module_code === selectedModule;
+      selectedModule === "all" || record.module === selectedModule;
     
     const matchesStatus =
       selectedStatus === "all" || record.status === selectedStatus;
@@ -161,59 +165,8 @@ export function AdminAttendanceRecords({
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">Admin Portal</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback>AM</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>Admin User</p>
-                <p className="text-sm text-gray-600">System Administrator</p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
-
+      <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile} />
+      
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
         {/* Back Button */}
@@ -315,10 +268,10 @@ export function AdminAttendanceRecords({
                 <TableBody>
                   {currentRecords.length > 0 ? (
                     currentRecords.map((record, index) => (
-                      <TableRow key={`${record.user_id}-${index}`}>
-                        <TableCell>{record.user_id}</TableCell>
-                        <TableCell>{record.student_name}</TableCell>
-                        <TableCell>{record.module_code}</TableCell>
+                      <TableRow key={`${record.userId}-${index}`}>
+                        <TableCell>{record.userId}</TableCell>
+                        <TableCell>{record.studentName}</TableCell>
+                        <TableCell>{record.module}</TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(record.status)}>
                             {record.status}
@@ -408,15 +361,15 @@ export function AdminAttendanceRecords({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Student Name:</p>
-                  <p className="font-medium">{selectedRecord.student_name}</p>
+                  <p className="font-medium">{selectedRecord.studentName}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 mb-1">User ID:</p>
-                  <p className="font-medium">{selectedRecord.user_id}</p>
+                  <p className="font-medium">{selectedRecord.userId}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Module:</p>
-                  <p className="font-medium">{selectedRecord.module_code}</p>
+                  <p className="font-medium">{selectedRecord.module}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Date:</p>
@@ -434,25 +387,25 @@ export function AdminAttendanceRecords({
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Attendance Method:</p>
-                    <p className="font-medium">{selectedRecord.attendance_method}</p>
+                    <p className="font-medium">{selectedRecord.attendanceMethod}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Live Check:</p>
                     <Badge 
                       className={
-                        selectedRecord.live_check === "Passed"
+                        selectedRecord.liveCheck === "Passed"
                           ? "bg-green-100 text-green-700 hover:bg-green-100"
-                          : selectedRecord.live_check === "Failed"
+                          : selectedRecord.liveCheck === "Failed"
                           ? "bg-red-100 text-red-700 hover:bg-red-100"
                           : "bg-gray-100 text-gray-700 hover:bg-gray-100"
                       }
                     >
-                      {selectedRecord.live_check}
+                      {selectedRecord.liveCheck}
                     </Badge>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Camera Location:</p>
-                    <p className="font-medium">{selectedRecord.camera_location}</p>
+                    <p className="font-medium">{selectedRecord.cameraLocation}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Timestamp:</p>
@@ -460,18 +413,18 @@ export function AdminAttendanceRecords({
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Verification Type:</p>
-                    <p className="font-medium">{selectedRecord.verification_type}</p>
+                    <p className="font-medium">{selectedRecord.verificationType}</p>
                   </div>
                   <div className="md:col-span-2">
                     <p className="text-sm text-gray-600 mb-1">Virtual Tripwire:</p>
                     <Badge 
                       className={
-                        selectedRecord.virtual_tripwire === "Triggered"
+                        selectedRecord.virtualTripwire === "Triggered"
                           ? "bg-blue-100 text-blue-700 hover:bg-blue-100"
                           : "bg-gray-100 text-gray-700 hover:bg-gray-100"
                       }
                     >
-                      {selectedRecord.virtual_tripwire}
+                      {selectedRecord.virtualTripwire}
                     </Badge>
                   </div>
                 </div>
@@ -490,8 +443,8 @@ export function AdminAttendanceRecords({
               <Button
                 onClick={() => {
                   onNavigateToManualOverride({
-                    user_id: selectedRecord.user_id,
-                    student_name: selectedRecord.student_name,
+                    userId: selectedRecord.userId,
+                    studentName: selectedRecord.studentName,
                     date: selectedRecord.date,
                     status: selectedRecord.status,
                   });
