@@ -639,6 +639,7 @@ export default function App() {
           <FeaturesSection />
           <TestimonialsSection />
         </main>
+        <Footer />
       </div>
     );
   }

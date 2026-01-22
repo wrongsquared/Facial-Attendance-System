@@ -132,10 +132,10 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction onClick={onLogout}>
                     Log out
                   </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
