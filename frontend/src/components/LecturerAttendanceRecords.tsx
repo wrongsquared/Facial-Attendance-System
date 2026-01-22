@@ -77,23 +77,23 @@ export function LecturerAttendanceRecords({
   const [moduleList, setModuleList] = useState<string[]>([]);
 
   // Filter records
-    const formatDate = (date: Date) => {
+  const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-GB", {
       day: "numeric",
       month: "short",
       year: "numeric",
     });
   };
-    useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
       setCurrentPage(1); // Important: Reset to Page 1 when searching
-      }, 500);
+    }, 500);
 
-      return () => clearTimeout(timer);
-    }, [searchQuery]);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-    useEffect(() => {
+  useEffect(() => {
     const fetchModules = async () => {
       if (!token) return;
       try {
@@ -105,7 +105,7 @@ export function LecturerAttendanceRecords({
     };
     fetchModules();
   }, [token]);
-    useEffect(() => {
+  useEffect(() => {
     const fetchData = async () => {
       if (!token) return;
       setLoading(true);
@@ -113,21 +113,21 @@ export function LecturerAttendanceRecords({
         // Convert Date to YYYY-MM-DD
         let dateStr = "";
         if (selectedDate) {
-           // Ensure local date string matches API expectation
-           // Trick: use the 'en-CA' locale to get YYYY-MM-DD
-           dateStr = selectedDate.toLocaleDateString("en-CA");
+          // Ensure local date string matches API expectation
+          // Trick: use the 'en-CA' locale to get YYYY-MM-DD
+          dateStr = selectedDate.toLocaleDateString("en-CA");
         }
 
         const response = await getAttendanceLog(token, {
           searchTerm: debouncedSearch,
           moduleCode: selectedModule === "all" ? undefined : selectedModule,
           status: selectedStatus === "all" ? undefined : (selectedStatus as any),
-          date: dateStr, 
+          date: dateStr,
           page: currentPage,
           limit: ITEMS_PER_PAGE
         });
-        console.log("API RESPONSE RAW:", response); 
-        setRecentAttendanceLog(response.data || []); 
+        console.log("API RESPONSE RAW:", response);
+        setRecentAttendanceLog(response.data || []);
         setTotalRecords(response.total || 0);
       } catch (err) {
         console.error(err);
@@ -137,7 +137,7 @@ export function LecturerAttendanceRecords({
     };
     fetchData();
   }, [token, debouncedSearch, selectedModule, selectedStatus, selectedDate, currentPage]);
-  
+
   const totalPages = Math.ceil(totalRecords / ITEMS_PER_PAGE);
 
   // Helper for Status Badge Color
@@ -151,7 +151,7 @@ export function LecturerAttendanceRecords({
   };
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Navbar title= "Lecturer Portal" onNavigateToProfile={onNavigateToProfile}/>
+      <Navbar title="Lecturer Portal" onNavigateToProfile={onNavigateToProfile} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -254,7 +254,7 @@ export function LecturerAttendanceRecords({
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody> 
+                <TableBody>
                   {loading ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-8">Loading records...</TableCell>
@@ -272,15 +272,15 @@ export function LecturerAttendanceRecords({
                         </TableCell>
                         <TableCell>{record.date}</TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => {
                               const detailedRecord = {
                                 ...record,
                                 cameraLocation: record.location, // Mock or from API
                                 timestamp: record.timestamp,              // Mock
-                                };
+                              };
                               setSelectedRecord(detailedRecord);
                               setIsDialogOpen(true);
                             }}
@@ -316,7 +316,7 @@ export function LecturerAttendanceRecords({
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                
+
                 <span className="text-sm text-gray-600">
                   Page {currentPage} of {totalPages || 1}
                 </span>
@@ -373,7 +373,7 @@ export function LecturerAttendanceRecords({
                       {selectedRecord.status}
                     </Badge>
                   </div>
-                  <div> 
+                  <div>
                     <p className="text-sm text-gray-600 mb-1">Attendance Method:</p>
                     <p className="font-medium">{selectedRecord.method ?? "Camera Capture"} </p>
                   </div>

@@ -70,9 +70,10 @@ export function AdminUpdateUserProfile({
   showToast,
   onNavigateToProfile
 }: AdminUpdateUserProfileProps) {
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+
   // Personal Information - use userProfileData if available, otherwise defaults
-
-
   const [name, setName] = useState(userProfileData?.name || userData.name);
   const [email, setEmail] = useState(userProfileData?.email || "john.smith@uow.edu.au");
   const [dateOfBirth, setDateOfBirth] = useState(userProfileData?.dateOfBirth || "1998-05-15");
@@ -104,7 +105,19 @@ export function AdminUpdateUserProfile({
       biometricLastUpdated,
     });
     showToast("User Profile Updated!");
-    onBack();
+    setIsEditMode(false);
+  };
+
+  const handleCancel = () => {
+    // Reset form to original values
+    setName(userProfileData?.name || userData.name);
+    setEmail(userProfileData?.email || "john.smith@uow.edu.au");
+    setDateOfBirth(userProfileData?.dateOfBirth || "1998-05-15");
+    setContactNumber(userProfileData?.contactNumber || "+61 412 345 678");
+    setAddress(userProfileData?.address || "123 Main Street, Wollongong NSW 2500");
+    setRole(userProfileData?.role || userData.role);
+    setStatus(userProfileData?.status || "Active");
+    setIsEditMode(false);
   };
 
   return (
@@ -121,7 +134,7 @@ export function AdminUpdateUserProfile({
 
         {/* Page Title */}
         <div className="mb-8">
-          <h2 className="text-3xl mb-2">Update User Profile</h2>
+          <h2 className="text-3xl mb-2">{isEditMode ? 'Update User Profile' : 'View User Profile'}</h2>
           <div className="mt-4 space-y-1">
             <p className="text-gray-600">User ID: {userData.userId}</p>
             <p className="text-gray-600">User Name: {userData.name}</p>
@@ -140,6 +153,7 @@ export function AdminUpdateUserProfile({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter name"
+                disabled={!isEditMode}
               />
             </div>
             <div>
@@ -149,6 +163,7 @@ export function AdminUpdateUserProfile({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter email"
+                disabled={!isEditMode}
               />
             </div>
             <div>
@@ -159,6 +174,7 @@ export function AdminUpdateUserProfile({
                 type="date"
                 value={dateOfBirth}
                 onChange={(e) => setDateOfBirth(e.target.value)}
+                disabled={!isEditMode}
               />
             </div>
             <div>
@@ -170,6 +186,7 @@ export function AdminUpdateUserProfile({
                 value={contactNumber}
                 onChange={(e) => setContactNumber(e.target.value)}
                 placeholder="Enter contact number"
+                disabled={!isEditMode}
               />
             </div>
             <div>
@@ -180,6 +197,7 @@ export function AdminUpdateUserProfile({
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="Enter address"
+                disabled={!isEditMode}
               />
             </div>
           </CardContent>
@@ -199,7 +217,7 @@ export function AdminUpdateUserProfile({
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">Role:</label>
-              <Select value={role} onValueChange={setRole}>
+              <Select value={role} onValueChange={setRole} disabled={!isEditMode}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
@@ -214,7 +232,7 @@ export function AdminUpdateUserProfile({
               <label className="text-sm text-gray-600 mb-2 block">
                 Status:
               </label>
-              <Select value={status} onValueChange={setStatus}>
+              <Select value={status} onValueChange={setStatus} disabled={!isEditMode}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -273,10 +291,20 @@ export function AdminUpdateUserProfile({
 
         {/* Action Buttons */}
         <div className="flex justify-center gap-4">
-          <Button variant="outline" onClick={onBack}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} className="bg-blue-600 text-white hover:bg-blue-700">Save Changes</Button>
+          {isEditMode ? (
+            <>
+              <Button variant="outline" onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave} className="bg-blue-600 text-white hover:bg-blue-700">
+                Save Changes
+              </Button>
+            </>
+          ) : (
+            <Button onClick={() => setIsEditMode(true)} className="bg-blue-600 text-white hover:bg-blue-700">
+              Update Profile
+            </Button>
+          )}
         </div>
       </main>
     </div>

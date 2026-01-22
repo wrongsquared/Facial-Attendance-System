@@ -280,7 +280,7 @@ def get_lecturer_attendance_log_filtered(
     # 4. PROCESS LOGIC (Python Side)
     log_entries = []
     
-    for lesson, mod_code, s_id, s_name, attd_id, entry_time, remarks in results:
+    for lesson, mod_code, s_id, s_name, attd_id, remarks, entry_time in results:
         
         # --- CALCULATE STATUS ---
         current_status = "Absent"

@@ -376,3 +376,4 @@ def download_report(
         raise HTTPException(status_code=404, detail="File missing from server")
 
     return FileResponse(path=forced_path, filename=clean_filename, media_type='text/csv')
+

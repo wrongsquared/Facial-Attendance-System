@@ -166,6 +166,7 @@ export function ServicesPage() {
           </div>
         </section>
       </main>
+      <Footer />
     </div>
   );
 }

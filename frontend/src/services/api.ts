@@ -219,6 +219,10 @@ export const getRecentUsers = async (token: string) => {
   return await fetchProtected("/admin/users/recent", token);
 };
 
+export const getAdminModuleList = async (token: string) => {
+  return await fetchProtected("/admin/modules", token);
+};
+
 export const getManageUsers = async (
   token: string,
   search: string,

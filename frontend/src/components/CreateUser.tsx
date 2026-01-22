@@ -126,10 +126,10 @@ export function CreateUser({ onLogout, onBack, onCreateSuccess }: CreateUserProp
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction onClick={onLogout}>
                     Log out
                   </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>

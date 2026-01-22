@@ -300,12 +300,12 @@ export function AdminAttendanceReports({
           </div>
 
           {/* Report Details / Preview (1 Column) */}
-          <div>
-            <Card>
+          <div className="h-full">
+            <Card className="h-full flex flex-col">
               <CardHeader>
                 <CardTitle>Report Details</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 flex-1">
                 <div className="space-y-2">
                   <p className="text-sm text-gray-600">Report Type</p>
                   <p className="font-medium text-blue-700">{reportType}</p>

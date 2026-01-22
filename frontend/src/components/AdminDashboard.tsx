@@ -93,7 +93,7 @@ export function AdminDashboard({
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {/* Overall Attendance */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -101,26 +101,26 @@ export function AdminDashboard({
               <TrendingUp className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl">{stats?.overall_attendance_rate ?? 0}%</div>
+              <div className="text-6xl font-bold">{stats?.overall_attendance_rate ?? 0}%</div>
               <p className="text-xs text-green-600 mt-1">
                 {stats?.trend_attendance ?? "No data"}
               </p>
             </CardContent>
           </Card>
 
-          {/* Monthly Absences */}
+          {/* Monthly Absences
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm">Monthly Absences</CardTitle>
               <UserX className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl">{stats?.monthly_absences ?? 0}</div>
+              <div className="text-6xl font-bold">{stats?.monthly_absences ?? 0}</div>
               <p className="text-xs text-green-600 mt-1">
                 {stats?.trend_absences ?? "No data"}
               </p>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Total Active Users */}
           <Card>
@@ -129,7 +129,7 @@ export function AdminDashboard({
               <Users className="h-4 w-4 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl">{stats?.total_active_users ?? 0}</div>
+              <div className="text-6xl font-bold">{stats?.total_active_users ?? 0}</div>
               <p className="text-xs text-green-600 mt-1">
                 {stats?.trend_users ?? "No data"}
               </p>
@@ -231,7 +231,7 @@ export function AdminDashboard({
                   <FileEdit className="h-4 w-4 mr-2" />
                   Manage Custom Goals
                 </Button>
-                <Button
+                {/* <Button
                   className="w-full justify-start h-18"
                   variant="outline"
                   onClick={onNavigateToBiometricProfile}
@@ -248,7 +248,7 @@ export function AdminDashboard({
                     <FileText className="h-4 w-4 mr-2" />
                     View Profile
                   </Button>
-                )}
+                )} */}
               </div>
             </CardContent>
           </Card>
@@ -281,12 +281,17 @@ export function AdminDashboard({
                           <TableCell>{user.name}</TableCell>
                           <TableCell>{user.email}</TableCell>
                           <TableCell>
-                            <Badge variant="outline">{user.role}</Badge>
+                            <span className="text-black capitalize">
+                              {user.role}
+                            </span>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={user.status === "active" ? "default" : "secondary"}>
+                            <span
+                              className={`font-medium capitalize  ${user.status === "active" ? "text-green-600" : "text-gray-500"
+                                }`}
+                            >
                               {user.status}
-                            </Badge>
+                            </span>
                           </TableCell>
                           <TableCell className="text-center">
                             <Button variant="outline" size="sm" onClick={onNavigateToManageUsers}>

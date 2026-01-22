@@ -285,10 +285,10 @@ export function ManageBiometricProfile({
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction onClick={onLogout}>
                     Log out
                   </AlertDialogAction>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>

@@ -89,6 +89,7 @@ export function FeaturesPage() {
           </div>
         </section>
       </main>
+      <Footer />
     </div>
   );
 }
