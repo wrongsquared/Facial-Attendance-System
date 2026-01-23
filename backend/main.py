@@ -15,7 +15,7 @@ from database.db import (InstitutionRegistration, UserProfile, #This was really 
                          University,
                         PlatformMgr
                          )
-
+from dependencies.deps import get_signed_url 
 from uuid import UUID
 from schemas import (UserSignUp, #This was really long so I had to bracket it
                      UserLogin, 
@@ -36,7 +36,7 @@ from routers import (adminDashboardRouter,
 app = FastAPI()
 
 origins = [
-    "http://localhost:3001",  # React Create App
+    "http://localhost:3000",  # React Create App
 ]
 
 app.add_middleware(
@@ -183,10 +183,9 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
         # Supabase throws an exception if password is wrong or email not confirmed
         raise HTTPException(status_code=401, detail=str(e))
 
-    # Identify Role from Postgres DB
-    
+
     user_uuid = user.id
-    
+
     # Query the 'users' table to get the profileTypeID
     result = (
         db.query(User, UserProfile)
@@ -206,6 +205,7 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
     studentNums = None
     specialistIns = None
     admin_role = None
+    signed_photo = get_signed_url(db_user.photo)
     if role_name == "Student":
         student_row = db.query(Student).filter(Student.studentID == user_uuid).first()
         if student_row: studentNums = student_row.studentNum
@@ -232,7 +232,7 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
         # "campus_id": db_campus.campusID,
         # "campus_name": db_campus.campusName,
         # "university_name": db_uni.universityName,
-
+        "photo": signed_photo,
         "studentNum": studentNums,
         "specialistIn": specialistIns,
         "job": admin_role
