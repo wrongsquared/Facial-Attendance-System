@@ -54,3 +54,19 @@ def get_current_user_id(credentials: HTTPAuthorizationCredentials = Security(sec
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+def get_signed_url(path: str | None) -> str | None:
+    if not path:
+        return None
+        
+    try:
+        response = supabase.storage.from_("avatars").create_signed_url(path, 3600)
+        
+        if isinstance(response, dict):
+            return response.get("signedURL")
+        else:
+            return response 
+            
+    except Exception as e:
+        print(f"Error signing URL for {path}: {e}")
+        return None
