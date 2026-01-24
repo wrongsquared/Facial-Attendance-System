@@ -142,7 +142,7 @@ export function ManageInstitutionsProfile({
 
   const handleDeleteInstitution = async (id: number) => {
     try {
-      const response = await fetch(`http://localhost:8000/platform-manager/${id}`, {
+      const response = await fetch(`http://localhost:8000/platform-manager/campus/${id}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

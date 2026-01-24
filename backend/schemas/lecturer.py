@@ -10,6 +10,7 @@ class timetableEntry(BaseModel):
     location: str
 
 class RecentSessionRecord(BaseModel):
+    lessonID: int
     subject: str        
     date: str           
     time: str           

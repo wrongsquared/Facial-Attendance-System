@@ -32,7 +32,8 @@ import {
   getavgatt,
   getClassesToday,
   getCourseOverview,
-  getrecentSessionslog} from "../services/api";
+  getrecentSessionslog
+} from "../services/api";
 import { Navbar } from "./Navbar";
 
 
@@ -51,7 +52,12 @@ export function LecturerDashboard({
   onNavigateToTimetable,
   onNavigateToRecords,
 }: LecturerDashboardProps) {
-
+  const today = new Date();
+  const todaysdate = today.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
 
   const [, setLoading] = useState(true);
   const { token } = useAuth();
@@ -63,10 +69,10 @@ export function LecturerDashboard({
   const [todaysClasses, setTodaysClasses] = useState<ClassesToday[]>([]);
   const [courseovw, setCourseovw] = useState<CourseOverview[]>([]);
   const [recentSessionsLog, setrecentSessionsLog] = useState<recentSessionsLog[]>([]);
-  const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [selectedSession, setSelectedSession] = useState<recentSessionsLog | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
-  const handleViewDetails = (session: typeof recentSessionsLog[0]) => {
+  const handleViewDetails = (session: recentSessionsLog) => {
     setSelectedSession(session);
     setIsDetailsOpen(true);
   };
@@ -96,12 +102,12 @@ export function LecturerDashboard({
           getCourseOverview(token),
           getrecentSessionslog(token)
         ]);
-      settotalModules(ModulesCount.total_modules);
-      settimetable(timetable);
-      setavgattM(avgAttM.Average_attendance);
-      setTodaysClasses(todayclasses);
-      setCourseovw(courseoview);
-      setrecentSessionsLog(recentSessionsLog);
+        settotalModules(ModulesCount.total_modules);
+        settimetable(timetable);
+        setavgattM(avgAttM.Average_attendance);
+        setTodaysClasses(todayclasses);
+        setCourseovw(courseoview);
+        setrecentSessionsLog(recentSessionsLog);
       }
       catch (err) {
         console.error("Failed to load dashboard:", err);
@@ -263,7 +269,7 @@ export function LecturerDashboard({
           {/* Upcoming Class Today */}
           <Card>
             <CardHeader>
-              <CardTitle>Upcoming Class Today</CardTitle>
+              <CardTitle>Upcoming Class Today  ({todaysdate})</CardTitle>
               <CardDescription>
                 Classes scheduled for today
               </CardDescription>
@@ -389,6 +395,7 @@ export function LecturerDashboard({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Lesson ID</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead className="w-[200px]">Time</TableHead>
@@ -401,6 +408,7 @@ export function LecturerDashboard({
                 <TableBody>
                   {recentSessionsLog.map((session, index) => (
                     <TableRow key={index}>
+                      <TableCell>{session.lessonID}</TableCell>
                       <TableCell>{session.subject}</TableCell>
                       <TableCell>{session.date}</TableCell>
                       <TableCell>{session.time}</TableCell>

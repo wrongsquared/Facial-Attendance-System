@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,80 +16,98 @@ import {
   TableRow,
 } from "./ui/table";
 import { Badge } from "./ui/badge";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { useAuth } from "../cont/AuthContext";
+
+// 1. Interfaces matching your Python Pydantic models
+interface AttendanceDetailRow {
+  user_id: string;
+  student_name: string;
+  check_in_time: string | null;
+  status: string;
+}
+
+interface OverallClassAttendanceDetails {
+  subject_details: string;
+  lesson_details: string;
+  attended_count: number;
+  total_enrolled: number;
+  attendance_rate: number;
+  Present_count: number;
+  late_arrivals: number;
+  absentees: number;
+  attendance_log: AttendanceDetailRow[];
+}
 
 interface ClassAttendanceDetailsProps {
   session: {
-    subject: string;
-    date: string;
-    time: string;
-    attended: number;
-    total: number;
-    percentage: number;
+    lessonID: number;
+    // We keep these optional just in case, but we primarily use lessonID
+    subject?: string; 
   } | null;
   open: boolean;
   onClose: () => void;
 }
-
-// Mock student attendance data
-const generateStudentAttendance = (attended: number, total: number) => {
-  const students = [];
-  const statuses: ("Present" | "Late" | "Absent")[] = ["Present", "Late", "Absent"];
-  
-  // Add present students
-  const presentCount = Math.floor(attended * 0.85);
-  for (let i = 1; i <= presentCount; i++) {
-    students.push({
-      userId: `789${1010 + i}`,
-      studentName: `Student ${i}`,
-      checkInTime: `9:${String(i % 60).padStart(2, '0')} AM`,
-      status: "Present" as const,
-    });
-  }
-  
-  // Add late students
-  const lateCount = attended - presentCount;
-  for (let i = 1; i <= lateCount; i++) {
-    students.push({
-      userId: `789${2010 + i}`,
-      studentName: `Student ${presentCount + i}`,
-      checkInTime: `9:${String(20 + i).padStart(2, '0')} AM`,
-      status: "Late" as const,
-    });
-  }
-  
-  // Add absent students
-  const absentCount = total - attended;
-  for (let i = 1; i <= absentCount; i++) {
-    students.push({
-      userId: `789${3010 + i}`,
-      studentName: `Student ${attended + i}`,
-      checkInTime: "-",
-      status: "Absent" as const,
-    });
-  }
-  
-  return students;
-};
 
 export function ClassAttendanceDetails({
   session,
   open,
   onClose,
 }: ClassAttendanceDetailsProps) {
+  // Auth Context
+  const { token } = useAuth();
+
+  // State
+  const [data, setData] = useState<OverallClassAttendanceDetails | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const allStudents = session ? generateStudentAttendance(
-    session.attended,
-    session.total
-  ) : [];
-  
-  const presentCount = allStudents.filter(s => s.status === "Present").length;
-  const lateCount = allStudents.filter(s => s.status === "Late").length;
-  const absentCount = allStudents.filter(s => s.status === "Absent").length;
+  // Fetch Data Effect
+  useEffect(() => {
+    if (open && session?.lessonID && token) {
+      const fetchDetails = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const response = await fetch(
+            `http://localhost:8000/lecturer/class/details?lesson_id=${session.lessonID}`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}` // Fixed 403 Error
+              },
+            }
+          );
 
-  // Calculate pagination
+          if (!response.ok) {
+            throw new Error("Failed to fetch attendance details");
+          }
+
+          const result: OverallClassAttendanceDetails = await response.json();
+          setData(result);
+        } catch (err) {
+          console.error(err);
+          setError("Unable to load data.");
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      fetchDetails();
+    } else {
+      // Reset when closed
+      setData(null);
+      setCurrentPage(1);
+    }
+  }, [open, session?.lessonID, token]);
+
+  // Pagination Logic
+  const allStudents = data?.attendance_log || [];
   const totalPages = Math.ceil(allStudents.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -108,22 +126,19 @@ export function ClassAttendanceDetails({
   };
 
   const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case "Present":
+    // Normalize case just to be safe
+    const s = status.toLowerCase();
+    switch (s) {
+      case "present":
         return "bg-green-600 text-white hover:bg-green-700";
-      case "Late":
+      case "late":
         return "bg-yellow-600 text-white hover:bg-yellow-700";
-      case "Absent":
+      case "absent":
         return "bg-red-600 text-white hover:bg-red-700";
       default:
         return "bg-gray-600 text-white hover:bg-gray-700";
     }
   };
-
-  // Extract module code and name from subject
-  const [moduleCode, moduleName] = session?.subject.includes(" - ")
-    ? session.subject.split(" - ")
-    : [session?.subject, ""];
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -134,111 +149,132 @@ export function ClassAttendanceDetails({
             View detailed attendance records for the selected class session.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-6 pt-4">
-          {/* Session Information */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">{moduleCode}</span>
-              {moduleName && (
-                <>
-                  <span>-</span>
-                  <span>{moduleName}</span>
-                </>
-              )}
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span>{session?.date}</span>
-              <span>•</span>
-              <span>{session?.time}</span>
-              <span>•</span>
-              <span>Building 3, Room 205</span>
-            </div>
-          </div>
 
-          {/* Attendance Summary */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="font-medium">Attended:</span>
-              <span>{session?.attended}/{session?.total}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-medium">Attendance Rate:</span>
-              <span>{session?.percentage}%</span>
-            </div>
-            <div className="flex items-center gap-6 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">Present:</span>
-                <span>{presentCount}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">Late arrivals:</span>
-                <span>{lateCount}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">Absentees:</span>
-                <span>{absentCount}</span>
-              </div>
-            </div>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex justify-center items-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           </div>
+        )}
 
-          {/* Student Details Table */}
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User ID</TableHead>
-                  <TableHead>Student Name</TableHead>
-                  <TableHead>Check-in Time</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentStudents.map((student) => (
-                  <TableRow key={student.userId}>
-                    <TableCell>{student.userId}</TableCell>
-                    <TableCell>{student.studentName}</TableCell>
-                    <TableCell>{student.checkInTime}</TableCell>
-                    <TableCell>
-                      <Badge className={getStatusBadgeColor(student.status)}>
-                        {student.status}
-                      </Badge>
-                    </TableCell>
+        {/* Error State */}
+        {!isLoading && error && (
+          <div className="flex justify-center items-center py-20 text-red-500">
+            {error}
+          </div>
+        )}
+
+        {/* Data Content */}
+        {!isLoading && !error && data && (
+          <div className="space-y-6 pt-4">
+            {/* Session Information */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-lg">{data.subject_details}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                {/* The API returns the formatted string: Date · Time · Location */}
+                <span>{data.lesson_details}</span>
+              </div>
+            </div>
+
+            {/* Attendance Summary */}
+            <div className="space-y-3 bg-slate-50 p-4 rounded-md border">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Attended:</span>
+                <span>{data.attended_count}/{data.total_enrolled}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Attendance Rate:</span>
+                <span className={data.attendance_rate < 80 ? "text-red-600 font-bold" : "text-green-600 font-bold"}>
+                  {data.attendance_rate}%
+                </span>
+              </div>
+              <div className="flex items-center gap-6 text-sm pt-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Present:</span>
+                  <span>{data.Present_count}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Late arrivals:</span>
+                  <span>{data.late_arrivals}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Absentees:</span>
+                  <span>{data.absentees}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Student Details Table */}
+            <div className="border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User ID</TableHead>
+                    <TableHead>Student Name</TableHead>
+                    <TableHead>Check-in Time</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {currentStudents.length > 0 ? (
+                    currentStudents.map((student) => (
+                      <TableRow key={student.user_id}>
+                        <TableCell className="font-mono text-xs">{student.user_id}</TableCell>
+                        <TableCell>{student.student_name}</TableCell>
+                        <TableCell>{student.check_in_time || "-"}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusBadgeColor(student.status)}>
+                            {student.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center h-24">
+                        No students found.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
 
-          {/* Pagination Controls */}
-          <div className="flex items-center justify-center gap-4 py-4">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handlePreviousPage}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleNextPage}
-              disabled={currentPage === totalPages}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 py-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
 
-          {/* Close Button */}
-          <div className="flex justify-center pb-4">
-            <Button onClick={onClose} variant="default" className="px-8">
-              Close
-            </Button>
+            {/* Close Button */}
+            <div className="flex justify-center pb-4">
+              <Button onClick={onClose} variant="default" className="px-8">
+                Close
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );

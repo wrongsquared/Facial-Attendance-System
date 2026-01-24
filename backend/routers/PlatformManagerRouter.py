@@ -292,6 +292,8 @@ def create_campus_only(
             # <--- 2. ADD THIS LINE TO FIX THE ERROR
             created_at=datetime.now() 
         )
+        db.add(new_campus)
+
         db.commit()
         db.refresh(new_campus)
 
@@ -309,7 +311,7 @@ def create_campus_only(
         raise HTTPException(status_code=500, detail=f"Failed to create campus: Campus name already exists")
 
 # --- NEW ENDPOINT TO DELETE CAMPUS PROFILE --- 
-@router.delete("/{campus_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/campus/{campus_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_campus_profile(
     campus_id: int,
     db: Session = Depends(get_db),
@@ -344,13 +346,23 @@ def delete_campus_profile(
     try:
         # 4. Cleanup: Remove UserProfiles linked to this campus first
         # (This removes the "Admin" role for this specific campus from those users)
-        db.query(UserProfile).filter(UserProfile.campusID == campus_id).delete()
+        db.query(Admin).filter(Admin.campusID == campus_id).delete(synchronize_session=False)
 
         # 5. Delete the Campus
         db.delete(campus_to_delete)
         
         db.commit()
         return None
+    
+    except IntegrityError:
+        
+        db.rollback()
+        print(f"Delete Failed: Campus {campus_id}.")
+        # Return a 400 Bad Request so the frontend displays the error message properly
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot delete this Campus."
+        )
 
     except Exception as e:
         db.rollback()

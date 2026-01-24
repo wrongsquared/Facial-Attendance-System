@@ -395,6 +395,7 @@ def get_recent_sessions_log(
 
         # Format the strings
         results.append(RecentSessionRecord(
+            lessonID=lesson.lessonID,
             subject=f"{module.moduleCode} - {module.moduleName}",
             date=lesson.startDateTime.strftime("%d %b %Y"), # e.g., 28 Oct 2025
             time=lesson.startDateTime.strftime("%I:%M %p").lstrip("0"), # e.g., 9:00 AM
@@ -850,7 +851,7 @@ def get_monthly_timetable(
 
     return results
 
-
+# Overall Class Attendance Details
 @router.get("/lecturer/class/details", response_model=OverallClassAttendanceDetails)
 def get_overall_class_attendance_details(
     lesson_id: int,
@@ -858,9 +859,10 @@ def get_overall_class_attendance_details(
     db: Session = Depends(get_db)
 ):
     
-    # Fetch Lesson/Module/Enrollment Data
+    # 1. Fetch Lesson/Module Data
     lesson_module = db.query(Lesson, Module)\
-        .join(Module, Lesson.lecModID == Module.moduleID)\
+        .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
+        .join(Module, LecMod.moduleID == Module.moduleID)\
         .filter(Lesson.lessonID == lesson_id)\
         .first()
     
@@ -869,91 +871,85 @@ def get_overall_class_attendance_details(
         
     lesson, module = lesson_module
 
-    # Total Enrolled Students (Total)
-    total_enrolled = db.query(StudentModules).filter(
-        StudentModules.modulesID == module.moduleID
-    ).count()
-
-    #  Calculate Metrics (Attended, Late, Absent)
-
-    # Attended Count (Unique distinct check-ins)
-    attended_count = db.query(AttdCheck.studentID).filter(
-        AttdCheck.lessonID == lesson_id
-    ).distinct().count()
-
-    # Late Arrivals Count (Check EntLeave against lesson start time)
-    late_arrivals_count = db.query(EntLeave).filter(
-        EntLeave.lessonID == lesson_id,
-        EntLeave.enter > lesson.startDateTime + timedelta(minutes=5)
-    ).count()
-
-    # Present Count (Attended - Late Arrivals)
-    present_count = attended_count - late_arrivals_count # 42 - 3 = 39 (Close to 38)
-
-    # Absentees Count (Total Enrolled - Attended)
-    # Note: Using min(Total, Attended) to avoid negative if enrollment is wrong
-    absentees_count = max(0, total_enrolled - attended_count)
-    
-    # Attendance Rate
-    attendance_rate = (attended_count / max(total_enrolled, 1) * 100.0)
-    attendance_rate = round(min(attendance_rate, 100.0), 1)
-
-    # Assemble Header Strings
-    subject_details_str = f"{module.moduleCode} - {module.moduleName}"
-    
-    time_str = lesson.startDateTime.strftime("%I:%M %p").lstrip('0')
-    date_str = lesson.startDateTime.strftime("%d %b %Y")
-    
-    # Location (Using the corrected fields from your Lesson model)
-    loc_str = f"Lab {lesson.building} (Room {lesson.room})" if lesson.building and lesson.room else "Online"
-    lesson_details_str = f"{date_str} · {time_str} · {loc_str}"
-    
-    
-    # Generate Table Log (AttendanceDetailRow)
-    
-    #Get all enrolled students
+    # 2. Get all enrolled students first
     all_students = db.query(Student).join(StudentModules).filter(
         StudentModules.modulesID == module.moduleID
     ).all()
     
+    # 3. Initialize Counters (Start at 0)
+    # We will calculate these exactly based on the rows we generate
+    calc_attended = 0
+    calc_present = 0
+    calc_late = 0
+    calc_absent = 0
+    
     attendance_log_rows = []
     
+    # 4. Loop through students to determine status and update counters
     for student in all_students:
-        # Check presence and late status for THIS specific student/lesson
         check_in = db.query(AttdCheck).filter(AttdCheck.lessonID == lesson_id, AttdCheck.studentID == student.studentID).first()
         ent_leave = db.query(EntLeave).filter(EntLeave.lessonID == lesson_id, EntLeave.studentID == student.studentID).first()
         
         status = 'Absent'
-        check_in_time = None
+        check_in_str = None
 
         if check_in:
-            status = 'Present'
+            # Student is at least here
+            calc_attended += 1
+            
             if ent_leave:
-                check_in_time = ent_leave.enter.strftime("%H:%M %p")
+                # Format time nicely: "06:15 PM" instead of "18:15 PM"
+                check_in_str = ent_leave.enter.strftime("%I:%M %p").lstrip('0') 
+                
+                # Check Late Logic: Entry > Start Time + 5 Minutes
                 if ent_leave.enter > lesson.startDateTime + timedelta(minutes=5):
                     status = 'Late'
+                    calc_late += 1
+                else:
+                    status = 'Present'
+                    calc_present += 1
             else:
-                # If checked-in but no EntLeave record, use lesson start time as fallback
-                check_in_time = lesson.startDateTime.strftime("%H:%M %p")
+                # Fallback: Checked in via tap, but no EntLeave record found?
+                # Assume Present using Lesson Start Time, or mark as Data Error
+                check_in_str = lesson.startDateTime.strftime("%I:%M %p").lstrip('0') 
+                status = 'Present'
+                calc_present += 1
+        else:
+            # No check-in record found
+            status = 'Absent'
+            calc_absent += 1
 
         attendance_log_rows.append(AttendanceDetailRow(
             user_id=student.studentNum,
             student_name=student.name,
-            check_in_time=check_in_time,
+            check_in_time=check_in_str,
             status=status
         ))
 
+    # 5. Calculate Rates based on the loop results
+    total_enrolled = len(all_students)
+    attendance_rate = 0.0
+    if total_enrolled > 0:
+        attendance_rate = (calc_attended / total_enrolled) * 100.0
+    attendance_rate = round(min(attendance_rate, 100.0), 1)
 
-    # Return the final structure
+    # 6. Format Header Strings
+    subject_details_str = f"{module.moduleCode} - {module.moduleName}"
+    time_str = lesson.startDateTime.strftime("%I:%M %p").lstrip('0')
+    date_str = lesson.startDateTime.strftime("%d %b %Y")
+    loc_str = f"Lab {lesson.building} (Room {lesson.room})" if lesson.building and lesson.room else "Online"
+    lesson_details_str = f"{date_str} · {time_str} · {loc_str}"
+
+    # 7. Return consistent data
     return OverallClassAttendanceDetails(
         subject_details=subject_details_str,
         lesson_details=lesson_details_str,
-        attended_count=attended_count,
+        attended_count=calc_attended,
         total_enrolled=total_enrolled,
         attendance_rate=attendance_rate,
-        Present_count=present_count,
-        late_arrivals=late_arrivals_count,
-        absentees=absentees_count,
+        Present_count=calc_present,  # Now guaranteed to match rows
+        late_arrivals=calc_late,     # Now guaranteed to match rows
+        absentees=calc_absent,
         attendance_log=attendance_log_rows
     )
 
