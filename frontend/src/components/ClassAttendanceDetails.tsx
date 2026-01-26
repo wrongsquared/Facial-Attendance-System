@@ -43,7 +43,7 @@ interface ClassAttendanceDetailsProps {
   session: {
     lessonID: number;
     // We keep these optional just in case, but we primarily use lessonID
-    subject?: string; 
+    subject?: string;
   } | null;
   open: boolean;
   onClose: () => void;
@@ -61,7 +61,7 @@ export function ClassAttendanceDetails({
   const [data, setData] = useState<OverallClassAttendanceDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;

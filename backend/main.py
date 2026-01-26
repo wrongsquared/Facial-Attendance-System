@@ -270,13 +270,30 @@ def read_my_student_profile(
     return lecturer_data
 
 @app.get("/admin/my-profile")
-def read_my_student_profile(
+def read_my_admin_profile(
     user_id: str = Depends(get_current_user_id), 
     db: Session = Depends(get_db)
 ):
     
-    admin_data = db.query(Admin).filter(Admin.adminID == user_id).first()
-    return admin_data
+    # Query the User table to get the complete profile data
+    user_data = db.query(User).filter(User.userID == user_id).first()
+    if not user_data:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get the profile type name
+    profile = db.query(UserProfile).filter(UserProfile.profileTypeID == user_data.profileTypeID).first()
+    role_name = profile.profileTypeName if profile else "Admin"
+    
+    return {
+        "name": user_data.name,
+        "email": user_data.email,
+        "role": role_name,
+        "contactNumber": user_data.contactNumber,
+        "address": user_data.address,
+        "emergencyContactName": user_data.emergencyContactName,
+        "emergencyContactRelationship": user_data.emergencyContactRelationship,
+        "emergencyContactNumber": user_data.emergencyContactNumber
+    }
 
 #Important to keep this
 app.include_router(studentDashboardRouter.router, tags=['student'])

@@ -236,6 +236,34 @@ export const getManageUsers = async (
 
   return await fetchProtected(`/admin/users/manage?${params.toString()}`, token);
 };
+
+// services/api.ts
+export const updateAdminProfile = async (
+  token: string,
+  payload: {
+    contactNumber: string;
+    address: string;
+    emergencyContactName: string;
+    emergencyContactRelationship: string;
+    emergencyContactNumber: string;
+  }
+) => {
+  const res = await fetch(`${API_URL}/admin/profile`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to update admin profile");
+  }
+
+  return res.json();
+};
+
 //Admin Routes end
 
 //Platform Manager Routes start

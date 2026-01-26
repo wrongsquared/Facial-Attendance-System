@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useEffect } from "react";
 // import { getAttendanceRecords } from "../services/api";
-// import { useAuth } from "../context/AuthContext";
 
 import {
   Card,
@@ -65,6 +64,9 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { Navbar } from "./Navbar";
+import { getAdminModuleList,getAttendanceLog } from "../services/api";
+import { useAuth } from "../cont/AuthContext";
+import { AttendanceLogEntry } from "../types/lecturerinnards";
 interface AttendanceRecord {
   userId: string;
   studentName: string;
@@ -103,6 +105,7 @@ export function AdminAttendanceRecords({
   attendanceRecords,
   updateAttendanceRecord,
 }: AdminAttendanceRecordsProps) {
+  const { token } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedModule, setSelectedModule] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -113,40 +116,36 @@ export function AdminAttendanceRecords({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   //const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [moduleList, setModuleList] = useState<string[]>([]);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [recentAttendanceLog, setRecentAttendanceLog] = useState<AttendanceLogEntry[]>([]);
   
-  // Helper function to format date - must be declared before it's used
-  const formatDate = (date: Date) => {
-    const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    ];
-    return `${date.getDate().toString().padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  // Convert fetched data to display format
+  const displayRecords: AttendanceRecord[] = recentAttendanceLog.map(entry => ({
+    userId: entry.user_id,
+    studentName: entry.student_name,
+    module: entry.module_code,
+    status: entry.status,
+    date: entry.date,
+    attendanceMethod: entry.method || "N/A",
+    liveCheck: "N/A",
+    cameraLocation: entry.location || "N/A",
+    timestamp: entry.timestamp || "N/A",
+    verificationType: "N/A",
+    virtualTripwire: "N/A"
+  }));
+
+   const formatDate = (date: Date) => {
+    return date.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
   };
 
-  // Filter records
-  const filteredRecords = attendanceRecords.filter((record) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      record.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.userId.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesModule =
-      selectedModule === "all" || record.module === selectedModule;
-    
-    const matchesStatus =
-      selectedStatus === "all" || record.status === selectedStatus;
-    
-    const matchesDate =
-      !selectedDate || record.date === formatDate(selectedDate);
-
-    return matchesSearch && matchesModule && matchesStatus && matchesDate;
-  });
-
-  // Pagination
-  const totalPages = Math.ceil(filteredRecords.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const currentRecords = filteredRecords.slice(startIndex, endIndex);
+  // Current records for pagination (server-side pagination, so just use all fetched data)
+  const currentRecords = displayRecords;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -160,6 +159,63 @@ export function AdminAttendanceRecords({
         return "bg-gray-100 text-gray-700 hover:bg-gray-100";
     }
   };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1); // Important: Reset to Page 1 when searching
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+      const fetchModules = async () => {
+        if (!token) return;
+        try {
+          const modules = await getAdminModuleList(token);
+          setModuleList(modules);
+        } catch (err) {
+          console.error("Failed to load module list", err);
+        }
+      };
+      fetchModules();
+    }, [token]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+          if (!token) return;
+          setLoading(true);
+          try {
+            // Convert Date to YYYY-MM-DD
+            let dateStr = "";
+            if (selectedDate) {
+              // Ensure local date string matches API expectation
+              // Trick: use the 'en-CA' locale to get YYYY-MM-DD
+              dateStr = selectedDate.toLocaleDateString("en-CA");
+            }
+    
+            const response = await getAttendanceLog(token, {
+              searchTerm: debouncedSearch,
+              moduleCode: selectedModule === "all" ? undefined : selectedModule,
+              status: selectedStatus === "all" ? undefined : (selectedStatus as any),
+              date: dateStr,
+              page: currentPage,
+              limit: ITEMS_PER_PAGE
+            });
+            console.log("API RESPONSE RAW:", response);
+            setRecentAttendanceLog(response.data || []);
+            setTotalRecords(response.total || 0);
+          } catch (err) {
+            console.error(err);
+          } finally {
+            setLoading(false);
+          }
+        };
+        fetchData();
+      }, [token, debouncedSearch, selectedModule, selectedStatus, selectedDate, currentPage]);
+    
+      const totalPages = Math.ceil(totalRecords / ITEMS_PER_PAGE); 
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -203,8 +259,11 @@ export function AdminAttendanceRecords({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Modules</SelectItem>
-                  <SelectItem value="CSCI334">CSCI334</SelectItem>
-                  <SelectItem value="CSCI203">CSCI203</SelectItem>
+                    {moduleList.map((mod: any) => (
+                    <SelectItem key={mod.moduleCode} value={mod.moduleCode}>
+                      {mod.moduleCode}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
@@ -265,7 +324,16 @@ export function AdminAttendanceRecords({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentRecords.length > 0 ? (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={6}
+                        className="text-center text-gray-500 py-8"
+                      >
+                        Loading records...
+                      </TableCell>
+                    </TableRow>
+                  ) : currentRecords.length > 0 ? (
                     currentRecords.map((record, index) => (
                       <TableRow key={`${record.userId}-${index}`}>
                         <TableCell>{record.userId}</TableCell>
@@ -307,7 +375,7 @@ export function AdminAttendanceRecords({
             </div>
 
             {/* Pagination */}
-            {filteredRecords.length > 0 && (
+            {totalRecords > 0 && (
               <div className="flex items-center justify-center gap-2 mt-6">
                 <Button
                   variant="outline"

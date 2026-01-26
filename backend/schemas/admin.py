@@ -46,3 +46,10 @@ class UserListItem(BaseModel):
 
     class Config:
         from_attributes = True
+
+class AdminProfileUpdateRequest(BaseModel):
+    contactNumber: str
+    address: str
+    emergencyContactName: str
+    emergencyContactRelationship: str
+    emergencyContactNumber: str

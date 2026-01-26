@@ -7,15 +7,17 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, and_, or_ 
 from database.db_config import get_db
 from schemas import AdminDashboardStats, CourseAttentionItem, UserManagementItem,ReportHistoryEntry
-from schemas.admin import AdminReportRequest
+from schemas.admin import AdminReportRequest, AdminProfileUpdateRequest
 from dependencies.deps import get_current_user_id
 from database.db import Lesson, AttdCheck, User, Student, StudentModules, Module, LecMod, Lecturer, UserProfile,GeneratedReport
 from datetime import datetime, timedelta
+import os
+import csv
+import uuid
 
 router = APIRouter()
 REPORT_DIR = "generated_reports_files"
 os.makedirs(REPORT_DIR, exist_ok=True)
-
 @router.get("/admin/stats", response_model=AdminDashboardStats)
 def get_admin_dashboard_stats(db: Session = Depends(get_db)):
     now = datetime.now()
@@ -377,3 +379,26 @@ def download_report(
 
     return FileResponse(path=forced_path, filename=clean_filename, media_type='text/csv')
 
+@router.put("/admin/profile")
+def update_admin_profile(
+    payload: AdminProfileUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    user_uuid = uuid.UUID(current_user_id)
+
+    user = db.query(User).filter(User.userID == user_uuid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Admin not found")
+
+    # Update only editable fields
+    user.contactNumber = payload.contactNumber
+    user.address = payload.address
+    user.emergencyContactName = payload.emergencyContactName
+    user.emergencyContactRelationship = payload.emergencyContactRelationship
+    user.emergencyContactNumber = payload.emergencyContactNumber
+
+    db.commit()
+    db.refresh(user)
+
+    return {"message": "Admin profile updated successfully"}

@@ -261,9 +261,6 @@ export function AdminDashboard({
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="recent">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="recent">Recent Users</TabsTrigger>
-                </TabsList>
                 <TabsContent value="recent">
                   <Table>
                     <TableHeader>
@@ -277,7 +274,7 @@ export function AdminDashboard({
                     </TableHeader>
                     <TableBody>
                       {recentU.map((user) => (
-                        <TableRow key={user.id}>
+                        <TableRow key={user.user_id}>
                           <TableCell>{user.name}</TableCell>
                           <TableCell>{user.email}</TableCell>
                           <TableCell>
