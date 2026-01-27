@@ -106,15 +106,13 @@ class StudentProfileDetails(BaseModel):
 #Notifications
 
 class NotificationItem(BaseModel):
-    id: str
-    type: str  # "not_recorded" or "below_threshold"
+    notificationID: int
     title: str
-    date: datetime
-    module_code: str
-    module_name: str
-    
-    # This dictionary holds the specific info like 'threshold', 'location', etc.
-    details: Dict[str, Any]
+    message: str
+    type: str
+    isRead: bool
+    generatedAt: datetime
+    meta_data: Optional[Dict[str, Any]] = None 
 
     class Config:
         from_attributes = True

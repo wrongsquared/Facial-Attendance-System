@@ -2,7 +2,7 @@ from __future__ import annotations # Must always be at the top.
 import uuid
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship
 from enum import Enum
-from sqlalchemy.dialects.postgresql import UUID 
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy import (
     Enum as SQLAlchemyEnum,
     ForeignKey,
@@ -150,6 +150,7 @@ class Student(User): #Student, child of User
 
     campusID: Mapped[int] = mapped_column(ForeignKey("campus.campusID"))
     campus:  Mapped[Campus] = relationship(back_populates="student_profiles")
+    notifications: Mapped[list[StudentNotifications]] = relationship(back_populates="student")
 
 class EntLeave(Base): # Camera marks time student is detected coming in, time student is detected leaving.
     __tablename__ = "entleave"
@@ -275,3 +276,18 @@ class InstitutionRegistration(BaseModel):
     email: EmailStr
     phoneNumber: str
     password: str
+
+class StudentNotifications(Base):
+    __tablename__ = "studentnotifications"
+
+    notificationID: Mapped[int] = mapped_column(primary_key =True)
+    studentID: Mapped[uuid.UUID] = mapped_column(ForeignKey("students.studentID"))
+    student:Mapped["Student"] = relationship(back_populates="notifications")
+
+    title: Mapped[str] = mapped_column(String(100))
+    message: Mapped[str] = mapped_column(String(500))
+    type: Mapped[str] = mapped_column(String(20), default="info") 
+    isRead: Mapped[bool] = mapped_column(Boolean, default=False)
+    generatedAt: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
+    meta_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+

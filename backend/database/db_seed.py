@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from db_config import SessionLocal, DATABASE_URL
 from db_clear import clear_db
 from db import University, PlatformMgr, Campus, User, Courses, UserProfile, Admin, Lecturer, Student, EntLeave, AttdCheck, Module, Lesson, LecMod, StudentModules, Courses
-from datetime import timedelta
+from datetime import timedelta, datetime
 from collections import defaultdict
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -555,8 +555,6 @@ def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client):
 def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
     print(f"Seeding attdCheck: \n")
     
-    # Get all Lessons and map ID -> Duration AND ID -> ModuleID
-    # We need to know which Module a lesson belongs to for the check.
     lessonobjs = dbSessionLocalInstance.query(Lesson, LecMod.moduleID).\
         join(LecMod, Lesson.lecModID == LecMod.lecModID).all()
         
@@ -569,7 +567,6 @@ def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
         lesson_module_map[lesson.lessonID] = module_id
 
     # Get all Valid Enrollments (Student -> Module)
-    # We store this in a Set for O(1) fast lookups
     # Format: Set of (studentID, moduleID) tuples
     valid_enrollments = set()
     enrollment_objs = dbSessionLocalInstance.query(StudentModules).all()
@@ -613,7 +610,98 @@ def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
         dbSessionLocalInstance.commit()
     
     return None
+def seedLazyStudent(db:Session, spbase:Client):
+    email = "lazy@uow.edu.au"
+    password = "Valid123"
+    
+    # Try to get existing user or create new
+    try:
+        auth_user = spbase.auth.admin.create_user({
+            "email": email,
+            "password": password,
+            "email_confirm": True
+        })
+        lazy_uuid = auth_user.user.id
+    except Exception:
+        # If already exists, fetch ID (simplified logic)
+        users = spbase.auth.admin.list_users()
+        lazy_uuid = next((u.id for u in users if u.email == email), None)
+        if lazy_uuid:
+            spbase.auth.admin.update_user_by_id(
+                lazy_uuid, 
+                {"password": password} # Ensure it is 'Valid123'
+            )
+    student_profile = db.query(UserProfile).filter_by(profileTypeName='Student').first()
+    # We need a Lecturer to assign to the module
+    lecturer = db.query(Lecturer).first() 
+    
+    # Create a Specific Module for this test
+    test_module = Module(
+        moduleCode="TEST101",
+        moduleName="Skipping Class 101"
+    )
+    db.add(test_module)
+    db.flush() # Flush to get moduleID
 
+    # Link Lecturer to Module (LecMod)
+    lec_mod = LecMod(lecturers=lecturer, modules=test_module)
+    db.add(lec_mod)
+    db.flush() # Flush to get lecModID
+    # assign to a degree (e.g. Computer Science) and a location
+    random_course = db.query(Courses).first()
+    random_campus = db.query(Campus).first()
+    gaiusgenericusPath = upload_photo(lazy_uuid, "./genericimage/gaiusgenericus.png",spbase)
+    # Create the Student Profile
+    lazy_student = Student(
+        userID=uuid.UUID(lazy_uuid),
+        profileType=student_profile,
+        name="Lazy Larry",
+        email=email,
+        studentNum="000000",
+        attendanceMinimum=80.0, # High standard
+        # Link to a generic course/campus if required by your schema
+        # courseID=..., campusID=... 
+        courseID=random_course.courseID,
+        campusID=random_campus.campusID,
+        photo=gaiusgenericusPath
+    )
+    db.add(lazy_student)
+    
+    # Enroll Student in the Module
+    enrollment = StudentModules(student=lazy_student, modules=test_module)
+    db.add(enrollment)
+
+    # We create lessons that happened 1 to 10 days ago
+    past_lessons = []
+    for i in range(1, 11):
+        start = datetime.now() - timedelta(days=i)
+        end = start + timedelta(hours=2)
+        
+        lesson = Lesson(
+            lecMod=lec_mod,
+            lessontype="Lecture",
+            startDateTime=start,
+            endDateTime=end,
+            building="B1",
+            room="101"
+        )
+        db.add(lesson)
+        past_lessons.append(lesson)
+    
+    db.flush() # Get Lesson IDs
+
+    # Mark Attendance for 1 Lesson (10% Attendance)
+    # We add an attendance check for the first lesson only
+    attendance = AttdCheck(
+        lesson=past_lessons[0],
+        student=lazy_student,
+        remarks="Present"
+    )
+    db.add(attendance)
+
+    db.commit()
+    
+    return lazy_uuid
 if __name__ == "__main__":  
     db_session: Session = SessionLocal()
 
@@ -634,9 +722,11 @@ if __name__ == "__main__":
         lessonsSeed(db_session, spbse)
         entLeaveSeed(db_session, spbse)
         attdCheckSeed(db_session, spbse)
+        print("\nPrinting Special User: Student that does not attend lessons\n")
+        seedLazyStudent(db_session,spbse)
 
         # Initialize defaults
-        print("Finished seeding the database defaults!")
+        print("Finished seeding the database")
     except Exception as e:
         print(f"Exception occurred while seeding database: {e}")
         print(traceback.format_exc())

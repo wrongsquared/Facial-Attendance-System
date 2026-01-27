@@ -17,7 +17,13 @@ import {
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
 import { useAuth } from "../cont/AuthContext";
-
+import { NotificationItem } from "../types/studentinnards";
+import { 
+  getNotifications, 
+  markNotificationRead, 
+} from "../services/api";
+import { NotificationAlerts } from "./NotificationAlerts"; 
+import { useEffect, useState } from "react";
 
 interface NavbarProps {
   // Optional: If you want to override the title manually
@@ -27,8 +33,9 @@ interface NavbarProps {
 }
 
 export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: NavbarProps) {
-  const { user, logout } = useAuth();
-
+  const { user, token, logout } = useAuth();
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const getPortalTitle = () => {
     if (title) return title; // Use override if provided
     if (!user) return "Portal";
@@ -36,7 +43,35 @@ export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: Navb
     const role = user.role_name.charAt(0).toUpperCase() + user.role_name.slice(1);
     return `${role} Portal`;
   };
+  useEffect(() => {
+    const fetchNotifs = async () => {
+      // Logic: Only fetch if logged in AND is a student
+      if (token && user?.role_name?.toLowerCase() === 'student') {
+        try {
+          const data = await getNotifications(token);
+          setNotifications(data);
+        } catch (err) {
+          console.error("Failed to fetch notifications", err);
+        }
+      }
+    };
+    fetchNotifs();
+  }, [token, user]);
 
+  const handleDismissAlert = async (notificationID: number) => {
+    
+    setNotifications((prev) => 
+      prev.filter((n) => n.notificationID !== notificationID)
+    );
+    try {
+      await markNotificationRead(notificationID, token!);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Calculate Unread Count for the Red Badge
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
   // Get Initials for the Avatar
   const getInitials = () => {
     if (!user?.role_name) return "U";
@@ -51,7 +86,7 @@ export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: Navb
     // For Admins
     if (user.job) return user.job;
 
-    // Generic role name
+
     return user.role_name.charAt(0).toUpperCase() + user.role_name.slice(1);
   };
 
@@ -69,8 +104,13 @@ export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: Navb
         </div>
         <div className="flex items-center gap-4">
           {user?.role_name.toLowerCase() === "student" && onOpenNotifications && (
-            <Button variant="ghost" size="icon" onClick={onOpenNotifications}>
+            <Button variant="ghost" size="icon" className="relative" onClick={() => setIsAlertsOpen(true)}>
               <Bell className="h-5 w-5" />
+              {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+              )}
             </Button>
           )}
           <div className="flex items-center gap-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
@@ -107,6 +147,12 @@ export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: Navb
             </AlertDialogContent>
           </AlertDialog>
         </div>
+        <NotificationAlerts 
+        isOpen={isAlertsOpen}
+        onClose={() => setIsAlertsOpen(false)}
+        alerts={notifications}
+        onDismissAlert={handleDismissAlert}
+      />
       </div>
     </header>
   )

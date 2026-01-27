@@ -16,7 +16,7 @@ interface NotificationAlertsProps {
   isOpen: boolean;
   onClose: () => void;
   alerts: NotificationItem[];
-  onDismissAlert: (id: string) => void;
+  onDismissAlert: (id: number) => void;
 }
 
 export function NotificationAlerts({
@@ -44,8 +44,8 @@ export function NotificationAlerts({
               No notifications at this time.
             </div>
           ) : (
-            alerts.map((alert, index) => (
-              <Card key={index} className="border-l-4 border-l-red-500">
+            alerts.map((alert) => (
+              <Card key={alert.notificationID} className="border-l-4 border-l-red-500">
                 <CardContent className="pt-6">
                   {alert.type === "not_recorded" ? (
                     <>
@@ -67,49 +67,34 @@ export function NotificationAlerts({
                             
                             <div>
                               <p className="text-sm text-gray-600">Module:</p>
-                              <p className="font-medium">{alert.module_code} - {alert.module_name}</p>
+                              <p className="font-medium">{alert.meta_data?.module_code} - {alert.meta_data?.module_name}</p>
                             </div>
                             
                             <div>
                               <p className="text-sm text-gray-600">Date:</p>
-                              <p className="font-medium">{alert.date}</p>
+                              <p className="font-medium">{alert.meta_data?.date}</p>
                             </div>
                             
                             <div className="pt-2 border-t">
                               <p className="text-sm text-gray-600">Attendance Status:</p>
                               <p className="font-medium text-red-600">{alert.type}</p>
                             </div>
-                            
-                            <div>
-                              <p className="text-sm text-gray-600">Reason:</p>
-                              <p className="font-medium">{alert.details?.reason}</p>
-                            </div>
-                            
                             <div>
                               <p className="text-sm text-gray-600">Attendance Method:</p>
                               <p className="font-medium">Facial Detection</p>
                             </div>
-                            
-                            <div>
-                              <p className="text-sm text-gray-600">Camera Location:</p>
-                              <p className="font-medium">{alert.details?.cameraLocation}</p>
-                            </div>
-                            
+
                             <div>
                               <p className="text-sm text-gray-600">Timestamp:</p>
-                              <p className="font-medium">{alert.details?.timestamp}</p>
+                              <p className="font-medium">{new Date(alert.createdAt).toLocaleDateString()}</p>
                             </div>
                             
-                            <div className="pt-2 border-t">
-                              <p className="text-sm text-gray-600">Suggested Action:</p>
-                              <p className="font-medium">Please re-attempt check-in or contact the administrator if you are in class.</p>
-                            </div>
                           </div>
                         </div>
                       </div>
                       
                       <div className="flex justify-center pt-4 border-t">
-                        <Button onClick={() => handleCloseAlert(index)} variant="outline">
+                        <Button onClick={() => handleCloseAlert(alert.notificationID)} variant="outline">
                           Close
                         </Button>
                       </div>
@@ -134,48 +119,44 @@ export function NotificationAlerts({
                             
                             <div>
                               <p className="text-sm text-gray-600">Module:</p>
-                              <p className="font-medium">{alert.module_code} - {alert.module_name}</p>
+                              <p className="font-medium">{alert.meta_data?.module_code} - {alert.meta_data?.module_name}</p>
                             </div>
                             
                             <div>
                               <p className="text-sm text-gray-600">Date:</p>
-                              <p className="font-medium">{alert.date}</p>
+                              <p className="font-medium">{alert.meta_data?.date}</p>
                             </div>
                             
                             <div className="pt-2 border-t">
                               <p className="text-sm text-gray-600">Attendance Status:</p>
-                              <p className="font-medium text-orange-600">{alert.details?.attendanceStatus}</p>
+                              <p className="font-medium text-orange-600">{alert.type}</p>
                             </div>
                             
                             <div>
                               <p className="text-sm text-gray-600">Current Attendance:</p>
                               <p className="font-medium">
-                                {alert.details?.currentAttendance}% (Threshold: {alert.details?.threshold}%)
+                                {alert.meta_data?.current_pct}% (Threshold: {alert.meta_data?.threshold}%)
                               </p>
                             </div>
                             
                             <div>
                               <p className="text-sm text-gray-600">Recent Sessions Missed:</p>
                               <p className="font-medium">
-                                {alert.details?.recentSessionsMissed} of last {alert.details?.totalRecentSessions}
+                                {alert.meta_data?.missed_count} of last {alert.meta_data?.total_past}
                               </p>
                             </div>
                             
                             <div>
-                              <p className="text-sm text-gray-600">Impact:</p>
+                              <p className="text-sm text-gray-600">Warning:</p>
                               <p className="font-medium">You are at risk of not meeting the minimum attendance requirement.</p>
                             </div>
                             
-                            <div className="pt-2 border-t">
-                              <p className="text-sm text-gray-600">Suggested Action:</p>
-                              <p className="font-medium">Attend upcoming classes.</p>
-                            </div>
                           </div>
                         </div>
                       </div>
                       
                       <div className="flex justify-center pt-4 border-t">
-                        <Button onClick={() => onDismissAlert(alert.id)} variant="outline">
+                        <Button onClick={() => onDismissAlert(alert.notificationID)} variant="outline">
                           Close
                         </Button>
                       </div>

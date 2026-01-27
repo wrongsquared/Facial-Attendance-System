@@ -12,7 +12,7 @@ from schemas import( WeeklyLesson,
                      UserProfileUpdate,
                      viewUserProfile
                      )
-from database.db import  Lesson, Module,  StudentModules, LecMod, AttdCheck, Student, User
+from database.db import  Lesson, Module,  StudentModules, LecMod, AttdCheck, Student, User, StudentNotifications
 
 
 router = APIRouter() 
@@ -223,107 +223,14 @@ import uuid
 
 @router.get("/student/notifications", response_model=list[NotificationItem])
 def get_student_notifications(
-    user_id: str = Depends(get_current_user_id),
+    user_id: str = Depends(get_current_user_id), # This is the UUID
     db: Session = Depends(get_db)
 ):
-    alerts = []
-    now = datetime.now()
-    
-    # Attendance Not Recorded
-    three_days_ago = now - timedelta(days=3)
-    
-    recent_absences = (
-        db.query(Lesson, Module)
-        .select_from(StudentModules)
-        .join(Module, StudentModules.modulesID == Module.moduleID)
-        .join(LecMod, Module.moduleID == LecMod.moduleID)
-        .join(Lesson, LecMod.lecModID == Lesson.lecModID)
-        .outerjoin(AttdCheck, (AttdCheck.lessonID == Lesson.lessonID) & (AttdCheck.studentID == user_id))
-        
-        .filter(StudentModules.studentID == user_id)
-        .filter(Lesson.endDateTime < now)              
-        .filter(Lesson.startDateTime > three_days_ago) 
-        .filter(AttdCheck.AttdCheckID == None)         
-        .all()
-    )
-
-    for lesson, module in recent_absences:
-        alerts.append({
-            "id": f"abs_{lesson.lessonID}",
-            "type": "not recorded",
-            "title": "Attendance Not Recorded",
-            "date": lesson.startDateTime,
-            "module_code": module.moduleCode,
-            "module_name": module.moduleName,
-            "details": {
-                # STATIC MESSAGES
-                "reason": "No successful facial recognition check-in detected",
-                "attendanceMethod": "Facial Recognition",
-                "suggestedAction": "Please re-attempt check-in or contact the administrator if you are in class.",
-                
-                # DYNAMIC DATA
-                "attendanceStatus": "Not Recorded",
-                "cameraLocation": lesson.lessontype, # Or venue if available
-                "timestamp": lesson.startDateTime.strftime("%Y-%m-%d %H:%M:%S")
-            }
-        })
+    # 1. Get raw DB rows
+    raw_notifications = db.query(StudentNotifications).filter(StudentNotifications.studentID == user_id).all()
 
 
-    #  Below Threshold (At Risk Modules)
-
-    
-    #Get Student Goal (Default 85)
-    student = db.query(Student).filter(Student.userID == user_id).first()
-    threshold = int(student.attendanceMinimum) if student else 85
-
-    # Calculate Stats per Module
-    stats_results = (
-        db.query(
-            Module.moduleCode,
-            Module.moduleName,
-            func.count(Lesson.lessonID).label("total"),
-            func.count(AttdCheck.AttdCheckID).label("attended")
-        )
-        .select_from(StudentModules)
-        .join(Module, StudentModules.modulesID == Module.moduleID)
-        .join(LecMod, Module.moduleID == LecMod.moduleID)
-        .join(Lesson, LecMod.lecModID == Lesson.lecModID)
-        .outerjoin(AttdCheck, (AttdCheck.lessonID == Lesson.lessonID) & (AttdCheck.studentID == user_id))
-        
-        .filter(StudentModules.studentID == user_id)
-        .filter(Lesson.endDateTime < now) # Only count past lessons
-        .group_by(Module.moduleCode, Module.moduleName)
-        .all()
-    )
-
-    for code, name, total, attended in stats_results:
-        if total == 0: continue
-        
-        percentage = round((attended / total) * 100)
-        
-        if percentage < threshold:
-            missed = total - attended
-            
-            alerts.append({
-                "id": f"risk_{code}",
-                "type": "below_threshold",
-                "title": "Attendance Below Threshold",
-                "date": now, # Alert is happening "now"
-                "module_code": code,
-                "module_name": name,
-                "details": {
-                    "impact": "You are at risk of not meeting the minimum attendance requirement.",
-                    "suggestedAction": "Attend upcoming classes.",
-                    "attendanceStatus": "At Risk",
-                    
-                    "currentAttendance": percentage,
-                    "threshold": threshold,
-                    "recentSessionsMissed": missed, # Simply total missed so far
-                    "totalRecentSessions": total
-                }
-            })
-
-    return alerts
+    return raw_notifications
 
 
 @router.put("/student/profile/update", response_model=viewUserProfile)
