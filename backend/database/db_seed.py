@@ -13,10 +13,37 @@ from datetime import timedelta
 from collections import defaultdict
 from dotenv import load_dotenv
 from supabase import create_client, Client
-
 import traceback
 load_dotenv()
 
+def upload_photo(user_uuid: str, local_file_path: str, supabase: Client) -> str:
+    """
+    Reads a local file and uploads it to Supabase Storage 
+    in a folder named after the user UUID.
+    Returns the storage path string.
+    """
+    try:    
+
+        file_ext = local_file_path.split('.')[-1]
+        storage_path = f"{user_uuid}/profile.{file_ext}"
+        bucket_name = "avatars"
+
+        #  Read the local file as binary
+        with open(local_file_path, 'rb') as f:
+            file_data = f.read()
+
+        # Upload to Supabase (upsert=True overwrites if exists)
+        # content-type is important for browser rendering!
+        response = supabase.storage.from_(bucket_name).upload(
+            path=storage_path,
+            file=file_data,
+            file_options={"content-type": "image/jpeg", "upsert": "true"}
+        )
+        return storage_path
+
+    except Exception as e:
+        print(f"   [!] Error uploading photo for {user_uuid}: {e}")
+        return None
 def createAccountgetuuid(email: str , password: str, email_confirmed: bool):
     try:
         user_payload = {
@@ -145,14 +172,14 @@ def platSeed(dbSessionLocalInstance: Session, spbase: Client):
         address = fake.address()
         # Create the PManager
         all_unis = dbSessionLocalInstance.query(University).all()
-        
+        gaiusgenericusPath = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png",spbase)
         new_manager = PlatformMgr(
             userID=uuid.UUID(str(user_uuid)),
             profileTypeID=pm_profile.profileTypeID, 
             role = "Platform Manager",
             email=email,
             name=name,
-            photo = None,
+            photo = gaiusgenericusPath,
             address = address,
             university=random.choice(all_unis)
         )
@@ -170,6 +197,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
     userNames = []
     numRandStudent = 10 #Number of Random Students to Generate
     fake = Faker()
+    
     #Random Students - 10
     i=0
     while i < numRandStudent:
@@ -194,7 +222,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
     basepass = "Valid123"
     user_uuid = createAccountgetuuid(baseemail, basepass, True)
     address = fake.address()
-
+    gaiusgenericusPath = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png",spbase)
     all_campus = dbSessionLocalInstance.query(Campus).all()
 
     dbSessionLocalInstance.add(Student(userID = uuid.UUID(str(user_uuid)),
@@ -204,7 +232,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
                                        studentNum = "190036",
                                        attendanceMinimum = 75.0,
                                        course = rCourse,
-                                        photo = None,
+                                        photo=gaiusgenericusPath,
                                         address= address,
                                         campusID=random.choice(all_campus).campusID
                                         ))
@@ -228,6 +256,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
             print(f" Skipping {name} ({email}): Auth creation failed (User might exist or error).")
             continue # Skip to next loop
         address = fake.address()
+        gaiusgenericusPath = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png",spbase)
         dbSessionLocalInstance.add(Student(
                                         userID = uuid.UUID(str(user_uuid)),
                                         profileType = studentProfile,
@@ -236,7 +265,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
                                         studentNum = studNumGenstr,
                                         attendanceMinimum = 75.0,
                                         course = rCourse,
-                                        photo = None,
+                                        photo=gaiusgenericusPath,
                                         address= address ,
                                         campusID=random.choice(all_campus).campusID
                                     ))
@@ -258,12 +287,13 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client):
     user_uuid = createAccountgetuuid(baseemail, basepass, True)
     address = fake.address()
     all_campus = dbSessionLocalInstance.query(Campus).all()
+    gaiusgenericusPath = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png",spbase)
     dbSessionLocalInstance.add(Admin(userID = uuid.UUID(str(user_uuid)),
                                     profileType = AdminProfile, 
                                     name = "James Looker",
                                     role = "System Administrator",
                                     email = baseemail,
-                                    photo = None,
+                                    photo = gaiusgenericusPath,
                                     address= address ,
                                     campusID=random.choice(all_campus).campusID
                                     ))
@@ -295,13 +325,14 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client):
         # For simplicity's sake username is the password.
         user_uuid = createAccountgetuuid(email, "Valid123", True)
         address = fake.address()
+        gaiusgenericusPath = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png",spbase)
         # Ghost Users that can not be logged in to
         dbSessionLocalInstance.add(Admin(userID = uuid.UUID(str(user_uuid)),
                                         profileType = AdminProfile,
                                         email = email,
                                         role = "System Administrator",
                                         name = name, 
-                                        photo = None,
+                                        photo = gaiusgenericusPath,
                                         address= address,
                                         campusID=random.choice(all_campus).campusID
                                         ))
@@ -324,12 +355,13 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client):
     user_uuid = createAccountgetuuid(baseemail, basepass, True)
     address = fake.address()
     all_campi = dbSessionLocalInstance.query(Campus).all()
+    gaiusgenericusPath = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png",spbase)
     dbSessionLocalInstance.add(Lecturer(userID = uuid.UUID(str(user_uuid)),
                                         profileType = LecturerProfile, 
                                         name = "Agnes Lam",
                                         specialistIn = "Computer Science",
                                         email = baseemail, 
-                                        photo = None,
+                                        photo = gaiusgenericusPath,
                                         address = address,
                                         campusID=random.choice(all_campi).campusID
                                         ))
@@ -359,12 +391,13 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client):
             #For simplicity, Username is the password!
             user_uuid = createAccountgetuuid(email, "Valid123", True)
             address = fake.address()
+            gaiusgenericusPath = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png",spbase)
             dbSessionLocalInstance.add(Lecturer(userID = uuid.UUID(str(user_uuid)),
                                                 profileType = LecturerProfile, 
                                                 name = name,
                                                 specialistIn = spec,
                                                 email = email,
-                                                photo = None,
+                                                photo = gaiusgenericusPath,
                                                 address = address,
                                                 campusID=random.choice(all_campi).campusID
                                                 ))
@@ -389,26 +422,74 @@ def lecModSeed(dbSessionLocalInstance: Session, spbase: Client):
     lecturerobjs = dbSessionLocalInstance.query(Lecturer).all()
     moduleobjs = dbSessionLocalInstance.query(Module).all()
 
+    # Use a set to track pairs (LecturerID, ModuleID) to prevent duplicates
+    existing_pairs = set()
+
+
+    # Ensure EVERY Lecturer teaches at least one module
+    for lecturer in lecturerobjs:
+        # Decide how many modules this lecturer teaches (e.g., 1 to 2)
+        num_modules_to_teach = random.randint(1, min(2, len(moduleobjs)))
+        
+        # Pick random modules
+        picked_modules = random.sample(moduleobjs, num_modules_to_teach)
+
+        for module in picked_modules:
+            # Create the relationship
+            # We check existing_pairs just in case, though logically unique here
+            if (lecturer.lecturerID, module.moduleID) not in existing_pairs:
+                dbSessionLocalInstance.add(LecMod(lecturers=lecturer, modules=module))
+                existing_pairs.add((lecturer.lecturerID, module.moduleID))
+
+    #  Ensure EVERY Module has at least one Lecturer
     for module in moduleobjs:
-        numLectsGen = random.randint(1, len(lecturerobjs))
-        lecturerssample = random.sample(lecturerobjs, numLectsGen)
-        for lecturer in lecturerssample:
-            dbSessionLocalInstance.add(LecMod(lecturers = lecturer, modules = module))
+        # Check if this module ID is already in our set of assigned pairs
+        # pair[1] is the moduleID
+        is_assigned = any(pair[1] == module.moduleID for pair in existing_pairs)
+
+        if not is_assigned:
+            # If module has no teacher, assign a random lecturer
+            random_lecturer = random.choice(lecturerobjs)
+            
+            dbSessionLocalInstance.add(LecMod(lecturers=random_lecturer, modules=module))
+            existing_pairs.add((random_lecturer.lecturerID, module.moduleID))
     
     dbSessionLocalInstance.commit()
     return None
 
 def studentModulesSeed(dbSessionLocalInstance: Session, spbase: Client): 
-    #No Primary Keys
     print(f"Seeding studentModules: \n")
     studentobjs = dbSessionLocalInstance.query(Student).all()
     moduleobjs = dbSessionLocalInstance.query(Module).all()
 
+    # Track existing pairs to avoid duplicate entries (StudentID, ModuleID)
+    existing_enrollments = set()
+    #Ensure EVERY Student has at least 1 module
+
+    for student in studentobjs:
+        num_courses = random.randint(1, min(3, len(moduleobjs)))
+        
+        # Pick random modules
+        picked_modules = random.sample(moduleobjs, num_courses)
+
+        for module in picked_modules:
+            dbSessionLocalInstance.add(StudentModules(student=student, modules=module))
+            existing_enrollments.add((student.studentID, module.moduleID))
+
+
+    # Ensure EVERY Module has at least 1 Student
     for module in moduleobjs:
-        numStudentsGen = random.randint(1, len(studentobjs))
-        studentssample = random.sample(studentobjs, numStudentsGen)
-        for student in studentssample:
-            dbSessionLocalInstance.add(StudentModules(student = student, modules = module))
+        # Check if this module ID is in our set
+        is_populated = any(pair[1] == module.moduleID for pair in existing_enrollments)
+
+        if not is_populated:
+            # If module is empty, force-add a random student
+            random_student = random.choice(studentobjs)
+            
+            # Check if pair exists (unlikely given logic, but safe)
+            if (random_student.studentID, module.moduleID) not in existing_enrollments:
+                dbSessionLocalInstance.add(StudentModules(student=random_student, modules=module))
+                existing_enrollments.add((random_student.studentID, module.moduleID))
     
     dbSessionLocalInstance.commit()
     return None

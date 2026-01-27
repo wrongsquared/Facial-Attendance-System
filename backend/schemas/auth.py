@@ -22,7 +22,7 @@ class TokenResponse(BaseModel):
     role_id: int   # e.g., 1 for Student, 2 for Lecturer
     role_name: str
     name: str
-    
+    photo: Optional[str] = None    
     studentNum: Optional[str] = None
     specialistIn: Optional[str] = None
     job: Optional[str] = None
@@ -44,7 +44,7 @@ class UserProfileUpdate(BaseModel):
     email: EmailStr | None = None
     contactNumber: str | None = None
     address: str | None = None
-    
+
     emergencyContactName: str | None = None
     emergencyContactRelationship: str | None = None
     emergencyContactNumber: str | None = None

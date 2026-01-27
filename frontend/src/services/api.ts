@@ -21,7 +21,6 @@ export const loginUser = async (creds: LoginCredentials): Promise<AuthResponse> 
   return response.json();
 };
 
-// Use this for /me, /students, etc.
 export const fetchProtected = async (endpoint: string, token: string) => {
   const response = await fetch(`${API_URL}${endpoint}`, {
     method: "GET",

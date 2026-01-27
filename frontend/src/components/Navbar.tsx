@@ -3,7 +3,7 @@ import {
   Bell,
   LogOut,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import {
   AlertDialog,
@@ -75,9 +75,10 @@ export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: Navb
           )}
           <div className="flex items-center gap-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
             onClick={onNavigateToProfile}>
-            <Avatar>
-              <AvatarFallback>{getInitials()}</AvatarFallback>
-            </Avatar>
+              <Avatar>
+                <AvatarImage src={user?.photo}/>
+                <AvatarFallback>{getInitials()}</AvatarFallback>
+              </Avatar>
             <div className="hidden md:block">
               <p>{user?.name ?? "Unknown Name"}</p>
               <p className="text-sm text-gray-600">{getUserSubtitle()}</p>

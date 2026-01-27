@@ -11,18 +11,14 @@ import {
 } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+
 import { Badge } from "./ui/badge";
 import {
-  BookOpen,
-  LogOut,
   ArrowLeft,
-  Bell,
   Search,
   ChevronLeft,
   ChevronRight,
   Eye,
-  Settings,
 } from "lucide-react";
 import {
   Table,
@@ -45,17 +41,6 @@ import {
   PopoverTrigger,
 } from "./ui/popover";
 import { Calendar } from "./ui/calendar";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
 import {
   Dialog,
   DialogContent,

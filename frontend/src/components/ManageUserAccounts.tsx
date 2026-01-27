@@ -12,6 +12,7 @@ import { Badge } from "./ui/badge";
 import { Navbar } from "./Navbar";
 import { getManageUsers } from "../services/api";
 import { AdminUserAccount } from "../types/adminInnards";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
 import {
   ArrowLeft,
   Search,
@@ -63,6 +64,8 @@ export function ManageUserAccounts({
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("All Roles");
   const [statusFilter, setStatusFilter] = useState("All Status");
+  const [selectedRole, setSelectedRole] = useState("All Roles");
+  const [selectedStatus, setSelectedStatus] = useState("All Statuses");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 500);
@@ -147,7 +150,7 @@ export function ManageUserAccounts({
               </div>
 
               {/* Filter Roles Dropdown */}
-              {/* <Select value={selectedRole} onValueChange={setSelectedRole}>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
                 <SelectTrigger className="w-full md:w-[180px]">
                   <SelectValue placeholder="Filter Roles" />
                 </SelectTrigger>
@@ -157,10 +160,10 @@ export function ManageUserAccounts({
                   <SelectItem value="Lecturer">Lecturer</SelectItem>
                   <SelectItem value="Student">Student</SelectItem>
                 </SelectContent>
-              </Select>*/}
+              </Select>
 
               {/* Status Dropdown */}
-              {/* <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                 <SelectTrigger className="w-full md:w-[180px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -169,7 +172,7 @@ export function ManageUserAccounts({
                   <SelectItem value="Active">Active</SelectItem>
                   <SelectItem value="Inactive">Inactive</SelectItem>
                 </SelectContent>
-              </Select>  */}
+              </Select>
 
               {/* Create New User Button */}
               <Button className="w-full md:w-auto" onClick={onCreateUser}>

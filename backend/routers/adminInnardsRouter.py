@@ -14,6 +14,8 @@ from dependencies.deps import get_current_user_id
 
 router = APIRouter()
 
+
+
 @router.get("/admin/users/manage", response_model=list[UserListItem])
 def get_users_for_management(
     search_term: Optional[str] = None,
