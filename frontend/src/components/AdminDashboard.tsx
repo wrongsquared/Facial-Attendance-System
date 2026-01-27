@@ -108,20 +108,6 @@ export function AdminDashboard({
             </CardContent>
           </Card>
 
-          {/* Monthly Absences
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm">Monthly Absences</CardTitle>
-              <UserX className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-6xl font-bold">{stats?.monthly_absences ?? 0}</div>
-              <p className="text-xs text-green-600 mt-1">
-                {stats?.trend_absences ?? "No data"}
-              </p>
-            </CardContent>
-          </Card> */}
-
           {/* Total Active Users */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -252,7 +238,6 @@ export function AdminDashboard({
               </div>
             </CardContent>
           </Card>
-
           {/* User Management */}
           <Card className="lg:col-span-2">
             <CardHeader>

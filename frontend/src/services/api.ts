@@ -279,6 +279,45 @@ export const updateAdminProfile = async (
   return res.json();
 };
 
+export const updateAttendanceRecord = async (
+  token: string,
+  payload: {
+    user_id: string;
+    date: string;
+    new_status: string;
+    reason?: string;
+    admin_notes?: string;
+    lesson_id?: number;
+  }
+) => {
+  console.log("API call - updateAttendanceRecord:", {
+    url: `${API_URL}/admin/attendance/update`,
+    payload,
+    token: token ? "present" : "missing"
+  });
+
+  const res = await fetch(`${API_URL}/admin/attendance/update`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  console.log("API response status:", res.status, res.statusText);
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error("API error response:", errorText);
+    throw new Error(`Failed to update attendance record: ${res.status} ${errorText}`);
+  }
+
+  const result = await res.json();
+  console.log("API success response:", result);
+  return result;
+};
+
 //Admin Routes end
 
 //Platform Manager Routes start

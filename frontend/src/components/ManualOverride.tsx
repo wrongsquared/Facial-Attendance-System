@@ -35,9 +35,10 @@ interface ManualOverrideProps {
     studentName: string;
     date: string;
     status: string;
+    lessonId: number;
   };
   showToast: (message: string) => void;
-  updateAttendanceRecord: (userId: string, date: string, newStatus: string) => void;
+  updateAttendanceRecord: (userId: string, date: string, newStatus: string, reason?: string, adminNotes?: string, lessonId?: number) => Promise<void>;
 }
 
 export function ManualOverride({
@@ -51,13 +52,36 @@ export function ManualOverride({
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [adminNotes, setAdminNotes] = useState<string>("");
 
-  const handleSave = () => {
-    // Update the attendance record with the new status
-    updateAttendanceRecord(studentData.userId, studentData.date, selectedStatus);
-    // Show success toast
-    showToast("Manual Attendance Override successful!");
-    // Navigate back to records page
-    onBack();
+  const handleSave = async () => {
+    try {
+      console.log("Attempting to update attendance record:", {
+        userId: studentData.userId,
+        date: studentData.date,
+        selectedStatus,
+        selectedReason,
+        adminNotes,
+        lessonId: studentData.lessonId
+      });
+
+      // Update the attendance record with the new status
+      const result = await updateAttendanceRecord(
+        studentData.userId,
+        studentData.date,
+        selectedStatus,
+        selectedReason,
+        adminNotes || undefined,
+        studentData.lessonId
+      );
+
+      console.log("Update result:", result);
+      // Show success toast
+      showToast("Manual Attendance Override successful!");
+      // Navigate back to records page
+      onBack();
+    } catch (error) {
+      console.error("Failed to update attendance:", error);
+      showToast("Failed to update attendance record. Please try again.");
+    }
   };
 
   const handleCancel = () => {
@@ -161,21 +185,30 @@ export function ManualOverride({
                 <Button
                   variant={selectedStatus === "Present" ? "default" : "outline"}
                   onClick={() => setSelectedStatus("Present")}
-                  className="flex-1 min-w-[100px]"
+                  className={`flex-1 min-w-[100px] ${selectedStatus === "Present"
+                    ? "bg-blue-600 hover:bg-blue-700 text-white border-transparent"
+                    : ""
+                    }`}
                 >
                   Present
                 </Button>
                 <Button
                   variant={selectedStatus === "Late" ? "default" : "outline"}
                   onClick={() => setSelectedStatus("Late")}
-                  className="flex-1 min-w-[100px]"
+                  className={`flex-1 min-w-[100px] ${selectedStatus === "Late"
+                    ? "bg-blue-600 hover:bg-blue-700 text-white border-transparent"
+                    : ""
+                    }`}
                 >
                   Late
                 </Button>
                 <Button
                   variant={selectedStatus === "Absent" ? "default" : "outline"}
                   onClick={() => setSelectedStatus("Absent")}
-                  className="flex-1 min-w-[100px]"
+                  className={`flex-1 min-w-[100px] ${selectedStatus === "Absent"
+                    ? "bg-blue-600 hover:bg-blue-700 text-white border-transparent"
+                    : ""
+                    }`}
                 >
                   Absent
                 </Button>
@@ -195,7 +228,10 @@ export function ManualOverride({
                   onClick={() =>
                     setSelectedReason("Facial Recognition Failure")
                   }
-                  className="w-full justify-start"
+                  className={`w-full justify-start ${selectedReason === "Facial Recognition Failure"
+                    ? "bg-blue-600 hover:bg-blue-700 text-white border-transparent"
+                    : ""
+                    }`}
                 >
                   Facial Recognition Failure
                 </Button>
@@ -204,14 +240,20 @@ export function ManualOverride({
                     selectedReason === "Medical Note" ? "default" : "outline"
                   }
                   onClick={() => setSelectedReason("Medical Note")}
-                  className="w-full justify-start"
+                  className={`w-full justify-start ${selectedReason === "Medical Note"
+                    ? "bg-blue-600 hover:bg-blue-700 text-white border-transparent"
+                    : ""
+                    }`}
                 >
                   Medical Note
                 </Button>
                 <Button
                   variant={selectedReason === "Other" ? "default" : "outline"}
                   onClick={() => setSelectedReason("Other")}
-                  className="w-full justify-start"
+                  className={`w-full justify-start ${selectedReason === "Other"
+                    ? "bg-blue-600 hover:bg-blue-700 text-white border-transparent"
+                    : ""
+                    }`}
                 >
                   Other
                 </Button>
@@ -233,14 +275,14 @@ export function ManualOverride({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex justify-between pt-6 border-t">
-              <Button variant="outline" onClick={handleCancel}>
+            <div className="flex justify-between gap-4 pt-6 border-t mt-6">
+              <Button className="flex-1" variant="outline" onClick={handleCancel}>
                 Cancel
               </Button>
               <Button
                 onClick={handleSave}
                 disabled={!selectedStatus || !selectedReason}
-                className="bg-blue-600 text-white hover:bg-blue-700"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
               >
                 Save Changes
               </Button>

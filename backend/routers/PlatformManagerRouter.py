@@ -81,9 +81,8 @@ def get_platform_manager_dashboard(
             "campusID": campus.campusID,
             "campusName": campus.campusName,
             "campusAddress": campus.campusAddress,
-            "subscriptionDate": campus.university.subscriptionDate,
-            "isActive": campus.university.isActive,
-            "subscriptionDate": campus.created_at
+            "subscriptionDate": campus.created_at,
+            "isActive": campus.university.isActive
         })
     
     return {

@@ -166,7 +166,7 @@ class EntLeave(Base): # Camera marks time student is detected coming in, time st
 class AttdCheck(Base): # Backend checks an AttdCheck variable based on an EntLeave variable, to mark student presence
     __tablename__ = "attdcheck"
     AttdCheckID: Mapped[int]= mapped_column(primary_key=True)
-    lessonID: Mapped[uuid.UUID] = mapped_column(ForeignKey("lessons.lessonID"))
+    lessonID: Mapped[int] = mapped_column(ForeignKey("lessons.lessonID"))
     lesson: Mapped[Lesson] = relationship(back_populates="attdcheck")
     studentID: Mapped[uuid.UUID] = mapped_column(ForeignKey("students.studentID"))
     student: Mapped[Student] = relationship(back_populates="attdcheck")

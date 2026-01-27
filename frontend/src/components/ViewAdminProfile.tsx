@@ -39,13 +39,25 @@ export function ViewAdminProfile({
     emergencyContactNumber: "",
   });
 
+  // Store original data to restore on cancel
+  const [originalData, setOriginalData] = useState<AdminProfileData>({
+    name: "",
+    email: "",
+    role: "",
+    contactNumber: "",
+    address: "",
+    emergencyContactName: "",
+    emergencyContactRelationship: "",
+    emergencyContactNumber: "",
+  });
+
   // Fetch Admin Profile
   useEffect(() => {
     const fetchProfile = async () => {
       if (!token) return;
       try {
         const data = await getAdminProfile(token);
-        setFormData({
+        const profileData = {
           name: data.name || "",
           email: data.email || "",
           role: data.role || "",
@@ -55,7 +67,9 @@ export function ViewAdminProfile({
           emergencyContactRelationship:
             data.emergencyContactRelationship || "",
           emergencyContactNumber: data.emergencyContactNumber || "",
-        });
+        };
+        setFormData(profileData);
+        setOriginalData(profileData); // Store original data
       } catch (err) {
         console.error("Failed to load admin profile", err);
       } finally {
@@ -70,36 +84,59 @@ export function ViewAdminProfile({
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
 
-  const handleCancel = () => setIsEditMode(false);
+  const handleCancel = () => {
+    setFormData(originalData); // Restore original data
+    setIsEditMode(false);
+  };
   const handleUpdateProfile = () => setIsEditMode(true);
 
   const [saving, setSaving] = useState(false);
 
-const handleSave = async () => {
-  if (!token) return;
+  const handleSave = async () => {
+    if (!token) return;
 
-  setSaving(true);
+    // Validate required fields
+    const requiredFields = [
+      { field: 'contactNumber', label: 'Contact Number' },
+      { field: 'address', label: 'Address' },
+      { field: 'emergencyContactName', label: 'Emergency Contact Name' },
+      { field: 'emergencyContactRelationship', label: 'Emergency Contact Relationship' },
+      { field: 'emergencyContactNumber', label: 'Emergency Contact Number' }
+    ];
 
-  const payload = {
-    contactNumber: formData.contactNumber || "",
-    address: formData.address || "",
-    emergencyContactName: formData.emergencyContactName || "",
-    emergencyContactRelationship:
-      formData.emergencyContactRelationship || "",
-    emergencyContactNumber: formData.emergencyContactNumber || "",
+    const missingFields = requiredFields.filter(({ field }) =>
+      !formData[field as keyof AdminProfileData]?.trim()
+    );
+
+    if (missingFields.length > 0) {
+      const missingLabels = missingFields.map(({ label }) => label).join(', ');
+      alert(`Missing data cannot be updated. Please fill in: ${missingLabels}`);
+      return;
+    }
+
+    setSaving(true);
+
+    const payload = {
+      contactNumber: formData.contactNumber || "",
+      address: formData.address || "",
+      emergencyContactName: formData.emergencyContactName || "",
+      emergencyContactRelationship:
+        formData.emergencyContactRelationship || "",
+      emergencyContactNumber: formData.emergencyContactNumber || "",
+    };
+
+    try {
+      await updateAdminProfile(token, payload);
+      alert("Profile updated successfully!");
+      setOriginalData(formData); // Update original data after successful save
+      setIsEditMode(false);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save changes. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
-
-  try {
-    await updateAdminProfile(token, payload);
-    alert("Profile updated successfully!");
-    setIsEditMode(false);
-  } catch (err) {
-    console.error(err);
-    alert("Failed to save changes. Please try again.");
-  } finally {
-    setSaving(false);
-  }
-};
 
 
 

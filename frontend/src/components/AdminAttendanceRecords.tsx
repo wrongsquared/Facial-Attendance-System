@@ -58,6 +58,7 @@ interface AttendanceRecord {
   module: string;
   status: string;
   date: string;
+  lessonId: number;
   attendanceMethod: string;
   liveCheck: string;
   cameraLocation: string;
@@ -75,9 +76,11 @@ interface AdminAttendanceRecordsProps {
     studentName: string;
     date: string;
     status: string;
+    lessonId: number;
   }) => void;
   attendanceRecords: AttendanceRecord[];
-  updateAttendanceRecord: (userId: string, date: string, newStatus: string) => void;
+  updateAttendanceRecord: (userId: string, date: string, newStatus: string, reason?: string, adminNotes?: string) => Promise<void>;
+  refreshTrigger?: number; // Add refresh trigger
 }
 
 const ITEMS_PER_PAGE = 50;
@@ -89,6 +92,7 @@ export function AdminAttendanceRecords({
   onNavigateToManualOverride,
   attendanceRecords,
   updateAttendanceRecord,
+  refreshTrigger,
 }: AdminAttendanceRecordsProps) {
   const { token } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
@@ -113,6 +117,7 @@ export function AdminAttendanceRecords({
     module: entry.module_code,
     status: entry.status,
     date: entry.date,
+    lessonId: entry.lesson_id,
     attendanceMethod: entry.method || "N/A",
     liveCheck: "N/A",
     cameraLocation: entry.location || "N/A",
@@ -170,6 +175,7 @@ export function AdminAttendanceRecords({
   useEffect(() => {
     const fetchData = async () => {
       if (!token) return;
+      console.log("Fetching attendance data, refreshTrigger:", refreshTrigger);
       setLoading(true);
       try {
         // Convert Date to YYYY-MM-DD
@@ -198,7 +204,7 @@ export function AdminAttendanceRecords({
       }
     };
     fetchData();
-  }, [token, debouncedSearch, selectedModule, selectedStatus, selectedDate, currentPage]);
+  }, [token, debouncedSearch, selectedModule, selectedStatus, selectedDate, currentPage, refreshTrigger]);
 
   const totalPages = Math.ceil(totalRecords / ITEMS_PER_PAGE);
 
@@ -450,20 +456,6 @@ export function AdminAttendanceRecords({
                     <p className="font-medium">{selectedRecord.attendanceMethod}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Live Check:</p>
-                    <Badge
-                      className={
-                        selectedRecord.liveCheck === "Passed"
-                          ? "bg-green-100 text-green-700 hover:bg-green-100"
-                          : selectedRecord.liveCheck === "Failed"
-                            ? "bg-red-100 text-red-700 hover:bg-red-100"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-100"
-                      }
-                    >
-                      {selectedRecord.liveCheck}
-                    </Badge>
-                  </div>
-                  <div>
                     <p className="text-sm text-gray-600 mb-1">Camera Location:</p>
                     <p className="font-medium">{selectedRecord.cameraLocation}</p>
                   </div>
@@ -471,42 +463,29 @@ export function AdminAttendanceRecords({
                     <p className="text-sm text-gray-600 mb-1">Timestamp:</p>
                     <p className="font-medium">{selectedRecord.timestamp}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Verification Type:</p>
-                    <p className="font-medium">{selectedRecord.verificationType}</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <p className="text-sm text-gray-600 mb-1">Virtual Tripwire:</p>
-                    <Badge
-                      className={
-                        selectedRecord.virtualTripwire === "Triggered"
-                          ? "bg-blue-100 text-blue-700 hover:bg-blue-100"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-100"
-                      }
-                    >
-                      {selectedRecord.virtualTripwire}
-                    </Badge>
-                  </div>
                 </div>
               </div>
             </div>
           )}
           {/* Dialog Footer with Close and Manual Override buttons */}
           {selectedRecord && (
-            <div className="flex justify-between pt-6 border-t mt-6">
+            <div className="flex justify-between gap-4 pt-6 border-t mt-6">
               <Button
+                className="flex-1"
                 variant="outline"
                 onClick={() => setIsDialogOpen(false)}
               >
                 Close
               </Button>
               <Button
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                 onClick={() => {
                   onNavigateToManualOverride({
                     userId: selectedRecord.userId,
                     studentName: selectedRecord.studentName,
                     date: selectedRecord.date,
                     status: selectedRecord.status,
+                    lessonId: selectedRecord.lessonId,
                   });
                   setIsDialogOpen(false);
                 }}

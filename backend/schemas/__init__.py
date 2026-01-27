@@ -34,7 +34,10 @@ from .lecturer import( timetableEntry,
 from .admin import (AdminDashboardStats, 
                     CourseAttentionItem, 
                     UserManagementItem,
-                    UserListItem)
+                    UserListItem,
+                    AdminReportRequest,
+                    AdminProfileUpdateRequest,
+                    AttendanceUpdateRequest)
 from .platformManager import (PlatformManagerDashboard, 
                               DashboardStats, 
                               UniversityDisplay, 

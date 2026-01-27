@@ -1,7 +1,7 @@
 import './index.css';
 import { useEffect, useState } from 'react';
 import { useAuth } from './cont/AuthContext';
-import { loginUser, getNotifications, } from './services/api';
+import { loginUser, getNotifications, updateAttendanceRecord as updateAttendanceRecordAPI } from './services/api';
 import { LoginCredentials } from './types/auth';
 import { LoginPage } from './components/LoginPage';
 import { StudentDashboard } from './components/StudentDashboard';
@@ -46,7 +46,7 @@ import { AboutPage } from './components/AboutPage';
 import { FeaturesPage } from './components/FeaturesPage';
 import { ServicesPage } from './components/ServicesPage';
 import { RegistrationPage } from './components/RegistrationPage';
-import type { AttendanceRecord } from './components/Attendance';
+import type { AttendanceRecord } from './components/AdminAttendanceRecords';
 import { NotificationAlerts } from "./components/NotificationAlerts";
 import { NotificationItem } from './types/studentinnards';
 
@@ -95,6 +95,7 @@ export default function App() {
     date: string;
     status: string;
   } | null>(null);
+  const [attendanceRefreshTrigger, setAttendanceRefreshTrigger] = useState(0);
   const [selectedBiometricUserData, setSelectedBiometricUserData] = useState<{
     userId: string;
     name: string;
@@ -213,14 +214,38 @@ export default function App() {
   };
 
   // Function to update attendance record
-  const updateAttendanceRecord = (userId: string, date: string, newStatus: string) => {
-    setAttendanceRecords(prev =>
-      prev.map(record =>
-        record.userId === userId && record.date === date
-          ? { ...record, status: newStatus }
-          : record
-      )
-    );
+  const updateAttendanceRecord = async (userId: string, date: string, newStatus: string, reason?: string, adminNotes?: string, lessonId?: number) => {
+    try {
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+
+      // Call the API to update the record in the database
+      await updateAttendanceRecordAPI(token, {
+        user_id: userId,
+        date: date,
+        new_status: newStatus,
+        reason: reason,
+        admin_notes: adminNotes,
+        lesson_id: lessonId
+      });
+
+      // Update the local state for immediate UI feedback
+      setAttendanceRecords(prev =>
+        prev.map(record =>
+          record.userId === userId && record.date === date
+            ? { ...record, status: newStatus }
+            : record
+        )
+      );
+
+      // Trigger refresh of attendance records in AdminAttendanceRecords component
+      // This will be handled by the component's useEffect when we navigate back
+
+    } catch (error) {
+      console.error("Failed to update attendance record:", error);
+      throw error; // Re-throw so ManualOverride component can handle the error
+    }
   };
 
   // Login Logic
@@ -463,7 +488,14 @@ export default function App() {
   };
 
   const handleBackToAttendanceRecords = () => {
+    console.log("Navigating back to attendance records, triggering refresh");
     setAdminView('attendanceRecords');
+    // Trigger refresh of attendance records
+    setAttendanceRefreshTrigger(prev => {
+      const newValue = prev + 1;
+      console.log("Refresh trigger updated:", prev, "->", newValue);
+      return newValue;
+    });
   };
 
   const handleNavigateToAdminProfile = () => {
@@ -838,9 +870,11 @@ export default function App() {
         <AdminAttendanceRecords
           onLogout={handleLogout}
           onBack={handleBackToAdminDashboard}
+          onNavigateToProfile={handleNavigateToAdminProfile}
           onNavigateToManualOverride={handleNavigateToManualOverride}
           attendanceRecords={attendanceRecords}
           updateAttendanceRecord={updateAttendanceRecord}
+          refreshTrigger={attendanceRefreshTrigger}
         />
       )}
       {userRole === 'admin' && adminView === 'manualOverride' && selectedStudentData && (

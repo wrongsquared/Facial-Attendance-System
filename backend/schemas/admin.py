@@ -53,3 +53,11 @@ class AdminProfileUpdateRequest(BaseModel):
     emergencyContactName: str
     emergencyContactRelationship: str
     emergencyContactNumber: str
+
+class AttendanceUpdateRequest(BaseModel):
+    user_id: str
+    date: str  # Format: "DD MMM YYYY" like "01 Dec 2025" 
+    new_status: Literal["Present", "Absent", "Late"]
+    reason: Optional[str] = None
+    admin_notes: Optional[str] = None
+    lesson_id: Optional[int] = None  # Specific lesson ID to update
