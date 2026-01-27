@@ -41,13 +41,24 @@ export function UpdateProfile({
     emergencyContactRelationship: "",
     emergencyContactNumber: "",
   });
+  const [originalData, setOriginalData] = useState<LecturerProfileData>({
+    name: "",
+    email: "",
+    specialistIn: "",
+    contactNumber: "",
+    address: "",
+    emergencyContactName: "",
+    emergencyContactRelationship: "",
+    emergencyContactNumber: "",
+  });
   const [isEditMode, setIsEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleCancel = () => {
+    setFormData(originalData); // Restore original data
     setIsEditMode(false);
   };
-    // Handle Input Changes
+  // Handle Input Changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({
@@ -61,6 +72,28 @@ export function UpdateProfile({
 
   const handleSave = async () => {
     if (!token || !user) return;
+
+    // Validate required fields
+    const requiredFields = [
+      { field: 'name', label: 'Name' },
+      { field: 'email', label: 'Email' },
+      { field: 'contactNumber', label: 'Contact Number' },
+      { field: 'address', label: 'Address' },
+      { field: 'emergencyContactName', label: 'Emergency Contact Name' },
+      { field: 'emergencyContactRelationship', label: 'Emergency Contact Relationship' },
+      { field: 'emergencyContactNumber', label: 'Emergency Contact Number' }
+    ];
+
+    const missingFields = requiredFields.filter(({ field }) =>
+      !formData[field as keyof LecturerProfileData]?.trim()
+    );
+
+    if (missingFields.length > 0) {
+      const missingLabels = missingFields.map(({ label }) => label).join(', ');
+      alert(`Missing data cannot be updated. Please fill in: ${missingLabels}`);
+      return;
+    }
+
     setSaving(true); // Disable button while saving
 
     // Prepare Data (Only send what is editable)
@@ -74,15 +107,16 @@ export function UpdateProfile({
       emergencyContactNumber: formData.emergencyContactNumber || ""
     };
     try {
-        
-        await updateLecturerProfile(token, payload);
-        alert("Profile updated successfully!");
+
+      await updateLecturerProfile(token, payload);
+      alert("Profile updated successfully!");
+      setOriginalData(formData); // Update original data after successful save
+      setIsEditMode(false);
     } catch (err) {
       console.error(err);
       alert("Failed to save changes. Please try again.");
     } finally {
       setSaving(false);
-      setIsEditMode(false);
     }
   };
   // Fetch Data on Mount
@@ -93,7 +127,7 @@ export function UpdateProfile({
         const data = await getLecturerFullProfile(token);
         // Populate Form
         // We use || "" to ensure inputs don't become uncontrolled if value is null
-        setFormData({
+        const profileData = {
           name: data.name || "",
           email: data.email || "",
           specialistIn: data.specialistIn || "",
@@ -102,7 +136,9 @@ export function UpdateProfile({
           emergencyContactName: data.emergencyContactName || "",
           emergencyContactRelationship: data.emergencyContactRelationship || "",
           emergencyContactNumber: data.emergencyContactNumber || ""
-        });
+        };
+        setFormData(profileData);
+        setOriginalData(profileData); // Store original data for cancel functionality
       } catch (err) {
         console.error("Failed to load profile", err);
       }
@@ -111,7 +147,7 @@ export function UpdateProfile({
   }, [token]);
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Navbar title="Lecturer Dashboard" onNavigateToProfile={onNavigateToProfile}/>
+      <Navbar title="Lecturer Dashboard" onNavigateToProfile={onNavigateToProfile} />
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
         {/* Back Button */}
@@ -151,6 +187,7 @@ export function UpdateProfile({
                   id="name"
                   type="text"
                   value={formData.name}
+                  onChange={handleChange}
                   className="h-12"
                   disabled={!isEditMode}
                 />
@@ -162,6 +199,7 @@ export function UpdateProfile({
                   id="email"
                   type="email"
                   value={formData.email}
+                  onChange={handleChange}
                   className="h-12"
                   disabled={!isEditMode}
                 />
@@ -263,7 +301,7 @@ export function UpdateProfile({
               <Button
                 size="lg"
                 onClick={handleSave}
-                disabled={saving} 
+                disabled={saving}
                 className="w-40 bg-blue-600 text-white hover:bg-blue-700"
               >
                 Save Changes

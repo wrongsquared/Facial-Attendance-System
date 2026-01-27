@@ -175,7 +175,6 @@ export function AdminAttendanceRecords({
   useEffect(() => {
     const fetchData = async () => {
       if (!token) return;
-      console.log("Fetching attendance data, refreshTrigger:", refreshTrigger);
       setLoading(true);
       try {
         // Convert Date to YYYY-MM-DD
@@ -194,7 +193,6 @@ export function AdminAttendanceRecords({
           page: currentPage,
           limit: ITEMS_PER_PAGE
         });
-        console.log("API RESPONSE RAW:", response);
         setRecentAttendanceLog(response.data || []);
         setTotalRecords(response.total || 0);
       } catch (err) {

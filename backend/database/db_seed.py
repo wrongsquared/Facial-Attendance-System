@@ -692,12 +692,22 @@ def seedLazyStudent(db:Session, spbase:Client):
 
     # Mark Attendance for 1 Lesson (10% Attendance)
     # We add an attendance check for the first lesson only
+    attended_lesson = past_lessons[0]
     attendance = AttdCheck(
-        lesson=past_lessons[0],
+        lesson=attended_lesson,
         student=lazy_student,
         remarks="Present"
     )
     db.add(attendance)
+
+    # Add EntLeave record for the attended lesson to provide timestamp
+    entry_leave = EntLeave(
+        lessonID=attended_lesson.lessonID,
+        studentID=lazy_student.userID,
+        enter=attended_lesson.startDateTime + timedelta(minutes=5),  # Entered 5 minutes late
+        leave=attended_lesson.endDateTime - timedelta(minutes=10)    # Left 10 minutes early
+    )
+    db.add(entry_leave)
 
     db.commit()
     

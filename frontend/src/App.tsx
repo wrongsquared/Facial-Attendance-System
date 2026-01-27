@@ -488,12 +488,10 @@ export default function App() {
   };
 
   const handleBackToAttendanceRecords = () => {
-    console.log("Navigating back to attendance records, triggering refresh");
     setAdminView('attendanceRecords');
     // Trigger refresh of attendance records
     setAttendanceRefreshTrigger(prev => {
       const newValue = prev + 1;
-      console.log("Refresh trigger updated:", prev, "->", newValue);
       return newValue;
     });
   };

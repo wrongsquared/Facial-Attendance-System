@@ -233,7 +233,10 @@ export function AttendanceReports({
 
 
       if (!res.ok) {
-        throw new Error("Failed to generate report");
+        const errorData = await res.json();
+        const errorMessage = errorData.detail || "Failed to generate report";
+        alert(`Error: ${errorMessage}`);
+        throw new Error(errorMessage);
       }
 
       // Download 
@@ -484,8 +487,8 @@ export function AttendanceReports({
           </div>
 
           {/* Report Preview/Info */}
-          <div>
-            <Card>
+          <div className="flex flex-col gap-6">
+            <Card className="flex-1">
               <CardHeader>
                 <CardTitle>Report Details</CardTitle>
               </CardHeader>

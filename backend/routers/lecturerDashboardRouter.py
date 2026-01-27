@@ -482,12 +482,42 @@ def generate_report(
         LecMod.moduleID == module_id,
         func.date(Lesson.startDateTime).between(criteria.date_from, criteria.date_to)
     ).order_by(Lesson.startDateTime).all()
-    # print("Lecturer: ", user_id)
-    # print("Module ID: ", module_id)
-    # print("Lessons Found: ", len(lessons) if lessons else 0)
+    
+    # Debug information
+    print(f"Debug - Lecturer ID: {user_id}")
+    print(f"Debug - Module ID: {module_id}")
+    print(f"Debug - Date range: {criteria.date_from} to {criteria.date_to}")
+    print(f"Debug - Lessons found: {len(lessons) if lessons else 0}")
 
     if not lessons:
-        raise HTTPException(status_code=404, detail="No lessons found in this date range.")
+        # Check if the lecturer teaches this module at all
+        lecturer_teaches_module = db.query(LecMod).filter(
+            LecMod.lecturerID == user_id,
+            LecMod.moduleID == module_id
+        ).first()
+        
+        if not lecturer_teaches_module:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"You are not assigned to teach module {criteria.module_code}"
+            )
+        
+        # Check if there are any lessons for this module (regardless of date)
+        any_lessons = db.query(Lesson).join(LecMod).filter(
+            LecMod.lecturerID == user_id,
+            LecMod.moduleID == module_id
+        ).first()
+        
+        if not any_lessons:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"No lessons scheduled for module {criteria.module_code}. Please contact administrator."
+            )
+        else:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"No lessons found for module {criteria.module_code} between {criteria.date_from} and {criteria.date_to}. Try a different date range."
+            )
 
     # 3. Fetch Students
     students = db.query(Student).join(StudentModules).filter(

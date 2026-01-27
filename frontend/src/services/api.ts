@@ -3,7 +3,7 @@ import { LoginCredentials, AuthResponse, ProfileUpdateData } from "../types/auth
 import { AttendanceLogFilters, AttendanceLogResponse } from "../types/lecturerinnards";
 
 
-const API_URL = "http://127.0.0.1:8000"; // The FASTAPI URL
+const API_URL = "http://localhost:8000"; // The FASTAPI URL
 
 // The Login Function
 export const loginUser = async (creds: LoginCredentials): Promise<AuthResponse> => {
@@ -129,7 +129,7 @@ export const getNotifications = async (token: string) => {
 };
 export const markNotificationRead = async (id: number, token: string) => {
   return await fetchProtected(`/notifications/${id}/read`, token, {
-    method: "PATCH" 
+    method: "PATCH"
   });
 };
 export const updateStudentProfile = async (token: string, data: ProfileUpdateData) => {
@@ -319,7 +319,6 @@ export const updateAttendanceRecord = async (
   }
 
   const result = await res.json();
-  console.log("API success response:", result);
   return result;
 };
 

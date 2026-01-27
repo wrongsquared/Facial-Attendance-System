@@ -18,15 +18,15 @@ import { getTimetableRange } from "../services/api";
 import { WeeklyLesson } from "../types/studentdash";
 import { useAuth } from "../cont/AuthContext";
 
-  interface Props {
-    onBack: () => void;
-    onNavigateToProfile: () => void;
-    onLogout: () => void;
-    onOpenNotifications:() => void;
-  }
-export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotifications } : Props) {
-    const { token } = useAuth();
-  
+interface Props {
+  onBack: () => void;
+  onNavigateToProfile: () => void;
+  onLogout: () => void;
+  onOpenNotifications: () => void;
+}
+export function StudentTimetable({ onBack, onNavigateToProfile, onOpenNotifications }: Props) {
+  const { token } = useAuth();
+
   // State
   const [viewMode, setViewMode] = useState<"daily" | "weekly" | "monthly">("daily");
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -50,7 +50,7 @@ export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotificatio
       try {
         // Calculate range based on view
         const range = getFetchRange();
-        
+
         // Call API
         const data = await getTimetableRange(token, range.start.toISOString(), range.end.toISOString());
         setLessons(data);
@@ -63,7 +63,7 @@ export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotificatio
     fetchData();
   }, [token, viewMode, currentDate, currentMonth]);
 
-   const getFetchRange = () => {
+  const getFetchRange = () => {
     const start = new Date();
     const end = new Date();
 
@@ -77,7 +77,7 @@ export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotificatio
       start.setTime(currentDate.getTime());
       start.setDate(currentDate.getDate() - day); // Go to Sunday
       start.setHours(0, 0, 0, 0);
-      
+
       end.setTime(start.getTime());
       end.setDate(start.getDate() + 6); // Go to Saturday
       end.setHours(23, 59, 59, 999);
@@ -86,7 +86,7 @@ export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotificatio
       start.setTime(currentMonth.getTime());
       start.setDate(1); // 1st
       start.setHours(0, 0, 0, 0);
-      
+
       end.setTime(currentMonth.getTime());
       end.setMonth(currentMonth.getMonth() + 1);
       end.setDate(0); // Last day
@@ -97,21 +97,21 @@ export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotificatio
 
 
   const handleNext = () => {
-      if (viewMode === "daily") {
-        const next = new Date(currentDate);
-        next.setDate(currentDate.getDate() + 1);
-        setCurrentDate(next);
-      } else if (viewMode === "weekly") {
-        const next = new Date(currentDate);
-        next.setDate(currentDate.getDate() + 7);
-        setCurrentDate(next);
-      } else {
-        const next = new Date(currentMonth);
-        next.setMonth(currentMonth.getMonth() + 1);
-        setCurrentMonth(next);
-      }
-    };
-    const handlePrev = () => {
+    if (viewMode === "daily") {
+      const next = new Date(currentDate);
+      next.setDate(currentDate.getDate() + 1);
+      setCurrentDate(next);
+    } else if (viewMode === "weekly") {
+      const next = new Date(currentDate);
+      next.setDate(currentDate.getDate() + 7);
+      setCurrentDate(next);
+    } else {
+      const next = new Date(currentMonth);
+      next.setMonth(currentMonth.getMonth() + 1);
+      setCurrentMonth(next);
+    }
+  };
+  const handlePrev = () => {
     if (viewMode === "daily") {
       const prev = new Date(currentDate);
       prev.setDate(currentDate.getDate() - 1);
@@ -129,10 +129,10 @@ export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotificatio
   const formatTime = (isoString: string) => {
     // Use the helper to prevent +8 hours shift
     const date = parseDateExact(isoString);
-    
+
     return date.toLocaleTimeString([], {
-      hour: 'numeric', 
-      minute:'2-digit', 
+      hour: 'numeric',
+      minute: '2-digit',
       hour12: true
     });
   };
@@ -141,21 +141,21 @@ export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotificatio
     const month = currentMonth.getMonth();
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
+
     const grid = [];
     // Previous month filler
     for (let i = 0; i < firstDay; i++) grid.push({ date: null, isCurrent: false });
     // Current month days
     for (let i = 1; i <= daysInMonth; i++) {
-      grid.push({ 
-        date: new Date(year, month, i), 
-        isCurrent: true 
+      grid.push({
+        date: new Date(year, month, i),
+        isCurrent: true
       });
     }
     return grid;
   };
 
-  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
   // Helper for Weekly View Dates
   const getWeekDates = () => {
@@ -163,7 +163,7 @@ export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotificatio
     const start = new Date(currentDate);
     const day = start.getDay();
     start.setDate(start.getDate() - day); // Sunday
-    
+
     for (let i = 0; i < 7; i++) {
       dates.push(new Date(start));
       start.setDate(start.getDate() + 1);
@@ -199,7 +199,7 @@ export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotificatio
               <CardDescription className="mt-2">
                 View your class schedule
               </CardDescription>
-              
+
               {/* VIEW TABS */}
               <div className="flex gap-2 mt-4">
                 {["daily", "weekly", "monthly"].map((mode) => (
@@ -207,8 +207,8 @@ export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotificatio
                     key={mode}
                     size="sm"
                     className={`rounded-xl px-6 text-sm font-medium border !border-blue-600 capitalize
-                      ${viewMode === mode 
-                        ? "bg-blue-600 text-white hover:bg-blue-700" 
+                      ${viewMode === mode
+                        ? "bg-blue-600 text-white hover:bg-blue-700"
                         : "bg-white text-blue-600 hover:bg-blue-50"}`}
                     onClick={() => setViewMode(mode as any)}
                   >
@@ -234,8 +234,14 @@ export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotificatio
                   </Button>
                 </div>
                 <div className="space-y-4">
-                  {lessons.length === 0 ? (
-                    <div className="p-4 text-center text-gray-500">No classes scheduled.</div>
+                  {loading ? (
+                    <div className="text-center py-8 text-gray-500">Loading timetable...</div>
+                  ) : lessons.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-8 border rounded-lg bg-gray-50 text-center">
+                      <Calendar className="h-10 w-10 text-gray-300 mb-2" />
+                      <p className="text-gray-600 font-medium">No classes scheduled for today.</p>
+                      <p className="text-sm text-gray-400">Enjoy your day!</p>
+                    </div>
                   ) : (
                     lessons.map((lesson) => (
                       <div key={lesson.lessonID} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
@@ -258,25 +264,25 @@ export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotificatio
                 <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center justify-between">
                   <Button variant="ghost" size="sm" onClick={handlePrev}><ChevronLeft className="h-4 w-4" /></Button>
                   <p className="text-sm font-medium">
-                    Week: {getWeekDates()[0].toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - {getWeekDates()[6].toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {getWeekDates()[0].toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - {getWeekDates()[6].toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
                   <Button variant="ghost" size="sm" onClick={handleNext}><ChevronRight className="h-4 w-4" /></Button>
                 </div>
-                
+
                 <div className="space-y-6">
                   {getWeekDates().map((date) => {
                     // Filter lessons for this specific day in the loop
                     const dayLessons = lessons.filter(l => {
                       // Get the raw date string from API (e.g. "2025-12-31")
                       const lessonDateStr = l.start_time.split("T")[0];
-                    
+
                       // Build the column's date string manually (YYYY-MM-DD)
                       // This avoids timezone shifts entirely
                       const year = date.getFullYear();
                       const month = String(date.getMonth() + 1).padStart(2, '0');
                       const day = String(date.getDate()).padStart(2, '0');
                       const columnDateStr = `${year}-${month}-${day}`;
-                    
+
                       return lessonDateStr === columnDateStr;
                     });
                     const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
@@ -319,11 +325,11 @@ export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotificatio
                 </div>
               </div>
             )}
-            
+
             {/* Monthly View */}
             {viewMode === "monthly" && (
               <div>
-                <div className="mb-4 flex items-center justify-between">
+                <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center justify-between">
                   <Button variant="ghost" size="icon" onClick={handlePrev}><ChevronLeft className="h-4 w-4" /></Button>
                   <p className="font-medium">{monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}</p>
                   <Button variant="ghost" size="icon" onClick={handleNext}><ChevronRight className="h-4 w-4" /></Button>
@@ -337,28 +343,37 @@ export function StudentTimetable({onBack, onNavigateToProfile, onOpenNotificatio
                   <div className="grid grid-cols-7 gap-y-6 text-sm">
                     {getMonthGrid().map((cell, idx) => {
                       if (!cell.date) return <div key={idx}></div>;
-                      
+
                       const dayLessons = lessons.filter(l => {
                         if (!cell.date) return false;
-                                            
+
                         // Raw API Date
                         const lessonDateStr = l.start_time.split("T")[0];
-                                            
+
                         // Raw Grid Cell Date
                         const year = cell.date.getFullYear();
                         const month = String(cell.date.getMonth() + 1).padStart(2, '0');
                         const day = String(cell.date.getDate()).padStart(2, '0');
                         const cellDateStr = `${year}-${month}-${day}`;
-                                            
+
                         return lessonDateStr === cellDateStr;
                       });
 
                       return (
-                        <div key={idx} className="flex flex-col items-center gap-1 min-h-[60px]">
+                        <div
+                          key={idx}
+                          className="flex flex-col items-center gap-1 min-h-[60px] cursor-pointer hover:bg-blue-50 rounded-lg p-2 transition-colors"
+                          onClick={() => {
+                            if (cell.date && cell.isCurrent) {
+                              setCurrentDate(cell.date);
+                              setViewMode("daily");
+                            }
+                          }}
+                        >
                           <span className={`text-sm ${cell.isCurrent ? "text-gray-900" : "text-gray-300"}`}>
                             {cell.date.getDate()}
                           </span>
-                          
+
                           {/* Badges for classes */}
                           {dayLessons.map(l => (
                             <div key={l.lessonID} className="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] w-full text-center truncate">

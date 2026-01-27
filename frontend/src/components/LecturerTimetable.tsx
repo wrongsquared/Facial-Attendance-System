@@ -528,8 +528,8 @@ export function LecturerTimetable({
                         >
                           <span
                             className={`text-sm ${isCurrentMonth
-                                ? "text-gray-900"
-                                : "text-gray-300"
+                              ? "text-gray-900"
+                              : "text-gray-300"
                               }`}
                           >
                             {date.getDate()}

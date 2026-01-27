@@ -55,7 +55,7 @@ interface LecturerAttendanceRecordsProps {
   onNavigateToProfile: () => void;
 }
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 20;
 
 export function LecturerAttendanceRecords({
   onLogout,
@@ -126,11 +126,11 @@ export function LecturerAttendanceRecords({
           page: currentPage,
           limit: ITEMS_PER_PAGE
         });
-        console.log("API RESPONSE RAW:", response);
         setRecentAttendanceLog(response.data || []);
         setTotalRecords(response.total || 0);
       } catch (err) {
-        console.error(err);
+        console.error("Failed to fetch attendance log:", err);
+        console.error("Error details:", err instanceof Error ? err.message : err);
       } finally {
         setLoading(false);
       }

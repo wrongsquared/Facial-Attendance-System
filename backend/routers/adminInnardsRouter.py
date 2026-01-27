@@ -174,11 +174,17 @@ def get_admin_attendance_log_filtered(
         room = lesson.room or "TBA"
         loc = f"Building: {building} Room: {room}"
 
-        # Format entry time safely
-        entry_time_str = str(entry_time) if entry_time else "N/A"
+        # Format entry time safely - use proper 12-hour format like other parts of the system
+        if entry_time:
+            entry_time_str = entry_time.strftime("%I:%M %p").lstrip("0")
+        elif current_status == "Present":
+            # If marked present but no entry time recorded, use lesson start time
+            entry_time_str = lesson.startDateTime.strftime("%I:%M %p").lstrip("0")
+        else:
+            entry_time_str = "N/A"
         
         # Format method safely
-        method_str = remarks or "N/A"
+        method_str = remarks or "Biometric Scan"
         
         # --- ADD TO LIST ---
         log_entries.append(AttendanceLogEntry(
