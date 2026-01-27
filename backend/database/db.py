@@ -172,6 +172,8 @@ class AttdCheck(Base): # Backend checks an AttdCheck variable based on an EntLea
     studentID: Mapped[uuid.UUID] = mapped_column(ForeignKey("students.studentID"))
     student: Mapped[Student] = relationship(back_populates="attdcheck")
     remarks: Mapped[str|None]
+    # Values: 'Present', 'Late', 'Excused', 'Absent'
+    status: Mapped[str] = mapped_column(String(20), default='Present')
 
 class Module(Base): #Modules
     __tablename__ = "modules"
