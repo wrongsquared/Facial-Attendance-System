@@ -21,12 +21,13 @@ export const loginUser = async (creds: LoginCredentials): Promise<AuthResponse> 
   return response.json();
 };
 
-export const fetchProtected = async (endpoint: string, token: string) => {
+export const fetchProtected = async (endpoint: string, token: string, options: RequestInit = {}) => {
   const response = await fetch(`${API_URL}${endpoint}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`, // Returns the Access Token
+      ...options.headers,
     },
   });
 
@@ -126,7 +127,11 @@ export const getStudentFullProfile = async (token: string) => {
 export const getNotifications = async (token: string) => {
   return await fetchProtected("/student/notifications", token);
 };
-
+export const markNotificationRead = async (id: number, token: string) => {
+  return await fetchProtected(`/notifications/${id}/read`, token, {
+    method: "PATCH" 
+  });
+};
 export const updateStudentProfile = async (token: string, data: ProfileUpdateData) => {
   return await sendUpdate("/student/profile/update", token, data);
 };

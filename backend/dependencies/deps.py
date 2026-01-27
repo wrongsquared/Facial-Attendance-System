@@ -1,6 +1,10 @@
 from fastapi.security import HTTPBearer,OAuth2PasswordBearer, HTTPAuthorizationCredentials
 from fastapi import Depends, HTTPException, status ,Security
 from client import supabase
+from sqlalchemy import func
+from database.db import Lesson, LecMod, Module, StudentModules, AttdCheck, StudentNotifications, Student
+from sqlalchemy.orm import Session
+from datetime import datetime
 
 # This tells Swagger UI to show a "Authorize" button using the /login route
 # oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
@@ -70,3 +74,64 @@ def get_signed_url(path: str | None) -> str | None:
     except Exception as e:
         print(f"Error signing URL for {path}: {e}")
         return None
+    
+
+def check_single_student_risk(db: Session, student_id: str):
+    student = db.query(Student).filter(Student.studentID == student_id).first()
+    if not student: return
+
+    # Get all modules this student is enrolled in
+    enrollments = db.query(Module).join(StudentModules).filter(StudentModules.studentID == student_id).all()
+
+    for module in enrollments:
+        # Stats for THIS specific module
+        total_past = (
+            db.query(func.count(Lesson.lessonID))
+            .join(LecMod).filter(LecMod.moduleID == module.moduleID)
+            .filter(Lesson.endDateTime < datetime.now())
+            .scalar()
+        ) or 0
+
+        if total_past == 0: continue # Skip if no classes yet
+
+        attended = (
+            db.query(func.count(AttdCheck.AttdCheckID))
+            .join(Lesson).join(LecMod)
+            .filter(LecMod.moduleID == module.moduleID)
+            .filter(AttdCheck.studentID == student_id)
+            .scalar()
+        ) or 0
+
+        pct = (attended / total_past) * 100
+        
+        # Check Threshold
+        if pct < student.attendanceMinimum:
+            
+            existing = db.query(StudentNotifications).filter(
+                StudentNotifications.studentID == student_id,
+                StudentNotifications.isRead == False,
+                StudentNotifications.title.contains(module.moduleCode) # Simple duplicate check
+            ).first()
+
+            if not existing:
+                # CREATE RICH StudentNotifications
+                missed = total_past - attended
+                
+                alert = StudentNotifications(
+                    studentID=student_id,
+                    title=f"Attendance Warning: {module.moduleCode}",
+                    message=f"Attendance in {module.moduleCode} is {pct:.1f}%.",
+                    type="alert",
+                    meta_data={
+                        "module_code": module.moduleCode,
+                        "module_name": module.moduleName,
+                        "current_pct": round(pct, 1),
+                        "threshold": student.attendanceMinimum,
+                        "missed_count": missed,
+                        "total_past": total_past,
+                        "date": datetime.now().strftime("%d %b %Y")
+                    }
+                )
+                db.add(alert)
+
+    db.commit()

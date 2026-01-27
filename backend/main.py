@@ -15,7 +15,7 @@ from database.db import (InstitutionRegistration, UserProfile, #This was really 
                          University,
                         PlatformMgr
                          )
-from dependencies.deps import get_signed_url 
+from dependencies.deps import get_signed_url, check_single_student_risk
 from uuid import UUID
 from schemas import (UserSignUp, #This was really long so I had to bracket it
                      UserLogin, 
@@ -164,7 +164,7 @@ def delete_user(user_id: UUID, db: Session = Depends(get_db)):
 
     return None
 
- #Student Login 
+#Student Login 
 @app.post("/login", response_model = TokenResponse)
 def login(credentials:UserLogin, db:Session = Depends(get_db)):
     try:
@@ -174,9 +174,22 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
             "email": credentials.email,
             "password": credentials.password
         })
-
         session = auth_response.session
         user = auth_response.user
+        user_uuid = user.id
+        db_user = db.query(User).filter(User.userID == user_uuid).first()
+
+        role_name = ""
+        if db_user.profileType:
+            role_name = db_user.profileType.profileTypeName.lower()
+
+        if "Student" in role_name:
+            # We wrap in try/except so login doesn't fail if calculation fails
+            try:
+                check_single_student_risk(db, user.id)
+            except Exception as e:
+                print(f"Background check failed: {e}")
+
         if not session or not user:
             raise HTTPException(status_code=401, detail="Invalid credentials")
     except Exception as e:
@@ -184,7 +197,6 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail=str(e))
 
 
-    user_uuid = user.id
 
     # Query the 'users' table to get the profileTypeID
     result = (

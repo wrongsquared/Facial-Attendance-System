@@ -31,29 +31,20 @@ export interface StudentProfileData {
 }
 
 export interface NotificationItem {
-  id: string;
-  type: "not_recorded" | "below_threshold";
+  notificationID: number;
   title: string;
-  date: string;
-  module_code: string;
-  module_name: string;
-  
-  details: {
-    // Shared Fields
-    attendanceStatus: string; // e.g., "Not Recorded" or "At Risk"
-    suggestedAction: string;
-
-    // Specific to 'not_recorded'
-    reason?: string;
-    attendanceMethod?: string;
-    cameraLocation?: string;
-    timestamp?: string;
-
-    // Specific to 'below_threshold'
-    currentAttendance?: number; 
-    threshold?: number;         
-    recentSessionsMissed?: number;
-    totalRecentSessions?: number; 
-    impact?: string;
+  message: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
+  // Add the flexible metadata
+  meta_data?: {
+    module_code?: string;
+    module_name?: string;
+    current_pct?: number;
+    threshold?: number;
+    missed_count?: number;
+    total_past?: number;
+    date?: string;
   };
 }
