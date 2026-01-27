@@ -223,6 +223,22 @@ export const getAdminModuleList = async (token: string) => {
   return await fetchProtected("/admin/modules", token);
 };
 
+export const getAdminAttendanceLog = async (token: string, filters: AttendanceLogFilters): Promise<AttendanceLogResponse> => {
+  const params = new URLSearchParams();
+  if (filters.searchTerm) params.append("search_term", filters.searchTerm);
+  if (filters.moduleCode && filters.moduleCode !== "All") params.append("module_code", filters.moduleCode);
+  if (filters.status && filters.status !== "All") params.append("status", filters.status);
+  if (filters.date) params.append("date", filters.date);
+
+  const limit = filters.limit || 10;
+  const offset = ((filters.page || 1) - 1) * limit;
+  params.append("limit", limit.toString());
+  params.append("offset", offset.toString());
+
+  const response = await fetchProtected(`/admin/attendance-log?${params.toString()}`, token);
+  return response as AttendanceLogResponse;
+};
+
 export const getManageUsers = async (
   token: string,
   search: string,

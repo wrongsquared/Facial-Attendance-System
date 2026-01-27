@@ -64,7 +64,7 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { Navbar } from "./Navbar";
-import { getAdminModuleList,getAttendanceLog } from "../services/api";
+import { getAdminModuleList, getAdminAttendanceLog } from "../services/api";
 import { useAuth } from "../cont/AuthContext";
 import { AttendanceLogEntry } from "../types/lecturerinnards";
 interface AttendanceRecord {
@@ -95,7 +95,7 @@ interface AdminAttendanceRecordsProps {
   updateAttendanceRecord: (userId: string, date: string, newStatus: string) => void;
 }
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 50;
 
 export function AdminAttendanceRecords({
   onLogout,
@@ -120,7 +120,7 @@ export function AdminAttendanceRecords({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [totalRecords, setTotalRecords] = useState(0);
   const [recentAttendanceLog, setRecentAttendanceLog] = useState<AttendanceLogEntry[]>([]);
-  
+
   // Convert fetched data to display format
   const displayRecords: AttendanceRecord[] = recentAttendanceLog.map(entry => ({
     userId: entry.user_id,
@@ -136,7 +136,7 @@ export function AdminAttendanceRecords({
     virtualTripwire: "N/A"
   }));
 
-   const formatDate = (date: Date) => {
+  const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-GB", {
       day: "numeric",
       month: "short",
@@ -170,58 +170,58 @@ export function AdminAttendanceRecords({
   }, [searchQuery]);
 
   useEffect(() => {
-      const fetchModules = async () => {
-        if (!token) return;
-        try {
-          const modules = await getAdminModuleList(token);
-          setModuleList(modules);
-        } catch (err) {
-          console.error("Failed to load module list", err);
-        }
-      };
-      fetchModules();
-    }, [token]);
+    const fetchModules = async () => {
+      if (!token) return;
+      try {
+        const modules = await getAdminModuleList(token);
+        setModuleList(modules);
+      } catch (err) {
+        console.error("Failed to load module list", err);
+      }
+    };
+    fetchModules();
+  }, [token]);
 
-    useEffect(() => {
-        const fetchData = async () => {
-          if (!token) return;
-          setLoading(true);
-          try {
-            // Convert Date to YYYY-MM-DD
-            let dateStr = "";
-            if (selectedDate) {
-              // Ensure local date string matches API expectation
-              // Trick: use the 'en-CA' locale to get YYYY-MM-DD
-              dateStr = selectedDate.toLocaleDateString("en-CA");
-            }
-    
-            const response = await getAttendanceLog(token, {
-              searchTerm: debouncedSearch,
-              moduleCode: selectedModule === "all" ? undefined : selectedModule,
-              status: selectedStatus === "all" ? undefined : (selectedStatus as any),
-              date: dateStr,
-              page: currentPage,
-              limit: ITEMS_PER_PAGE
-            });
-            console.log("API RESPONSE RAW:", response);
-            setRecentAttendanceLog(response.data || []);
-            setTotalRecords(response.total || 0);
-          } catch (err) {
-            console.error(err);
-          } finally {
-            setLoading(false);
-          }
-        };
-        fetchData();
-      }, [token, debouncedSearch, selectedModule, selectedStatus, selectedDate, currentPage]);
-    
-      const totalPages = Math.ceil(totalRecords / ITEMS_PER_PAGE); 
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!token) return;
+      setLoading(true);
+      try {
+        // Convert Date to YYYY-MM-DD
+        let dateStr = "";
+        if (selectedDate) {
+          // Ensure local date string matches API expectation
+          // Trick: use the 'en-CA' locale to get YYYY-MM-DD
+          dateStr = selectedDate.toLocaleDateString("en-CA");
+        }
+
+        const response = await getAdminAttendanceLog(token, {
+          searchTerm: debouncedSearch,
+          moduleCode: selectedModule === "all" ? undefined : selectedModule,
+          status: selectedStatus === "all" ? undefined : (selectedStatus as any),
+          date: dateStr,
+          page: currentPage,
+          limit: ITEMS_PER_PAGE
+        });
+        console.log("API RESPONSE RAW:", response);
+        setRecentAttendanceLog(response.data || []);
+        setTotalRecords(response.total || 0);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [token, debouncedSearch, selectedModule, selectedStatus, selectedDate, currentPage]);
+
+  const totalPages = Math.ceil(totalRecords / ITEMS_PER_PAGE);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile} />
-      
+
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
         {/* Back Button */}
@@ -259,7 +259,7 @@ export function AdminAttendanceRecords({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Modules</SelectItem>
-                    {moduleList.map((mod: any) => (
+                  {moduleList.map((mod: any) => (
                     <SelectItem key={mod.moduleCode} value={mod.moduleCode}>
                       {mod.moduleCode}
                     </SelectItem>
@@ -346,8 +346,8 @@ export function AdminAttendanceRecords({
                         </TableCell>
                         <TableCell>{record.date}</TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => {
                               setSelectedRecord(record);
@@ -376,38 +376,46 @@ export function AdminAttendanceRecords({
 
             {/* Pagination */}
             {totalRecords > 0 && (
-              <div className="flex items-center justify-center gap-2 mt-6">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(page)}
-                      className="w-10"
-                    >
-                      {page}
-                    </Button>
-                  ))}
+              <div className="flex flex-col items-center gap-4 mt-6">
+                <div className="flex items-center justify-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                        className="w-10"
+                      >
+                        {page}
+                      </Button>
+                    ))}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
 
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <span>Page {currentPage} of {totalPages}</span>
+                  <span>•</span>
+                  <span>{totalRecords} total records</span>
+                </div>
               </div>
             )}
           </CardContent>
@@ -458,13 +466,13 @@ export function AdminAttendanceRecords({
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Live Check:</p>
-                    <Badge 
+                    <Badge
                       className={
                         selectedRecord.liveCheck === "Passed"
                           ? "bg-green-100 text-green-700 hover:bg-green-100"
                           : selectedRecord.liveCheck === "Failed"
-                          ? "bg-red-100 text-red-700 hover:bg-red-100"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-100"
+                            ? "bg-red-100 text-red-700 hover:bg-red-100"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-100"
                       }
                     >
                       {selectedRecord.liveCheck}
@@ -484,7 +492,7 @@ export function AdminAttendanceRecords({
                   </div>
                   <div className="md:col-span-2">
                     <p className="text-sm text-gray-600 mb-1">Virtual Tripwire:</p>
-                    <Badge 
+                    <Badge
                       className={
                         selectedRecord.virtualTripwire === "Triggered"
                           ? "bg-blue-100 text-blue-700 hover:bg-blue-100"
