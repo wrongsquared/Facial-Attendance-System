@@ -13,7 +13,12 @@ from database.db import (InstitutionRegistration, UserProfile, #This was really 
                          Admin,
                          Campus,
                          University,
-                        PlatformMgr
+                        PlatformMgr,
+                        AttdCheck,
+                        EntLeave,
+                        StudentModules,
+                        studentAngles,
+                        StudentNotifications
                          )
 from dependencies.deps import get_signed_url, check_single_student_risk
 from uuid import UUID
@@ -306,6 +311,31 @@ def read_my_admin_profile(
         "emergencyContactRelationship": user_data.emergencyContactRelationship,
         "emergencyContactNumber": user_data.emergencyContactNumber
     }
+
+@app.delete("/admin/users/{user_id}", status_code= 204)
+def delete_user(user_id: str, current_user: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    user_to_delete = db.query(User).filter(User.userID == user_id).first()
+    if not user_to_delete:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        # delete the User (This will cascade to the 'students' table automatically)
+        db.delete(user_to_delete)
+        db.commit()
+
+    except Exception as e:
+        db.rollback()
+        print(f"DB Delete Failed: {e}") # Check your VS Code Terminal for the real error!
+        raise HTTPException(status_code=500, detail="Database constraint violation. See logs.")
+    #  Delete from Supabase Auth (Cloud) LAST
+    try:
+        supabase_adm.auth.admin.delete_user(user_id)
+    except Exception as e:
+        print(f"Warning: Failed to delete auth user {user_id}: {e}")
+        # We don't raise an error here because the DB part succeeded, 
+        # so the user is effectively gone from the app.
+    return None
+
 
 #Important to keep this
 app.include_router(studentDashboardRouter.router, tags=['student'])

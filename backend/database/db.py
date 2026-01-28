@@ -138,19 +138,19 @@ class Student(User): #Student, child of User
     courseID: Mapped[int] = mapped_column(ForeignKey("courses.courseID"))
     course: Mapped[Courses] = relationship(back_populates="students")
 
-    EntLeaves: Mapped[list[EntLeave]] = relationship(back_populates="student")
+    EntLeaves: Mapped[list[EntLeave]] = relationship(back_populates="student", cascade="all, delete-orphan")
 
     attendanceMinimum: Mapped[float | None] = mapped_column(nullable=True)
 
-    attdcheck: Mapped[list[AttdCheck]] = relationship(back_populates="student")
+    attdcheck: Mapped[list[AttdCheck]] = relationship(back_populates="student", cascade="all, delete-orphan")
 
-    studentmodules: Mapped[list[StudentModules]] = relationship(back_populates="student")
+    studentmodules: Mapped[list[StudentModules]] = relationship(back_populates="student", cascade="all, delete-orphan")
 
-    angles: Mapped[list[studentAngles]] = relationship(back_populates="student")
+    angles: Mapped[list[studentAngles]] = relationship(back_populates="student", cascade="all, delete-orphan")
 
     campusID: Mapped[int] = mapped_column(ForeignKey("campus.campusID"))
     campus:  Mapped[Campus] = relationship(back_populates="student_profiles")
-    notifications: Mapped[list[StudentNotifications]] = relationship(back_populates="student")
+    notifications: Mapped[list[StudentNotifications]] = relationship(back_populates="student", cascade="all, delete-orphan")
 
 class EntLeave(Base): # Camera marks time student is detected coming in, time student is detected leaving.
     __tablename__ = "entleave"

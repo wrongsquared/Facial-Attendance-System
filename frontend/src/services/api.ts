@@ -24,6 +24,7 @@ export const loginUser = async (creds: LoginCredentials): Promise<AuthResponse> 
 export const fetchProtected = async (endpoint: string, token: string, options: RequestInit = {}) => {
   const response = await fetch(`${API_URL}${endpoint}`, {
     method: "GET",
+    ...options,
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`, // Returns the Access Token
@@ -35,7 +36,9 @@ export const fetchProtected = async (endpoint: string, token: string, options: R
     if (response.status === 401) throw new Error("Unauthorized");
     throw new Error("Request failed");
   }
-
+  if (response.status === 204) {
+      return {}; 
+  }
   return response.json();
 };
 

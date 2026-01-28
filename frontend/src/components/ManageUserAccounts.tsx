@@ -10,7 +10,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Navbar } from "./Navbar";
-import { getManageUsers } from "../services/api";
+import { getManageUsers, deleteUser } from "../services/api";
 import { AdminUserAccount } from "../types/adminInnards";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
 import {
@@ -65,6 +65,7 @@ export function ManageUserAccounts({
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [userToDelete, setUserToDelete] = useState<AdminUserAccount | null>(null);
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 500);
     return () => clearTimeout(timer);
@@ -87,6 +88,26 @@ export function ManageUserAccounts({
   //   setUsers(users.filter((user) => user.userId !== userId));
   //   setUserToDelete(null);
   // };
+  const handleDeleteClick = (user: AdminUserAccount) => {
+    setUserToDelete(user); // This opens the dialog because userToDelete is not null
+  };
+  const confirmDelete = async () => {
+    if (!userToDelete || !token) return;
+
+    try {
+      await deleteUser(userToDelete.uuid, token);
+
+      // Update UI 
+      setUsers((prev) => prev.filter((u) => u.uuid !== userToDelete.uuid));
+
+      // Close
+      setUserToDelete(null);
+      
+    } catch (err) {
+      console.error("Failed to delete user", err);
+      alert("Failed to delete user.");
+    }
+  };
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Active":
@@ -220,7 +241,7 @@ export function ManageUserAccounts({
                                 <Button
                                   variant="destructive"
                                   size="sm"
-                                  // onClick={() => setUserToDelete(user.name)}
+                                  onClick={() => handleDeleteClick(user)}
                                 >
                                   Delete
                                 </Button>
@@ -231,13 +252,13 @@ export function ManageUserAccounts({
                                     Delete User Account
                                   </AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to delete "{user.name}"?
+                                    Are you sure you want to delete "{userToDelete?.name}"?
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancel</AlertDialogCancel>
                                   <AlertDialogAction
-                                    // onClick={() => handleDeleteUser(user.uuid)}
+                                    onClick={confirmDelete} 
                                     className="bg-red-600 hover:bg-red-700"
                                   >
                                     Delete
