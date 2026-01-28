@@ -6,7 +6,7 @@ from database.db import (
     User, UserProfile, Student, Lesson, Module, AttdCheck, 
     StudentModules, LecMod, EntLeave, Lecturer, Admin
 )
-from schemas import UserManageSchema, AttendanceLogEntry, AttendanceLogResponse, Literal, AttendanceUpdateRequest
+from schemas import UserListItem, UserManageSchema, AttendanceLogEntry, AttendanceLogResponse, Literal, AttendanceUpdateRequest
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session, aliased
 from database.db_config import get_db
