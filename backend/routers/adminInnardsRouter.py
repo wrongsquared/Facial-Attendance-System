@@ -105,6 +105,48 @@ def get_users_for_management(
         })
     return output
 
+@router.get("/admin/users/manage/custom-goals", response_model=list[UserListItem])
+def get_students_for_custom_goals_management(
+    search_term: Optional[str] = None,
+    status_filter: Optional[str] = None, # "Active", "Inactive"
+    db: Session = Depends(get_db)
+):
+    # Query Student table directly for custom goals management - only students
+    query = (
+        db.query(Student, UserProfile.profileTypeName)
+        .join(UserProfile, Student.profileTypeID == UserProfile.profileTypeID)
+    )
+    
+    if status_filter and status_filter != "All Status":
+        query = query.filter(Student.status == status_filter)
+
+    if search_term:
+        search = f"%{search_term}%"
+        query = query.filter(or_(
+            Student.name.ilike(search),
+            Student.email.ilike(search),
+            Student.studentNum.ilike(search)
+        ))
+
+    results = query.all()
+    output = []
+
+    for student, role_name in results:
+        status = ""
+        if student.active == True or student.active == None:
+            status = "Active"
+        else:
+            status = "Inactive"
+        output.append({
+            "uuid": student.userID,
+            "user_display_id": student.studentNum,
+            "name": student.name,
+            "role": role_name,
+            "status": status,
+            "attendanceMinimum": student.attendanceMinimum
+        })
+    return output
+
 # Update student attendance minimum (custom goal)
 @router.put("/admin/users/{user_id}/attendance-minimum")
 def update_student_attendance_minimum(

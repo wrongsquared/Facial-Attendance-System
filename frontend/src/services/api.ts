@@ -257,6 +257,18 @@ export const getManageUsers = async (
   return await fetchProtected(`/admin/users/manage?${params.toString()}`, token);
 };
 
+export const getStudentsForCustomGoals = async (
+  token: string,
+  search: string,
+  status: string
+) => {
+  const params = new URLSearchParams();
+  if (search) params.append("search_term", search);
+  if (status && status !== "All Status") params.append("status_filter", status);
+
+  return await fetchProtected(`/admin/users/manage/custom-goals?${params.toString()}`, token);
+};
+
 // services/api.ts
 export const updateAdminProfile = async (
   token: string,

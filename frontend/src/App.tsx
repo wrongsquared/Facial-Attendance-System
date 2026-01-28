@@ -1,7 +1,7 @@
 import './index.css';
 import { useEffect, useState } from 'react';
 import { useAuth } from './cont/AuthContext';
-import { loginUser, getNotifications, updateAttendanceRecord as updateAttendanceRecordAPI, getManageUsers } from './services/api';
+import { loginUser, getNotifications, updateAttendanceRecord as updateAttendanceRecordAPI, getManageUsers, getStudentsForCustomGoals } from './services/api';
 import { LoginCredentials } from './types/auth';
 import { LoginPage } from './components/LoginPage';
 import { StudentDashboard } from './components/StudentDashboard';
@@ -186,7 +186,7 @@ export default function App() {
           console.log('Fetching student data for custom goals...');
 
           // Fetch all students directly from Student table to get all 12 students
-          const studentsData = await getManageUsers(token, '', 'Student', 'All Status');
+          const studentsData = await getStudentsForCustomGoals(token, '', 'All Status');
           console.log('Students data received:', studentsData);
 
           // Transform the data to match the expected userProfiles format
