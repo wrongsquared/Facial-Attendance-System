@@ -62,10 +62,8 @@ export function ManageUserAccounts({
   const {token} = useAuth()
   const [users, setUsers] = useState<AdminUserAccount[]>([]);
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("All Roles");
-  const [statusFilter, setStatusFilter] = useState("All Status");
-  const [selectedRole, setSelectedRole] = useState("All Roles");
-  const [selectedStatus, setSelectedStatus] = useState("All Statuses");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 500);
@@ -89,7 +87,6 @@ export function ManageUserAccounts({
   //   setUsers(users.filter((user) => user.userId !== userId));
   //   setUserToDelete(null);
   // };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Active":
@@ -143,14 +140,14 @@ export function ManageUserAccounts({
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search by name or ID..."
-                  // value={searchQuery}
-                  // onChange={(e) => setSearchQuery(e.target.value)}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
                   className="pl-10"
                 />
               </div>
 
               {/* Filter Roles Dropdown */}
-              <Select value={selectedRole} onValueChange={setSelectedRole}>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
                 <SelectTrigger className="w-full md:w-[180px]">
                   <SelectValue placeholder="Filter Roles" />
                 </SelectTrigger>
@@ -163,7 +160,7 @@ export function ManageUserAccounts({
               </Select>
 
               {/* Status Dropdown */}
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full md:w-[180px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>

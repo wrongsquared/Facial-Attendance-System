@@ -62,3 +62,14 @@ class AttendanceUpdateRequest(BaseModel):
     reason: Optional[str] = None
     admin_notes: Optional[str] = None
     lesson_id: Optional[int] = None  # Specific lesson ID to update
+
+class UserManageSchema(BaseModel):
+    uuid: UUID
+    name: str
+    email: str
+    role: str
+    studentNum: Optional[str] = "-" # This will hold ID for students, Job for admins
+    status: str
+
+    class Config:
+        from_attributes = True

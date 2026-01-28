@@ -251,8 +251,8 @@ export const getManageUsers = async (
 ) => {
   const params = new URLSearchParams();
   if (search) params.append("search_term", search);
-  if (role && role !== "All Roles") params.append("role_filter", role);
-  if (status && status !== "All Status") params.append("status_filter", status);
+  if (role) params.append("role_filter", role);       // Map role -> role_filter
+  if (status) params.append("status_filter", status); // Map status -> status_filter
 
   return await fetchProtected(`/admin/users/manage?${params.toString()}`, token);
 };
@@ -321,7 +321,11 @@ export const updateAttendanceRecord = async (
   const result = await res.json();
   return result;
 };
-
+export const deleteUser = async (userId: string, token: string) => {
+  return await fetchProtected(`/admin/users/${userId}`, token, {
+    method: "DELETE",
+  });
+};
 //Admin Routes end
 
 //Platform Manager Routes start

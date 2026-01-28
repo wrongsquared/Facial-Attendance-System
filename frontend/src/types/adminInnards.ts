@@ -11,8 +11,8 @@ export interface AdminProfileData {
 
 export interface AdminUserAccount {
   uuid: string;
-  user_display_id: string;
   name: string;
+  email: string;
   role: string;
   status: string;
 }
