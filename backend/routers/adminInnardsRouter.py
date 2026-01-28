@@ -4,11 +4,11 @@ from datetime import datetime, date, time, timedelta
 from uuid import UUID
 from database.db import (
     User, UserProfile, Student, Lesson, Module, AttdCheck, 
-    StudentModules, LecMod, EntLeave, Lecturer, Admin
+    StudentModules, LecMod, EntLeave
 )
-from schemas import UserManageSchema, AttendanceLogEntry, AttendanceLogResponse, Literal, AttendanceUpdateRequest
+from schemas import UserListItem, AttendanceLogEntry, AttendanceLogResponse, Literal, AttendanceUpdateRequest
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
 from database.db_config import get_db
 from dependencies.deps import get_current_user_id
 
@@ -17,59 +17,64 @@ router = APIRouter()
 
 
 
-@router.get("/admin/users/manage", response_model=list[UserManageSchema]) #Does not show the user themselves.
+@router.get("/admin/users/manage", response_model=list[UserListItem])
 def get_users_for_management(
     search_term: Optional[str] = None,
     role_filter: Optional[str] = None,   # "Student", "Lecturer", etc.
     status_filter: Optional[str] = None, # "Active", "Inactive"
-    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
-):  
-    current_admin = db.query(Admin).filter(Admin.adminID == user_id).first()
+):
+    # If specifically requesting students for custom goals, query Student table directly
+    if role_filter == "Student":
+        query = (
+            db.query(Student, UserProfile.profileTypeName)
+            .join(UserProfile, Student.profileTypeID == UserProfile.profileTypeID)
+        )
+        
+        if status_filter and status_filter != "All Status":
+            query = query.filter(Student.status == status_filter)
 
-    if not current_admin:
-        # If the user isn't in the 'admins' table, they shouldn't be here 
-        # (unless it's a Platform Manager, but you implied this is for Campus Admins)
-        raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
-    my_campus_id = current_admin.campusID
+        if search_term:
+            search = f"%{search_term}%"
+            query = query.filter(or_(
+                Student.name.ilike(search),
+                Student.email.ilike(search),
+                Student.studentNum.ilike(search)
+            ))
 
-    StudentTable = aliased(Student)
-    LecturerTable = aliased(Lecturer)
-    AdminTable = aliased(Admin)
+        results = query.all()
+        output = []
+
+        for student, role_name in results:
+            status = ""
+            if student.active == True or student.active == None:
+                status = "Active"
+            else:
+                status = "Inactive"
+            output.append({
+                "uuid": student.userID,
+                "user_display_id": student.studentNum,
+                "name": student.name,
+                "role": role_name,
+                "status": status,
+                "attendanceMinimum": student.attendanceMinimum
+            })
+        return output
+    
+    # Original query for all roles
     query = (
-        db.query(
-            User, 
-            UserProfile.profileTypeName, 
-            StudentTable.studentNum,
-            LecturerTable.specialistIn,
-            AdminTable.role.label("admin_job")
-        )
-        .select_from(User) 
+        db.query(User, UserProfile.profileTypeName, Student.studentNum, Student.attendanceMinimum)
+        .distinct(User.userID)
         .join(UserProfile, User.profileTypeID == UserProfile.profileTypeID)
-        .outerjoin(StudentTable, User.userID == StudentTable.studentID)
-        .outerjoin(LecturerTable, User.userID == LecturerTable.lecturerID) 
-        .outerjoin(AdminTable, User.userID == AdminTable.adminID) 
+        .outerjoin(Student, User.userID == Student.userID) 
     )
-    #Excludes Super Users Platform Manager
-    query = query.filter(UserProfile.profileTypeName != 'Pmanager')
-    # Logic: Show the user IF they are a Student at MyCampus 
-    #        OR a Lecturer at MyCampus 
-    #        OR an Admin at MyCampus
-    query = query.filter(
-        or_(
-            StudentTable.campusID == my_campus_id,
-            LecturerTable.campusID == my_campus_id,
-            AdminTable.campusID == my_campus_id
-        )
-    )
-    if role_filter and role_filter != "all":
+
+    if role_filter and role_filter != "All Roles":
         query = query.filter(UserProfile.profileTypeName == role_filter)
 
-    if status_filter and status_filter != "all":
-        is_active = (status_filter == "Active")
-        query = query.filter(User.active == is_active)
+    if status_filter and status_filter != "All Status":
+        query = query.filter(User.status == status_filter)
 
-    
     if search_term:
         search = f"%{search_term}%"
         query = query.filter(or_(
@@ -77,74 +82,26 @@ def get_users_for_management(
             User.email.ilike(search),
             Student.studentNum.ilike(search)
         ))
-    query = query.distinct(User.userID).order_by(User.userID, User.name.asc())
-    results = query.all()
-    output = []
-    
-    # Unpack the 5 items we queried
-    for user_obj, role_name, stud_num, lec_spec, admin_job in results:
-        
-        # LOGIC: Determine what to show in the "ID/Details" column
-        display_id = "-"
-        
-        if role_name == "Student":
-            display_id = stud_num or "No Student ID"
-        elif role_name == "Lecturer":
-            display_id = lec_spec or "Lecturer" # Show their specialization
-        elif role_name == "Admin":
-            display_id = admin_job or "Admin"   # Show their job title
-
-        output.append({
-            # Align keys with your Pydantic Schema
-            "uuid": user_obj.userID, 
-            "name": user_obj.name,
-            "email": user_obj.email,
-            "role": role_name,
-            "studentNum": display_id, # We reuse this field to show ID or Job Title
-            "status": "Active" if user_obj.active else "Inactive"
-        })
-    return output
-
-@router.get("/admin/users/manage/custom-goals", response_model=list[UserListItem])
-def get_students_for_custom_goals_management(
-    search_term: Optional[str] = None,
-    status_filter: Optional[str] = None, # "Active", "Inactive"
-    db: Session = Depends(get_db)
-):
-    # Query Student table directly for custom goals management - only students
-    query = (
-        db.query(Student, UserProfile.profileTypeName)
-        .join(UserProfile, Student.profileTypeID == UserProfile.profileTypeID)
-    )
-    
-    if status_filter and status_filter != "All Status":
-        query = query.filter(Student.status == status_filter)
-
-    if search_term:
-        search = f"%{search_term}%"
-        query = query.filter(or_(
-            Student.name.ilike(search),
-            Student.email.ilike(search),
-            Student.studentNum.ilike(search)
-        ))
 
     results = query.all()
     output = []
 
-    for student, role_name in results:
+    for user, role_name, student_num, attendance_minimum in results:
+        display_id = student_num if student_num else f"U-{str(user.userID)[:4]}"
         status = ""
-        if student.active == True or student.active == None:
+        if user.active == True or user.active== None:
             status = "Active"
         else:
             status = "Inactive"
         output.append({
-            "uuid": student.userID,
-            "user_display_id": student.studentNum,
-            "name": student.name,
+            "uuid": user.userID,
+            "user_display_id": display_id,
+            "name": user.name,
             "role": role_name,
             "status": status,
-            "attendanceMinimum": student.attendanceMinimum
+            "attendanceMinimum": attendance_minimum
         })
+
     return output
 
 # Update student attendance minimum (custom goal)
