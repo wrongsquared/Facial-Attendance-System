@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Search, ArrowLeft } from "lucide-react";
 import { Button } from "./ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
@@ -170,7 +170,10 @@ export function ManageCustomGoals({
 
         <Card>
           <CardHeader>
-            <CardTitle>Manage Custom Goals</CardTitle>
+            <CardTitle className="text-lg font-medium">Manage Custom Goals</CardTitle>
+            <CardDescription>
+              Create, update custom attendance goals for users.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Filter Header */}
@@ -267,7 +270,8 @@ export function ManageCustomGoals({
                                 >
                                   Manage Goals
                                 </Button>
-                                <Button
+
+                                {/* <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() =>
@@ -279,7 +283,7 @@ export function ManageCustomGoals({
                                   }
                                 >
                                   Delete Goals
-                                </Button>
+                                </Button> */}
                               </>
                             ) : (
                               <Button
