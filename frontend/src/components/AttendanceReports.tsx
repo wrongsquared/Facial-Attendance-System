@@ -155,6 +155,28 @@ export function AttendanceReports({
 
   const { token } = useAuth()
 
+  const fetchReportHistory = async () => {
+    try {
+      const res = await fetch(
+        "http://localhost:8000/lecturer/reports/history",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+        }
+      );
+      if (!res.ok) {
+        throw new Error("Failed to fetch report history");
+      }
+      const data = await res.json();
+      setRecentReports(data);
+    } catch (error) {
+      console.error("Error fetching report history:", error);
+    }
+  }
+
   useEffect(() => {
     const fetchModulesTaught = async () => {
       try {
@@ -181,30 +203,8 @@ export function AttendanceReports({
     }
     fetchModulesTaught()
 
-    const fetchReportHistory = async () => {
-      try {
-        const res = await fetch(
-          "http://localhost:8000/lecturer/reports/history",
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`
-            },
-          }
-        );
-        if (!res.ok) {
-          throw new Error("Failed to fetch report history");
-        }
-        const data = await res.json();
-        setRecentReports(data);
-        // You can set this data to state if you want to display it
-      } catch (error) {
-        console.error("Error fetching report history:", error);
-      }
-    }
     fetchReportHistory()
-  }, [])
+  }, [token])
 
   const handleGenerateReport = async () => {
     try {
@@ -260,6 +260,9 @@ export function AttendanceReports({
       a.remove();
 
       console.log("Report generated and download initiated.");
+
+      // Refresh the report history to show the new report
+      await fetchReportHistory();
     }
     catch (error) {
       console.error("Error generating report:", error);

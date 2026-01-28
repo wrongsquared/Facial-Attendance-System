@@ -140,7 +140,7 @@ class Student(User): #Student, child of User
 
     EntLeaves: Mapped[list[EntLeave]] = relationship(back_populates="student")
 
-    attendanceMinimum: Mapped[float]
+    attendanceMinimum: Mapped[float | None] = mapped_column(nullable=True)
 
     attdcheck: Mapped[list[AttdCheck]] = relationship(back_populates="student")
 

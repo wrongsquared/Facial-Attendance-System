@@ -63,14 +63,14 @@ export function UpdateCustomGoalModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl text-[#003366]">Update Custom Goal</DialogTitle>
-          <DialogDescription className="text-sm text-gray-500">
+          <DialogTitle className="text-2xl">Update Custom Goal</DialogTitle>
+          <DialogDescription className="text-sm">
             Update the custom attendance goal for the selected user.
           </DialogDescription>
         </DialogHeader>
 
         {/* User Information */}
-        <div className="flex gap-8 text-gray-700 mb-4">
+        <div className="flex gap-8 mb-4">
           <div>
             <span className="text-gray-500">User ID:</span>{" "}
             <span>{userData.userId}</span>
@@ -87,27 +87,27 @@ export function UpdateCustomGoalModal({
 
         {/* Custom Goals Box */}
         <div className="border border-gray-200 rounded-lg p-6 space-y-6">
-          <h3 className="text-lg text-[#003366]">Custom Attendance Goals</h3>
+          <h3 className="text-lg">Custom Attendance Goals</h3>
 
           <div className="space-y-2">
-            <label className="text-sm text-gray-600">Current Goal:</label>
+            <label className="text-sm">Current Goal:</label>
             <p className="text-lg">
               {userData.currentGoal ? `${userData.currentGoal}%` : "None"}
             </p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm text-gray-600">Last Updated:</label>
+            <label className="text-sm">Last Updated:</label>
             <p className="text-lg">{goalMetadata.lastUpdated}</p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm text-gray-600">Set By:</label>
+            <label className="text-sm">Set By:</label>
             <p className="text-lg">{goalMetadata.setBy}</p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm text-gray-600">Update Goal:</label>
+            <label className="text-sm">Update Goal:</label>
             <Select value={selectedGoal} onValueChange={setSelectedGoal}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select goal percentage" />
@@ -127,17 +127,17 @@ export function UpdateCustomGoalModal({
           </div>
 
           {/* Buttons */}
-          <div className="flex justify-center gap-4 pt-4">
+          <div className="flex w-full gap-2">
             <Button
               onClick={handleCancel}
               variant="outline"
-              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+              className="flex-1 bg-gray-200 text-black"
             >
               Cancel
             </Button>
             <Button
               onClick={handleUpdateGoal}
-              className="bg-[#003366] hover:bg-[#004488] text-white"
+              className="flex-1 bg-blue-600 text-white"
             >
               Update Goal
             </Button>

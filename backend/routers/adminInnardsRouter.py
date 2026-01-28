@@ -1,6 +1,7 @@
 from typing import Optional
 from sqlalchemy import or_, func
 from datetime import datetime, date, time, timedelta
+from uuid import UUID
 from database.db import (
     User, UserProfile, Student, Lesson, Module, AttdCheck, 
     StudentModules, LecMod, EntLeave
@@ -23,8 +24,46 @@ def get_users_for_management(
     status_filter: Optional[str] = None, # "Active", "Inactive"
     db: Session = Depends(get_db)
 ):
+    # If specifically requesting students for custom goals, query Student table directly
+    if role_filter == "Student":
+        query = (
+            db.query(Student, UserProfile.profileTypeName)
+            .join(UserProfile, Student.profileTypeID == UserProfile.profileTypeID)
+        )
+        
+        if status_filter and status_filter != "All Status":
+            query = query.filter(Student.status == status_filter)
+
+        if search_term:
+            search = f"%{search_term}%"
+            query = query.filter(or_(
+                Student.name.ilike(search),
+                Student.email.ilike(search),
+                Student.studentNum.ilike(search)
+            ))
+
+        results = query.all()
+        output = []
+
+        for student, role_name in results:
+            status = ""
+            if student.active == True or student.active == None:
+                status = "Active"
+            else:
+                status = "Inactive"
+            output.append({
+                "uuid": student.userID,
+                "user_display_id": student.studentNum,
+                "name": student.name,
+                "role": role_name,
+                "status": status,
+                "attendanceMinimum": student.attendanceMinimum
+            })
+        return output
+    
+    # Original query for all roles
     query = (
-        db.query(User, UserProfile.profileTypeName, Student.studentNum)
+        db.query(User, UserProfile.profileTypeName, Student.studentNum, Student.attendanceMinimum)
         .distinct(User.userID)
         .join(UserProfile, User.profileTypeID == UserProfile.profileTypeID)
         .outerjoin(Student, User.userID == Student.userID) 
@@ -47,7 +86,7 @@ def get_users_for_management(
     results = query.all()
     output = []
 
-    for user, role_name, student_num in results:
+    for user, role_name, student_num, attendance_minimum in results:
         display_id = student_num if student_num else f"U-{str(user.userID)[:4]}"
         status = ""
         if user.active == True or user.active== None:
@@ -59,10 +98,48 @@ def get_users_for_management(
             "user_display_id": display_id,
             "name": user.name,
             "role": role_name,
-            "status": status
+            "status": status,
+            "attendanceMinimum": attendance_minimum
         })
 
     return output
+
+# Update student attendance minimum (custom goal)
+@router.put("/admin/users/{user_id}/attendance-minimum")
+def update_student_attendance_minimum(
+    user_id: str,
+    attendance_minimum: float = Body(..., embed=True),
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    # Find the student
+    student = db.query(Student).filter(Student.userID == UUID(user_id)).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    # Update attendance minimum
+    student.attendanceMinimum = attendance_minimum
+    db.commit()
+    
+    return {"message": "Attendance minimum updated successfully", "attendanceMinimum": attendance_minimum}
+
+# Delete student attendance minimum (reset custom goal)
+@router.delete("/admin/users/{user_id}/attendance-minimum")
+def delete_student_attendance_minimum(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    # Find the student
+    student = db.query(Student).filter(Student.userID == UUID(user_id)).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    # Reset attendance minimum to default value (0 means no custom goal)
+    student.attendanceMinimum = 0.0
+    db.commit()
+    
+    return {"message": "Attendance minimum reset successfully"}
 
 # Admin Attendance Log with Dynamic Filtering (shows all attendance records, not just for one lecturer)
 @router.get("/admin/attendance-log", response_model=AttendanceLogResponse)
@@ -183,8 +260,11 @@ def get_admin_attendance_log_filtered(
         else:
             entry_time_str = "N/A"
         
-        # Format method safely
-        method_str = remarks or "Biometric Scan"
+        # Format method based on attendance status
+        if current_status == "Absent":
+            method_str = "N/A"
+        else:
+            method_str = "Camera Capture"
         
         # --- ADD TO LIST ---
         log_entries.append(AttendanceLogEntry(

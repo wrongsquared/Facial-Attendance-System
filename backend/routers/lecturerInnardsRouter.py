@@ -496,7 +496,11 @@ def get_lecturer_attendance_log_filtered(
             else:
                 entry_time_str = "N/A"
                 
-            method_str = str(remarks) if remarks else "Biometric Scan"
+            # Format method based on attendance status
+            if current_status == "Absent":
+                method_str = "N/A"
+            else:
+                method_str = "Camera Capture"
             
             # Filter by status if requested
             if status and current_status != status:

@@ -268,8 +268,8 @@ export function ClassAttendanceDetails({
             )}
 
             {/* Close Button */}
-            <div className="flex justify-center pb-4">
-              <Button onClick={onClose} variant="default" className="px-8">
+            <div className="pb-4">
+              <Button onClick={onClose} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
                 Close
               </Button>
             </div>

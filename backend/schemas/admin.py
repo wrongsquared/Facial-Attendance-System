@@ -43,6 +43,7 @@ class UserListItem(BaseModel):
     name: str
     role: str
     status: str
+    attendanceMinimum: Optional[float] = None 
 
     class Config:
         from_attributes = True

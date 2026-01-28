@@ -316,8 +316,8 @@ def generate_report(
 
             rate = (attended_count / total_lessons) * 100
             
-            # Only include <= 100% to show data in the report if not < 80
-            if rate <= 100:
+            # Only include students with low attendance (75% and below)
+            if rate <= 75:
                 status = "Critical" if rate < 50 else "Warning"
                 csv_data.append([
                     student.studentNum, student.name, module.moduleCode,

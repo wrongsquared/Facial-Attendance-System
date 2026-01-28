@@ -399,12 +399,6 @@ export function AdminAttendanceRecords({
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
-
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <span>Page {currentPage} of {totalPages}</span>
-                  <span>•</span>
-                  <span>{totalRecords} total records</span>
-                </div>
               </div>
             )}
           </CardContent>

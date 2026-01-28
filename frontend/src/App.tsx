@@ -1,7 +1,7 @@
 import './index.css';
 import { useEffect, useState } from 'react';
 import { useAuth } from './cont/AuthContext';
-import { loginUser, getNotifications, updateAttendanceRecord as updateAttendanceRecordAPI } from './services/api';
+import { loginUser, getNotifications, updateAttendanceRecord as updateAttendanceRecordAPI, getManageUsers } from './services/api';
 import { LoginCredentials } from './types/auth';
 import { LoginPage } from './components/LoginPage';
 import { StudentDashboard } from './components/StudentDashboard';
@@ -36,6 +36,35 @@ import { StudentProgressTracker } from './components/StudentProgressTracker';
 import { CreateUser } from './components/CreateUser';
 import { UpdateUser } from './components/UpdateUser';
 import { Toast } from './components/Toast';
+
+// Custom goals API functions
+const updateStudentAttendanceMinimum = async (token: string, userId: string, attendanceMinimum: number) => {
+  const response = await fetch(`http://localhost:8000/admin/users/${userId}/attendance-minimum`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ attendance_minimum: attendanceMinimum })
+  });
+  if (!response.ok) {
+    throw new Error('Failed to update attendance minimum');
+  }
+  return response.json();
+};
+
+const deleteStudentAttendanceMinimum = async (token: string, userId: string) => {
+  const response = await fetch(`http://localhost:8000/admin/users/${userId}/attendance-minimum`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!response.ok) {
+    throw new Error('Failed to delete attendance minimum');
+  }
+  return response.json();
+};
 import { Header } from './components/Header';
 import { HeroSection } from './components/HeroSection';
 import { AboutSection } from './components/AboutSection';
@@ -125,6 +154,9 @@ export default function App() {
   const [userProfiles, setUserProfiles] = useState<Record<string, UserProfileData>>({
   });
 
+  // Loading state for student data
+  const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+
   // Attendance records state
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
 
@@ -144,6 +176,59 @@ export default function App() {
     };
     fetchAlerts();
   }, [token, user]);
+
+  // Fetch student data for custom goals management
+  useEffect(() => {
+    const fetchStudentData = async () => {
+      if (token && user?.role_name.toLowerCase() === 'admin' && adminView === 'manageCustomGoals') {
+        setIsLoadingStudents(true);
+        try {
+          console.log('Fetching student data for custom goals...');
+
+          // Fetch all students directly from Student table to get all 12 students
+          const studentsData = await getManageUsers(token, '', 'Student', 'All Status');
+          console.log('Students data received:', studentsData);
+
+          // Transform the data to match the expected userProfiles format
+          const profilesMap: Record<string, any> = {};
+
+          studentsData.forEach((student: any) => {
+            profilesMap[student.uuid] = {
+              userId: student.uuid,
+              name: student.name,
+              role: student.role,
+              status: student.status,
+              email: student.name.toLowerCase().replace(' ', '.') + '@example.com', // Generate email
+              dateOfBirth: 'N/A',
+              contactNumber: 'N/A',
+              address: 'N/A',
+              enrollmentDate: 'N/A',
+              associatedModules: 'N/A',
+              biometricStatus: 'N/A',
+              biometricLastUpdated: 'N/A'
+            };
+
+            // Set the custom goal to attendanceMinimum from database
+            const attendanceGoal = student.attendanceMinimum !== undefined && student.attendanceMinimum !== null && student.attendanceMinimum > 0
+              ? student.attendanceMinimum
+              : null;
+
+            setUserGoals(prev => ({ ...prev, [student.uuid]: attendanceGoal }));
+          });
+
+          setUserProfiles(profilesMap);
+
+        } catch (err) {
+          console.error('Failed to load student data:', err);
+          showToast('Failed to load student data');
+        } finally {
+          setIsLoadingStudents(false);
+        }
+      }
+    };
+
+    fetchStudentData();
+  }, [token, user, adminView]);
 
   // Admin profile data state
   const [adminProfileData, setAdminProfileData] = useState({
@@ -400,39 +485,70 @@ export default function App() {
   const handleBackFromCustomGoal = () => {
   };
 
-  const handleUpdateUserGoal = (userId: string, goal: number) => {
-    setUserGoals(prev => ({
-      ...prev,
-      [userId]: goal
-    }));
+  const handleUpdateUserGoal = async (userId: string, goal: number) => {
+    try {
+      // Update in database
+      await updateStudentAttendanceMinimum(token!, userId, goal);
 
-    // Update metadata when goal is created/updated
-    const now = new Date();
-    const dateTime = now.toLocaleString('en-AU', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
+      // Update frontend state
+      setUserGoals(prev => ({
+        ...prev,
+        [userId]: goal
+      }));
 
-    setGoalMetadata(prev => ({
-      ...prev,
-      [userId]: {
-        lastUpdated: dateTime,
-        setBy: "Admin User"
-      }
-    }));
+      // Update metadata when goal is created/updated
+      const now = new Date();
+      const dateTime = now.toLocaleString('en-AU', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+
+      setGoalMetadata(prev => ({
+        ...prev,
+        [userId]: {
+          lastUpdated: dateTime,
+          setBy: user?.name || "Admin User"
+        }
+      }));
+
+      const studentName = userProfiles[userId]?.name || 'student';
+      showToast(`Goal ${goal}% set successfully for ${studentName}`);
+    } catch (error) {
+      console.error('Failed to update goal:', error);
+      showToast('Failed to update goal. Please try again.');
+    }
   };
   const handleDismissAlert = (alertId: string) => {
     setNotificationAlerts((prev) => prev.filter((alert) => alert.id !== alertId));
   };
-  const handleDeleteUserGoal = (userId: string) => {
-    setUserGoals(prev => ({
-      ...prev,
-      [userId]: null
-    }));
+  const handleDeleteUserGoal = async (userId: string, userName?: string) => {
+    try {
+      // Delete from database
+      await deleteStudentAttendanceMinimum(token!, userId);
+
+      // Update frontend state
+      setUserGoals(prev => ({
+        ...prev,
+        [userId]: null
+      }));
+
+      // Remove metadata for deleted goal
+      setGoalMetadata(prev => {
+        const updated = { ...prev };
+        delete updated[userId];
+        return updated;
+      });
+
+      const studentName = userName || userProfiles[userId]?.name || 'student';
+      showToast(`Goal removed successfully for ${studentName}`);
+    } catch (error) {
+      console.error('Failed to delete goal:', error);
+      showToast('Failed to remove goal. Please try again.');
+    }
   };
 
   const handleUpdateUserProfile = (userId: string, profileData: Omit<UserProfileData, 'userId'>) => {
@@ -819,6 +935,7 @@ export default function App() {
           userGoals={userGoals}
           userProfiles={userProfiles}
           goalMetadata={goalMetadata}
+          loading={isLoadingStudents}
         />
       )}
       {userRole === 'admin' && adminView === 'updateUserProfile' && selectedBiometricUserData && (

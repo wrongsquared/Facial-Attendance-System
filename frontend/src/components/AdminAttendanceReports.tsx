@@ -308,7 +308,7 @@ export function AdminAttendanceReports({
               <CardContent className="space-y-4 flex-1">
                 <div className="space-y-2">
                   <p className="text-sm text-gray-600">Report Type</p>
-                  <p className="font-medium text-blue-700">{reportType}</p>
+                  <p>{reportType}</p>
                 </div>
                 {fromDate && toDate && (
                   <div className="space-y-2">

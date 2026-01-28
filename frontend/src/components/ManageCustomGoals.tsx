@@ -16,6 +16,7 @@ interface ManageCustomGoalsProps {
   onUpdateGoal: (userId: string, goal: number) => void;
   onDeleteGoal: (userId: string, userName: string) => void;
   showToast: (message: string) => void;
+  loading?: boolean;
   userGoals: Record<string, number | null>;
   userProfiles: Record<string, {
     userId: string;
@@ -43,6 +44,7 @@ export function ManageCustomGoals({
   onUpdateGoal,
   onDeleteGoal,
   showToast,
+  loading = false,
   userGoals,
   userProfiles,
   goalMetadata,
@@ -60,7 +62,7 @@ export function ManageCustomGoals({
     role: string;
     currentGoal: number | null;
   } | null>(null);
-  const itemsPerPage = 10;
+  const itemsPerPage = 30;
 
   // Filter users based on search and filters
   const filteredUsers = Object.values(userProfiles).filter((user) => {
@@ -226,7 +228,16 @@ export function ManageCustomGoals({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentUsers.length > 0 ? (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={5}
+                        className="text-center text-gray-500 py-8"
+                      >
+                        Loading records...
+                      </TableCell>
+                    </TableRow>
+                  ) : currentUsers.length > 0 ? (
                     currentUsers.map((user) => (
                       <TableRow key={user.userId}>
                         <TableCell>{user.userId}</TableCell>
@@ -292,7 +303,7 @@ export function ManageCustomGoals({
                   ) : (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-gray-500">
-                        No users found matching the filters
+                        No users found
                       </TableCell>
                     </TableRow>
                   )}
