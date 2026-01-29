@@ -79,7 +79,7 @@ class CreateUserSchema(BaseModel):
     email: EmailStr
     password: str
     role: str # "student", "lecturer", "admin"
-    
+    courseID: Optional[int] = None 
     # These are missing from the Form.
     studentNum: Optional[str] = None 
     specialistIn: Optional[str] = None # For lecturers

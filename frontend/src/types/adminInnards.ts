@@ -22,7 +22,14 @@ export interface CreateUserPayload {
   email: string;
   password: string;
   role: string;
+  courseID?: number;
   studentNum?: string; // Optional
   specialistIn?: string; // Optional
   jobTitle?: string; // Optional
+}
+
+export interface Course {
+  courseID: number;
+  courseCode: string;
+  // courseName: string;
 }

@@ -1,18 +1,18 @@
 from typing import Optional
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, cast, Integer
 from datetime import datetime, date, time, timedelta
 from uuid import UUID
 from database.db import (
     User, UserProfile, Student, Lesson, Module, AttdCheck, 
-    StudentModules, LecMod, EntLeave, Lecturer, Admin
+    StudentModules, LecMod, EntLeave, Lecturer, Admin, Courses
 )
-from schemas import UserListItem, UserManageSchema, AttendanceLogEntry, AttendanceLogResponse, Literal, AttendanceUpdateRequest
+from schemas import CreateUserSchema, UserListItem, UserManageSchema, AttendanceLogEntry, AttendanceLogResponse, Literal, AttendanceUpdateRequest
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session, aliased
 from database.db_config import get_db
 from dependencies.deps import get_current_user_id
 
-
+from main import supabase_adm
 router = APIRouter()
 
 
@@ -557,3 +557,119 @@ def update_attendance_record(
         print(f"[DEBUG] Unexpected error: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to update attendance: {str(e)}")
+    
+@router.get("/admin/campus-courses")
+def get_campus_courses(
+    current_user: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    # Retrieve admin campus
+    admin = db.query(Admin).filter(Admin.userID == current_user).first()
+    if not admin:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Fetch courses for that campus
+    courses = db.query(Courses).filter(Courses.campusID == admin.campusID).all()
+    # Not returning Coursename, we need to add CourseName
+    return [{"courseID": c.courseID, "courseCode": c.courseCode} for c in courses]
+
+@router.post("/admin/users/create", status_code=201)
+def create_new_user(
+    user_data: CreateUserSchema,
+    current_user: str = Depends(get_current_user_id), # Security check
+    db: Session = Depends(get_db)
+):
+    executing_admin = db.query(Admin).filter(Admin.userID == current_user).first()
+    
+    if not executing_admin:
+        raise HTTPException(
+            status_code=403, 
+            detail="Current user is not authorized or does not have an admin profile."
+        )
+    
+    admin_campus_id = executing_admin.campusID
+    # Find the ProfileTypeID for this specific campus 
+    profile_type = db.query(UserProfile).filter(
+        UserProfile.profileTypeName.ilike(user_data.role),
+        UserProfile.campusID == admin_campus_id
+    ).first()
+
+    if not profile_type:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Role '{user_data.role}' is not configured for campus ID {admin_campus_id}."
+        )
+
+    target_type_id = profile_type.profileTypeID
+    # Create in Supabase Auth (The Login)
+    try:
+        auth_response = supabase_adm.auth.admin.create_user({
+            "email": user_data.email,
+            "password": user_data.password,
+            "email_confirm": True, # Auto-confirm so they can log in immediately
+            "user_metadata": { "name": user_data.name }
+        })
+        new_uuid = auth_response.user.id
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Auth creation failed: {str(e)}")
+
+    # Get Profile Type ID
+    try:
+        new_profile = None
+        role_key = user_data.role.lower()
+        if role_key == "student":
+                # Generate student number
+                max_num = db.query(func.max(cast(Student.studentNum, Integer))).scalar()
+                new_student_num = str(max_num + 1) if max_num else "100001"
+
+                new_profile = Student(
+                    userID=new_uuid,
+                    profileTypeID=target_type_id, # Scoped to campus (e.g., 3 or 7)
+                    campusID=admin_campus_id,     # Inherited from Admin
+                    name=user_data.name,
+                    email=user_data.email,
+                    studentNum=new_student_num,
+                    attendanceMinimum=80.0,
+                    courseID=user_data.courseID, 
+                    photo=None
+                )
+        elif role_key == "lecturer":
+            new_profile = Lecturer(
+                userID=new_uuid,
+                profileTypeID=target_type_id, # Scoped to campus
+                campusID=admin_campus_id,     # Inherited from Admin
+                name=user_data.name,
+                email=user_data.email,
+                specialistIn=user_data.specialistIn or "General", 
+                photo=None
+            )
+        elif role_key == "admin":
+            new_profile = Admin(
+                userID=new_uuid,
+                profileTypeID=target_type_id, # Scoped to campus
+                campusID=admin_campus_id,     # Inherited from Admin
+                name=user_data.name,
+                email=user_data.email,
+                role=user_data.jobTitle or "Administrator", 
+                photo=None
+            )
+
+        if new_profile:
+            db.add(new_profile)
+            db.commit()
+        else:
+            raise ValueError("Role validation failed")
+
+    except Exception as e:
+        db.rollback()
+        # Cleanup Supabase if DB insert fails
+        supabase_adm.auth.admin.delete_user(new_uuid)
+        print(f"DB Error: {e}")
+        raise HTTPException(status_code=500, detail="Database profile creation failed.")
+
+    return {
+        "message": "User created successfully", 
+        "uuid": new_uuid, 
+        "campusID": admin_campus_id,
+        "profileTypeID": target_type_id
+    }

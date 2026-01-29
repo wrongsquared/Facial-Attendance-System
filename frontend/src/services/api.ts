@@ -1,5 +1,5 @@
 
-import { CreateUserPayload } from "../types/adminInnards";
+import { Course, CreateUserPayload } from "../types/adminInnards";
 import { LoginCredentials, AuthResponse, ProfileUpdateData } from "../types/auth";
 import { AttendanceLogFilters, AttendanceLogResponse } from "../types/lecturerinnards";
 
@@ -391,6 +391,11 @@ export const createUser = async (data: CreateUserPayload, token: string) => {
     method: "POST",
     body: JSON.stringify(data),
   });
+};
+export const getCampusCourses = async (token: string): Promise<Course[]> => {
+  const data = await fetchProtected("/admin/campus-courses", token);
+
+  return data;
 };
 //Admin Routes end
 

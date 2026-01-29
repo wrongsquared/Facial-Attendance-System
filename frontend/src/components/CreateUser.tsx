@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -9,13 +9,8 @@ import {
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
-  BookOpen,
-  LogOut,
   ArrowLeft,
-  Bell,
-  Settings,
 } from "lucide-react";
 import {
   Select,
@@ -24,118 +19,105 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
+
+import { useAuth } from "../cont/AuthContext";
+import { Course, CreateUserPayload } from "../types/adminInnards";
+import { createUser, getCampusCourses } from "../services/api";
+import { Navbar } from "./Navbar";
 
 interface CreateUserProps {
   onLogout: () => void;
   onBack: () => void;
   onCreateSuccess: () => void;
+  onNavigateToProfile: () => void;
 }
 
-export function CreateUser({ onLogout, onBack, onCreateSuccess }: CreateUserProps) {
-  const [userType, setUserType] = useState<string>("");
-  const [userId, setUserId] = useState("");
+export function CreateUser({ onLogout, onBack, onCreateSuccess,onNavigateToProfile }: CreateUserProps) {
+  const {token} = useAuth();
+  const [role, setRole] = useState("student");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState(""); //
+  const [userIdInput, setUserIdInput] = useState(""); // Maps to StudentNum or Job Title
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [selectedCourseID, setSelectedCourseID] = useState<string>("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!token) return;
 
-  const handleCreateAccount = () => {
-    // Validation
-    if (!userType) {
-      alert("Please select a user type");
-      return;
-    }
-    if (!userId) {
-      alert("Please enter a User ID");
-      return;
-    }
-    if (!password) {
-      alert("Please enter a password");
-      return;
-    }
-    if (password !== confirmPassword) {
-      alert("Passwords do not match");
-      return;
+  // Password Validation
+  if (password !== confirmPassword) {
+    alert("Passwords do not match");
+    return;
+  }
+  if (password.length < 6) {
+    alert("Password must be at least 6 characters");
+    return;
+  }
+
+  // Student validation
+  if (role.toLowerCase() === "student" && !selectedCourseID) {
+    alert("Please select a course for the student");
+    return;
+  }
+
+  setLoading(true);
+
+  // Prepare pl
+  const payload: CreateUserPayload = {
+    name,
+    email,
+    password,
+    role: role.toLowerCase(), // Send as lowercase to match backend
+    };
+
+    // Map the dynamic fields based on role
+    const roleKey = role.toLowerCase();
+
+    if (roleKey === "student") {
+      // Convert the string from Select to a Number for the Backend
+      payload.courseID = selectedCourseID ? Number(selectedCourseID) : undefined;
+      payload.studentNum = userIdInput; 
+    } 
+    else if (roleKey === "lecturer") {
+      payload.specialistIn = userIdInput; 
+    } 
+    else if (roleKey === "admin") {
+      payload.jobTitle = userIdInput;
     }
 
-    // In a real app, this would make an API call to create the user
-    console.log("Creating user:", { userType, userId, password });
-    
-    // Show success message
-    alert(`User account created successfully!\nUser Type: ${userType}\nUser ID: ${userId}`);
-    
-    // Navigate back to manage users page
-    onCreateSuccess();
+    // Call API
+    try {
+      await createUser(payload, token);
+      alert("User created successfully!");
+      onCreateSuccess(); // Navigate back or reset
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Failed to create user");
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    const loadCourses = async () => {
+      try {
+        if (token) {
+          const data = await getCampusCourses(token);
+          setCourses(data);
+        }
+      } catch (error) {
+        console.error("Error loading courses:", error);
+      }
   };
 
-  const handleCancel = () => {
-    onBack();
-  };
+  loadCourses();
+  }, [token]); 
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">Admin Portal</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback>AM</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>Admin User</p>
-                <p className="text-sm text-gray-600">System Administrator</p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
+      <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -146,11 +128,12 @@ export function CreateUser({ onLogout, onBack, onCreateSuccess }: CreateUserProp
         </Button>
 
         {/* Create User Form Card */}
+        <form onSubmit={handleSubmit} className="space-y-6">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle>Create New User</CardTitle>
             <CardDescription>
-              Create a new user account for student, lecturer, or admin
+              Create a new user account
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -158,7 +141,7 @@ export function CreateUser({ onLogout, onBack, onCreateSuccess }: CreateUserProp
               {/* Create As Dropdown */}
               <div className="space-y-2">
                 <Label htmlFor="userType">Create As:</Label>
-                <Select value={userType} onValueChange={setUserType}>
+                <Select value={role} onValueChange={setRole}>
                   <SelectTrigger id="userType">
                     <SelectValue placeholder="Select user type" />
                   </SelectTrigger>
@@ -170,18 +153,28 @@ export function CreateUser({ onLogout, onBack, onCreateSuccess }: CreateUserProp
                 </Select>
               </div>
 
-              {/* User ID Input */}
+              {/* Name Input */}
               <div className="space-y-2">
-                <Label htmlFor="userId">User ID:</Label>
+                <Label htmlFor="userId">Name:</Label>
                 <Input
                   id="userId"
                   type="text"
-                  placeholder="Enter user ID"
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
+                  placeholder="Enter Name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                 />
               </div>
-
+              {/* E-mail Input */}
+              <div className="space-y-2">
+                <Label htmlFor="userId">E-mail:</Label>
+                <Input
+                  id="userId"
+                  type="text"
+                  placeholder="Enter E-mail"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
               {/* Password Input */}
               <div className="space-y-2">
                 <Label htmlFor="password">Password:</Label>
@@ -205,19 +198,62 @@ export function CreateUser({ onLogout, onBack, onCreateSuccess }: CreateUserProp
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
               </div>
-
+              {/* Course / Specialist / Job Input */}
+              {(role === 'Student') && (
+                <div className="space-y-2">
+                  <Label htmlFor="course-select">Course:</Label>
+                  <Select value={selectedCourseID} onValueChange={(value: string) => setSelectedCourseID(value)}>
+                    <SelectTrigger id="course-select">
+                      <SelectValue placeholder="Select a Course" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses.map((course) => (
+                        <SelectItem key={course.courseID} value={course.courseID.toString()}>
+                          {course.courseCode} {/*Need to implement Course names*/}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {(role === 'Lecturer') && (
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Specialisation:</Label>
+                  <Input
+                    id="special"
+                    type="text"
+                    placeholder="Enter Specialisation"
+                    value={userIdInput}
+                    onChange={(e) => setUserIdInput(e.target.value)}
+                  />
+                </div>
+              )}
+              {(role === 'Admin') && (
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Role:</Label>
+                  <Input
+                    id="special"
+                    type="text"
+                    placeholder="Enter Staff Role"
+                    value={userIdInput}
+                    onChange={(e) => setUserIdInput(e.target.value)}
+                  />
+                </div>
+              )}
               {/* Action Buttons */}
               <div className="flex justify-center gap-4 pt-4">
-                <Button variant="outline" onClick={handleCancel}>
+                <Button type="button" variant="outline" onClick={onBack}>
                   Cancel
                 </Button>
-                <Button onClick={handleCreateAccount}>
-                  Create Account
+                <Button type="submit" disabled ={loading}>
+                  {loading ? "Creating..." : "Create Account"}
                 </Button>
               </div>
             </div>
+            
           </CardContent>
         </Card>
+        </form>
       </main>
     </div>
   );

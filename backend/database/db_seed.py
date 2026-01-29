@@ -112,81 +112,132 @@ def seedCoursesOSS(dbSessionLocalInstance: Session, spbase: Client):
     return None
 
 def userProfileSeeder(dbSessionLocalInstance: Session, spbase: Client): 
-    print(f"Seeding User Profiles: \n")
+    print(f"Seeding User Profiles for all campuses...\n")
+    
+    # 1. Fetch all campuses currently in the DB
     campuses = dbSessionLocalInstance.query(Campus).all()
+    
+    if not campuses:
+        print("No campuses found. Please seed campuses before running the UserProfile seeder.")
+        return None
+
     profileTypeList = ['Pmanager', 'Admin', 'Student', 'Lecturer']
+
     for campus in campuses:
+        print(f"Processing roles for Campus: {campus.campusName} (ID: {campus.campusID})")
         
         for role_name in profileTypeList:
-            # Check if it already exists to prevent duplicates
+            # 2. Check if this specific role already exists FOR THIS specific campus
             exists = dbSessionLocalInstance.query(UserProfile).filter_by(
                 profileTypeName=role_name, 
-                # campusID=campus.campusID
+                campusID=campus.campusID # <--- Check the link
             ).first()
             
             if not exists:
+                # 3. Create the profile linked to the current campus in the loop
                 new_profile = UserProfile(
                     profileTypeName=role_name,
-                    # campus=campus
+                    campusID=campus.campusID # <--- Assign the ID
                 )
                 dbSessionLocalInstance.add(new_profile)
-    dbSessionLocalInstance.commit()
+                print(f" - Created role '{role_name}' for {campus.campusName}")
+            else:
+                print(f" - Role '{role_name}' already exists for {campus.campusName}, skipping.")
+
+    # 4. Commit all changes after processing all campuses
+    try:
+        dbSessionLocalInstance.commit()
+        print("\nUser Profile seeding completed successfully.")
+    except Exception as e:
+        dbSessionLocalInstance.rollback()
+        print(f"An error occurred while seeding User Profiles: {e}")
+
     return None
 
 def platSeed(dbSessionLocalInstance: Session, spbase: Client):
     print(f"Seeding Platform Managers: \n")
-
-    uni = dbSessionLocalInstance.query(University).all()
     fake = Faker()
-    for u in uni:
-        # grab the first campus found for a university.
-        target_campus = dbSessionLocalInstance.query(Campus).filter_by(universityID=u.universityID).first()
 
-        pm_profile = dbSessionLocalInstance.query(UserProfile).filter_by(profileTypeName="PManager").first()
-        if not pm_profile:
-            pm_profile = UserProfile(
-                profileTypeName="PManager"
-            )
-            dbSessionLocalInstance.add(pm_profile)
-            dbSessionLocalInstance.commit() 
+    # Get all Universities
+    universities = dbSessionLocalInstance.query(University).all()
+    if not universities:
+        print("No universities found. Please seed universities first.")
+        return None
+
+    # Ensure a GLOBAL PManager profile exists (campusID is None)
+    # This role is used system-wide for all Platform Managers
+    pm_profile = dbSessionLocalInstance.query(UserProfile).filter_by(
+        profileTypeName="PManager",
+        campusID=None
+    ).first()
+
+    if not pm_profile:
+        print("Creating Global UserProfile: PManager...")
+        pm_profile = UserProfile(
+            profileTypeName="PManager",
+            campusID=None # not tied to a specific campus
+        )
+        dbSessionLocalInstance.add(pm_profile)
+        # Commit immediately so we have the ID for the managers
+        dbSessionLocalInstance.commit() 
+        dbSessionLocalInstance.refresh(pm_profile)
+
+    # Iterate through each University to create one Manager
+    for u in universities:
         safe_name = u.universityName.replace(" ", "").lower()
         email = f"manager@{safe_name}.edu"
         password = "password123"
         name = f"Manager of {u.universityName}"
 
-        if dbSessionLocalInstance.query(User).filter_by(email=email).first():
-            print(f"  - Manager for {u.universityName} already exists.")
+        # Check if this specific Manager (by email) already exists in our User table
+        existing_user = dbSessionLocalInstance.query(User).filter_by(email=email).first()
+        if existing_user:
+            print(f"  - Manager for {u.universityName} already exists ({email}). Skipping.")
             continue
+
+        # Create User in Supabase Auth
         try:
-            # Assuming you have a helper or use the raw client
-            auth_user = spbase.auth.admin.create_user({
+            auth_response = spbase.auth.admin.create_user({
                 "email": email,
                 "password": password,
                 "email_confirm": True
             })
-            user_uuid = uuid.UUID(auth_user.user.id)
+            user_uuid = uuid.UUID(auth_response.user.id)
         except Exception as e:
-            print(f"  - Error creating Auth user for {email}: {e}")
-            # Optional: Try to fetch existing UID if create failed
+            print(f"  - Error creating Supabase Auth user for {email}: {e}")
             continue
-        address = fake.address()
-        # Create the PManager
-        all_unis = dbSessionLocalInstance.query(University).all()
-        gaiusgenericusPath = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png",spbase)
+
+        # Handle Photo Upload
+        # once per user
+        try:
+            photo_path = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png", spbase)
+        except Exception as e:
+            print(f"  - Photo upload failed for {email}: {e}")
+            photo_path = None
+
+        # Create the PlatformMgr record linked to THIS University (u)
         new_manager = PlatformMgr(
-            userID=uuid.UUID(str(user_uuid)),
+            userID=user_uuid,
             profileTypeID=pm_profile.profileTypeID, 
-            role = "Platform Manager",
+            role="Platform Manager",
             email=email,
             name=name,
-            photo = gaiusgenericusPath,
-            address = address,
-            university=random.choice(all_unis)
+            photo=photo_path,
+            address=fake.address(),
+            universityID=u.universityID # Explicitly link to the current university in the loop
         )
         
         dbSessionLocalInstance.add(new_manager)
-    
-    dbSessionLocalInstance.commit()
+        print(f"  + Successfully created Manager for: {u.universityName}")
+
+    # Final commit for all created PlatformMgr records
+    try:
+        dbSessionLocalInstance.commit()
+        print("\nPlatform Manager seeding completed successfully.")
+    except Exception as e:
+        dbSessionLocalInstance.rollback()
+        print(f"Error during final database commit: {e}")
+
     return None
 
 def studentSeed(dbSessionLocalInstance: Session, spbase: Client): 

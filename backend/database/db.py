@@ -9,7 +9,7 @@ from sqlalchemy import (
     DateTime,
     Boolean,
     String,
-    Text,
+    MetaData,
     func,
     text,
 )
@@ -17,12 +17,23 @@ import datetime
 import enum
 
 from pydantic import BaseModel, EmailStr
-from typing import List
+from typing import Optional
 
 
+
+# Define a naming convention for all constraints
+convention = {
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s"
+}
+
+metadata = MetaData(naming_convention=convention)
 
 class Base(DeclarativeBase):
-    pass
+    metadata = metadata
 
 #Adds a University
 class University(Base):
@@ -60,7 +71,7 @@ class Campus(Base):
     # Has Different Courses
     courses: Mapped[list["Courses"]] = relationship(back_populates="campus")
     created_at = mapped_column(DateTime, default=datetime.datetime)
-
+    profiles: Mapped[list["UserProfile"]]= relationship(back_populates="campus")
 
 class UserProfile(Base): #User Profiles, Student, Lecturer, Admins
     __tablename__ = "userprofiles"
@@ -68,6 +79,11 @@ class UserProfile(Base): #User Profiles, Student, Lecturer, Admins
     profileTypeName: Mapped[str] = mapped_column(String(500))
     users: Mapped[list["User"]] = relationship(back_populates="profileType")
     # Belongs to a Campus
+    campusID: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("campus.campusID"), 
+        nullable=True
+    )
+    campus:  Mapped[Optional[Campus]] = relationship(back_populates="profiles")
 
 
 class User(Base): #User
