@@ -9,9 +9,11 @@ import { Badge } from "./ui/badge";
 import { CreateCustomGoalModal } from "./CreateCustomGoalModal";
 import { UpdateCustomGoalModal } from "./UpdateCustomGoalModal";
 import { DeleteCustomGoalModal } from "./DeleteCustomGoalModal";
+import { Navbar } from "./Navbar";
 
 interface ManageCustomGoalsProps {
   onBack: () => void;
+  onNavigateToProfile?: () => void;
   onCreateGoal: (userId: string, goal: number) => void;
   onUpdateGoal: (userId: string, goal: number) => void;
   onDeleteGoal: (userId: string, userName: string) => void;
@@ -40,6 +42,7 @@ interface ManageCustomGoalsProps {
 
 export function ManageCustomGoals({
   onBack,
+  onNavigateToProfile,
   onCreateGoal,
   onUpdateGoal,
   onDeleteGoal,
@@ -156,13 +159,17 @@ export function ManageCustomGoals({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header */}
+      <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile} />
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-8 flex-1">
         {/* Back Button */}
         <Button
           variant="ghost"
           onClick={onBack}
-          className="mb-4"
+          className="mb-6"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Dashboard
@@ -341,7 +348,7 @@ export function ManageCustomGoals({
             )}
           </CardContent>
         </Card>
-      </div>
+      </main>
 
       {/* Create Custom Goal Modal */}
       {selectedUser && (

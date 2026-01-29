@@ -46,6 +46,7 @@ interface AdminDashboardProps {
   onNavigateToReports: () => void;
   onNavigateToProfile?: () => void;
   onNavigateToManageModules: () => void;
+  onNavigateToManageLessons: () => void;
 }
 
 export function AdminDashboard({
@@ -57,6 +58,7 @@ export function AdminDashboard({
   onNavigateToProfile,
   onNavigateToReports,
   onNavigateToManageModules,
+  onNavigateToManageLessons,
 }: AdminDashboardProps) {
   const [loading, setLoading] = useState(true);
   const { token, user } = useAuth();
@@ -231,7 +233,7 @@ export function AdminDashboard({
                 <Button
                   className="w-full justify-start h-18"
                   variant="outline"
-
+                  onClick={onNavigateToManageLessons}
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   Manage Lessons

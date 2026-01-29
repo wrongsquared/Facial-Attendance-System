@@ -1,6 +1,7 @@
 import uuid
 import os
 import csv
+import traceback
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -9,7 +10,7 @@ from database.db_config import get_db
 from schemas import AdminDashboardStats, CourseAttentionItem, UserManagementItem,ReportHistoryEntry
 from schemas.admin import AdminReportRequest, AdminProfileUpdateRequest, ModuleUpdateSchema
 from dependencies.deps import get_current_user_id
-from database.db import Lesson, AttdCheck, User, Student, StudentModules, Module, LecMod, Lecturer, UserProfile,GeneratedReport
+from database.db import Lesson, AttdCheck, User, Student, StudentModules, Module, LecMod, Lecturer, UserProfile, GeneratedReport, Admin
 from datetime import datetime, timedelta
 import os
 import csv
@@ -582,3 +583,399 @@ def update_admin_profile(
     db.refresh(user)
 
     return {"message": "Admin profile updated successfully"}
+
+
+@router.get("/admin/test")
+def test_admin_access(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Test endpoint to check admin access and campus.
+    """
+    try:
+        user_uuid = uuid.UUID(user_id)
+        current_admin = db.query(Admin).filter(Admin.adminID == user_uuid).first()
+        
+        if not current_admin:
+            user_exists = db.query(User).filter(User.userID == user_uuid).first()
+            return {
+                "user_exists": user_exists is not None,
+                "admin_exists": False,
+                "user_id": user_id,
+                "message": "User found but not admin" if user_exists else "User not found"
+            }
+        
+        return {
+            "user_exists": True,
+            "admin_exists": True,
+            "campus_id": current_admin.campusID,
+            "admin_role": current_admin.role,
+            "user_id": user_id,
+            "message": "Admin access confirmed"
+        }
+    except Exception as e:
+        return {"error": str(e), "user_id": user_id}
+
+
+@router.get("/admin/lessons")
+def get_all_lessons_for_admin(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns a list of all lessons for the admin's campus.
+    """
+    try:
+        # Convert user_id string to UUID for comparison
+        user_uuid = uuid.UUID(user_id)
+        
+        # Get current admin's campus
+        current_admin = db.query(Admin).filter(Admin.adminID == user_uuid).first()
+        if not current_admin:
+            raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+        
+        admin_campus_id = current_admin.campusID
+        
+        # Let's start simple - just return empty list for now to test
+        print(f"Admin campus ID: {admin_campus_id}")
+        
+        # Check if any lessons exist at all
+        lesson_count = db.query(Lesson).count()
+        print(f"Total lessons in database: {lesson_count}")
+        
+        if lesson_count == 0:
+            print("No lessons found in database")
+            return []
+        
+        # Try to get some basic lesson data first
+        basic_lessons = db.query(Lesson.lessonID, Lesson.lessontype, Lesson.building, Lesson.room).limit(3).all()
+        print(f"Sample lessons: {basic_lessons}")
+        
+        # Now try the full query step by step
+        try:
+            # Step 1: Get lessons with LecMod join
+            lessons_with_lecmod = (
+                db.query(Lesson, LecMod)
+                .join(LecMod, Lesson.lecModID == LecMod.lecModID)
+                .limit(3)
+                .all()
+            )
+            print(f"Lessons with LecMod: {len(lessons_with_lecmod)}")
+            
+            # Step 2: Add Module join
+            lessons_with_module = (
+                db.query(Lesson, LecMod, Module)
+                .join(LecMod, Lesson.lecModID == LecMod.lecModID)
+                .join(Module, LecMod.moduleID == Module.moduleID)
+                .limit(3)
+                .all()
+            )
+            print(f"Lessons with Module: {len(lessons_with_module)}")
+            
+            # Step 3: Add Lecturer join
+            lessons_with_lecturer = (
+                db.query(Lesson, LecMod, Module, Lecturer)
+                .join(LecMod, Lesson.lecModID == LecMod.lecModID)
+                .join(Module, LecMod.moduleID == Module.moduleID)
+                .join(Lecturer, LecMod.lecturerID == Lecturer.lecturerID)
+                .limit(3)
+                .all()
+            )
+            print(f"Lessons with Lecturer: {len(lessons_with_lecturer)}")
+            
+            # Step 4: Filter by campus and get lecturer names
+            try:
+                # Since Lecturer inherits from User, we can directly access User fields from Lecturer
+                campus_lessons = (
+                    db.query(Lesson, LecMod, Module, Lecturer)
+                    .join(LecMod, Lesson.lecModID == LecMod.lecModID)
+                    .join(Module, LecMod.moduleID == Module.moduleID)
+                    .join(Lecturer, LecMod.lecturerID == Lecturer.lecturerID)
+                    .filter(Lecturer.campusID == admin_campus_id)
+                    .all()
+                )
+                print(f"Lessons for campus {admin_campus_id}: {len(campus_lessons)}")
+            except Exception as join_error:
+                print(f"Error with query: {str(join_error)}")
+                return []
+            
+            # If we have lessons for this campus, return the data
+            if len(campus_lessons) > 0:
+                result = []
+                # Since Lecturer inherits from User, lecturer.name should work directly
+                for lesson, lecmod, module, lecturer in campus_lessons:
+                    result.append({
+                        "lessonID": str(lesson.lessonID),
+                        "moduleCode": module.moduleCode,
+                        "moduleName": module.moduleName,
+                        "lessonType": lesson.lessontype or "Unknown",
+                        "startDateTime": lesson.startDateTime.isoformat() if lesson.startDateTime else None,
+                        "endDateTime": lesson.endDateTime.isoformat() if lesson.endDateTime else None,
+                        "building": lesson.building or "",
+                        "room": lesson.room or "",
+                        "lecturerName": lecturer.name or "Unknown"  # Direct access since Lecturer inherits from User
+                    })
+                return result
+            else:
+                print(f"No lessons found for campus {admin_campus_id}")
+                return []
+                
+        except Exception as query_error:
+            print(f"Query error: {str(query_error)}")
+            print(f"Query traceback: {traceback.format_exc()}")
+            return []
+        
+    except Exception as e:
+        print(f"Error in get_all_lessons_for_admin: {str(e)}")
+        import traceback
+        print(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/admin/lessons")
+def create_lesson(
+    lesson_data: dict,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new lesson (admin only, campus-restricted).
+    """
+    from datetime import datetime
+    import uuid
+    
+    try:
+        # Convert user_id string to UUID for comparison
+        user_uuid = uuid.UUID(user_id)
+        
+        # Get current admin's campus
+        current_admin = db.query(Admin).filter(Admin.adminID == user_uuid).first()
+        if not current_admin:
+            raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+        
+        admin_campus_id = current_admin.campusID
+        
+        # Find the module and verify it exists
+        module = db.query(Module).filter(Module.moduleCode == lesson_data["moduleCode"]).first()
+        if not module:
+            raise HTTPException(status_code=404, detail="Module not found")
+        
+        # Find the lecturer and verify they belong to admin's campus
+        lecturer_uuid = uuid.UUID(lesson_data["lecturerID"])
+        lecturer = (
+            db.query(Lecturer)
+            .filter(
+                Lecturer.lecturerID == lecturer_uuid,
+                Lecturer.campusID == admin_campus_id
+            )
+            .first()
+        )
+        
+        if not lecturer:
+            raise HTTPException(status_code=404, detail="Lecturer not found or access denied for your campus")
+        
+        # Find or create LecMod entry for this lecturer-module combination
+        lecmod = (
+            db.query(LecMod)
+            .filter(
+                LecMod.moduleID == module.moduleID,
+                LecMod.lecturerID == lecturer_uuid
+            )
+            .first()
+        )
+        
+        if not lecmod:
+            # Create new LecMod entry
+            lecmod = LecMod(
+                moduleID=module.moduleID,
+                lecturerID=lecturer_uuid
+            )
+            db.add(lecmod)
+            db.commit()
+            db.refresh(lecmod)
+        
+        # Create the lesson
+        new_lesson = Lesson(
+            lecModID=lecmod.lecModID,
+            lessontype=lesson_data["lessonType"],
+            startDateTime=datetime.fromisoformat(lesson_data["startDateTime"]) if lesson_data.get("startDateTime") else None,
+            endDateTime=datetime.fromisoformat(lesson_data["endDateTime"]) if lesson_data.get("endDateTime") else None,
+            building=lesson_data.get("building", ""),
+            room=lesson_data.get("room", "")
+        )
+        
+        db.add(new_lesson)
+        db.commit()
+        db.refresh(new_lesson)
+        
+        return {
+            "message": "Lesson created successfully",
+            "lessonID": new_lesson.lessonID,
+            "moduleCode": module.moduleCode,
+            "lecturerName": lecturer.name,
+            "lessonType": new_lesson.lessontype,
+            "building": new_lesson.building,
+            "room": new_lesson.room
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid data format: {str(e)}")
+    except Exception as e:
+        print(f"Error creating lesson: {str(e)}")
+        import traceback
+        print(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.put("/admin/lessons/{lesson_id}")
+def update_lesson(
+    lesson_id: int,
+    lesson_data: dict,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Update a lesson (admin only, campus-restricted).
+    """
+    from datetime import datetime
+    import uuid
+    
+    try:
+        # Convert user_id string to UUID for comparison
+        user_uuid = uuid.UUID(user_id)
+        
+        # Get current admin's campus
+        current_admin = db.query(Admin).filter(Admin.adminID == user_uuid).first()
+        if not current_admin:
+            raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+        
+        admin_campus_id = current_admin.campusID
+        
+        # Find the lesson and verify it belongs to admin's campus
+        lesson = (
+            db.query(Lesson)
+            .join(LecMod, Lesson.lecModID == LecMod.lecModID)
+            .join(Lecturer, LecMod.lecturerID == Lecturer.lecturerID)
+            .filter(
+                Lesson.lessonID == lesson_id,
+                Lecturer.campusID == admin_campus_id
+            )
+            .first()
+        )
+        
+        if not lesson:
+            raise HTTPException(status_code=404, detail="Lesson not found or access denied")
+        
+        # Find the module and verify it exists
+        module = db.query(Module).filter(Module.moduleCode == lesson_data["moduleCode"]).first()
+        if not module:
+            raise HTTPException(status_code=404, detail="Module not found")
+        
+        # Find the lecturer and verify they belong to admin's campus
+        lecturer_uuid = uuid.UUID(lesson_data["lecturerID"])
+        lecturer = (
+            db.query(Lecturer)
+            .filter(
+                Lecturer.lecturerID == lecturer_uuid,
+                Lecturer.campusID == admin_campus_id
+            )
+            .first()
+        )
+        
+        if not lecturer:
+            raise HTTPException(status_code=404, detail="Lecturer not found or access denied for your campus")
+        
+        # Find or create LecMod entry for this lecturer-module combination
+        lecmod = (
+            db.query(LecMod)
+            .filter(
+                LecMod.moduleID == module.moduleID,
+                LecMod.lecturerID == lecturer_uuid
+            )
+            .first()
+        )
+        
+        if not lecmod:
+            # Create new LecMod entry
+            lecmod = LecMod(
+                moduleID=module.moduleID,
+                lecturerID=lecturer_uuid
+            )
+            db.add(lecmod)
+            db.commit()
+            db.refresh(lecmod)
+        
+        # Update the lesson
+        lesson.lecModID = lecmod.lecModID
+        lesson.lessontype = lesson_data["lessonType"]
+        lesson.startDateTime = datetime.fromisoformat(lesson_data["startDateTime"]) if lesson_data.get("startDateTime") else None
+        lesson.endDateTime = datetime.fromisoformat(lesson_data["endDateTime"]) if lesson_data.get("endDateTime") else None
+        lesson.building = lesson_data.get("building", "")
+        lesson.room = lesson_data.get("room", "")
+        
+        db.commit()
+        db.refresh(lesson)
+        
+        return {
+            "message": "Lesson updated successfully",
+            "lessonID": lesson.lessonID,
+            "moduleCode": module.moduleCode,
+            "lecturerName": lecturer.name,
+            "lessonType": lesson.lessontype,
+            "building": lesson.building,
+            "room": lesson.room
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid data format: {str(e)}")
+    except Exception as e:
+        print(f"Error updating lesson: {str(e)}")
+        import traceback
+        print(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.delete("/admin/lessons/{lesson_id}")
+def delete_lesson(
+    lesson_id: int,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a lesson (admin only, campus-restricted).
+    """
+    # Get current admin's campus
+    current_admin = db.query(Admin).filter(Admin.adminID == user_id).first()
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+    
+    admin_campus_id = current_admin.campusID
+    
+    # Find the lesson and verify it belongs to admin's campus
+    lesson = (
+        db.query(Lesson)
+        .join(LecMod, Lesson.lecModID == LecMod.lecModID)
+        .join(Lecturer, LecMod.lecturerID == Lecturer.lecturerID)
+        .filter(
+            Lesson.lessonID == lesson_id,
+            Lecturer.campusID == admin_campus_id
+        )
+        .first()
+    )
+    
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found or access denied")
+    
+    # Check if there are any attendance records for this lesson
+    attendance_records = db.query(AttdCheck).filter(AttdCheck.lessonID == lesson_id).first()
+    if attendance_records:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot delete lesson with existing attendance records"
+        )
+    
+    db.delete(lesson)
+    db.commit()
+    
+    return {"message": "Lesson deleted successfully"}

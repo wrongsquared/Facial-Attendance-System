@@ -39,6 +39,9 @@ import { Toast } from './components/Toast';
 import { ManageModules } from './components/ManageModules';
 import { CreateModule } from './components/CreateModule';
 import { UpdateModule } from './components/UpdateModule';
+import { ManageLessons } from './components/ManageLessons';
+import { CreateLesson } from './components/CreateLesson';
+import { UpdateLesson } from './components/UpdateLesson';
 
 // Custom goals API functions
 const updateStudentAttendanceMinimum = async (token: string, userId: string, attendanceMinimum: number) => {
@@ -99,7 +102,7 @@ interface UserProfileData {
 }
 
 type LecturerView = 'dashboard' | 'reports' | 'profile' | 'timetable' | 'records';
-type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'manageCustomGoals' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser' | 'viewAdminProfile' | 'updateAdminProfile' | 'manageModules' | 'createModule' | 'updateModule';
+type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'manageCustomGoals' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser' | 'viewAdminProfile' | 'updateAdminProfile' | 'manageModules' | 'createModule' | 'updateModule' | 'manageLessons' | 'createLesson' | 'updateLesson';
 type StudentView = 'dashboard' | 'attendanceHistory' | 'timetable' | 'profile' | 'progress';
 type PlatformManagerView = 'dashboard' | 'manageInstitutions' | 'viewInstitution' | 'updateInstitution' | 'createInstitution';
 type MarketingPage = 'home' | 'about' | 'features' | 'services' | 'registration' | 'login';
@@ -113,6 +116,8 @@ export default function App() {
   const [platformManagerView, setPlatformManagerView] = useState<PlatformManagerView>('dashboard');
   const [moduleRefreshTrigger, setModuleRefreshTrigger] = useState<number>(0);
   const [moduleToUpdate, setModuleToUpdate] = useState<any>(null);
+  const [lessonRefreshTrigger, setLessonRefreshTrigger] = useState<number>(0);
+  const [lessonToUpdate, setLessonToUpdate] = useState<any>(null);
   const [selectedInstitutionData, setSelectedInstitutionData] = useState<{
     institutionId: string;
     institutionName: string;
@@ -444,6 +449,19 @@ export default function App() {
   const handleNavigateToUpdateModule = (moduleData: any) => {
     setModuleToUpdate(moduleData);
     setAdminView('updateModule');
+  };
+
+  const handleNavigateToManageLessons = () => {
+    setAdminView('manageLessons');
+  };
+
+  const handleNavigateToCreateLesson = () => {
+    setAdminView('createLesson');
+  };
+
+  const handleNavigateToUpdateLesson = (lessonData: any) => {
+    setLessonToUpdate(lessonData);
+    setAdminView('updateLesson');
   };
 
   const handleNavigateToBiometricProfile = () => {
@@ -908,6 +926,7 @@ export default function App() {
           onNavigateToReports={handleNavigateToAdminReports}
           onNavigateToProfile={handleNavigateToAdminProfile}
           onNavigateToManageModules={handleNavigateToManageModules}
+          onNavigateToManageLessons={handleNavigateToManageLessons}
         />
       )}
       {userRole === 'admin' && adminView === 'manageUsers' && (
@@ -947,6 +966,7 @@ export default function App() {
       {userRole === 'admin' && adminView === 'manageCustomGoals' && (
         <ManageCustomGoals
           onBack={handleBackToAdminDashboard}
+          onNavigateToProfile={handleNavigateToAdminProfile}
           onCreateGoal={handleUpdateUserGoal}
           onUpdateGoal={handleUpdateUserGoal}
           onDeleteGoal={handleDeleteUserGoal}
@@ -985,6 +1005,38 @@ export default function App() {
             setModuleRefreshTrigger(prev => prev + 1);
             setAdminView('manageModules');
             setModuleToUpdate(null);
+          }}
+          onLogout={handleLogout}
+          onNavigateToProfile={handleNavigateToAdminProfile}
+        />
+      )}
+      {userRole === 'admin' && adminView === 'manageLessons' && (
+        <ManageLessons
+          onBack={handleBackToAdminDashboard}
+          onLogout={handleLogout}
+          onNavigateToProfile={handleNavigateToAdminProfile}
+          onNavigateToCreateLesson={handleNavigateToCreateLesson}
+          onNavigateToUpdateLesson={handleNavigateToUpdateLesson}
+          refreshTrigger={lessonRefreshTrigger}
+        />
+      )}
+      {userRole === 'admin' && adminView === 'createLesson' && (
+        <CreateLesson
+          onBack={() => {
+            setLessonRefreshTrigger(prev => prev + 1);
+            setAdminView('manageLessons');
+          }}
+          onLogout={handleLogout}
+          onNavigateToProfile={handleNavigateToAdminProfile}
+        />
+      )}
+      {userRole === 'admin' && adminView === 'updateLesson' && lessonToUpdate && (
+        <UpdateLesson
+          lessonData={lessonToUpdate}
+          onBack={() => {
+            setLessonRefreshTrigger(prev => prev + 1);
+            setAdminView('manageLessons');
+            setLessonToUpdate(null);
           }}
           onLogout={handleLogout}
           onNavigateToProfile={handleNavigateToAdminProfile}

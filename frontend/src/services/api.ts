@@ -251,6 +251,39 @@ export const createModule = async (token: string, moduleData: any) => {
   return await sendCreate("/admin/modules", token, moduleData);
 };
 
+export const createLesson = async (token: string, lessonData: any) => {
+  return await sendCreate("/admin/lessons", token, lessonData);
+};
+
+export const updateLesson = async (lessonId: string, lessonData: any, token: string) => {
+  return await sendUpdate(`/admin/lessons/${lessonId}`, token, lessonData);
+};
+
+export const getAdminLessonList = async (token: string) => {
+  return await fetchProtected("/admin/lessons", token);
+};
+
+export const testAdminAccess = async (token: string) => {
+  return await fetchProtected("/admin/test", token);
+};
+
+export const deleteLesson = async (lessonId: string, token: string) => {
+  const response = await fetch(`http://localhost:8000/admin/lessons/${lessonId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to delete lesson');
+  }
+
+  return await response.json();
+};
+
 export const getAdminAttendanceLog = async (token: string, filters: AttendanceLogFilters): Promise<AttendanceLogResponse> => {
   const params = new URLSearchParams();
   if (filters.searchTerm) params.append("search_term", filters.searchTerm);
