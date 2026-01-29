@@ -109,12 +109,20 @@ def get_users_for_management(
 def get_students_for_custom_goals_management(
     search_term: Optional[str] = None,
     status_filter: Optional[str] = None, # "Active", "Inactive"
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    # Query Student table directly for custom goals management - only students
+    # Verify the user is an admin and get their campus
+    current_admin = db.query(Admin).filter(Admin.adminID == user_id).first()
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+    my_campus_id = current_admin.campusID
+    
+    # Query Student table directly for custom goals management - only students from this campus
     query = (
         db.query(Student, UserProfile.profileTypeName)
         .join(UserProfile, Student.profileTypeID == UserProfile.profileTypeID)
+        .filter(Student.campusID == my_campus_id)  # Filter by admin's campus
     )
     
     if status_filter and status_filter != "All Status":
@@ -155,10 +163,19 @@ def update_student_attendance_minimum(
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
-    # Find the student
-    student = db.query(Student).filter(Student.userID == UUID(user_id)).first()
+    # Verify the user is an admin and get their campus
+    current_admin = db.query(Admin).filter(Admin.adminID == current_user_id).first()
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+    my_campus_id = current_admin.campusID
+    
+    # Find the student and verify they belong to the admin's campus
+    student = db.query(Student).filter(
+        Student.userID == UUID(user_id),
+        Student.campusID == my_campus_id
+    ).first()
     if not student:
-        raise HTTPException(status_code=404, detail="Student not found")
+        raise HTTPException(status_code=404, detail="Student not found or access denied")
     
     # Update attendance minimum
     student.attendanceMinimum = attendance_minimum
@@ -173,10 +190,19 @@ def delete_student_attendance_minimum(
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
-    # Find the student
-    student = db.query(Student).filter(Student.userID == UUID(user_id)).first()
+    # Verify the user is an admin and get their campus
+    current_admin = db.query(Admin).filter(Admin.adminID == current_user_id).first()
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+    my_campus_id = current_admin.campusID
+    
+    # Find the student and verify they belong to the admin's campus
+    student = db.query(Student).filter(
+        Student.userID == UUID(user_id),
+        Student.campusID == my_campus_id
+    ).first()
     if not student:
-        raise HTTPException(status_code=404, detail="Student not found")
+        raise HTTPException(status_code=404, detail="Student not found or access denied")
     
     # Reset attendance minimum to default value (0 means no custom goal)
     student.attendanceMinimum = 0.0

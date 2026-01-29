@@ -26,13 +26,18 @@ interface LoginPageProps {
 export function LoginPage({ onLogin }: LoginPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [userType, setUserType] = useState<"student" | "lecturer" | "admin" | "platformManager" >("student");
+  const [userType, setUserType] = useState<"student" | "lecturer" | "admin" | "platformManager">("student");
   const [error, setError] = useState("");
 
   const handleLogin = () => {
     // Basic validation
-    if (!email.trim() || !password.trim()) {
-      setError("Please enter both email and password");
+    if (!email.trim()) {
+      setError("Please enter your email address");
+      return;
+    }
+
+    if (!password.trim()) {
+      setError("Please enter your password");
       return;
     }
 
@@ -42,7 +47,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     }
 
     setError("");
-    onLogin({email,password}, userType);
+    onLogin({ email, password }, userType);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -68,7 +73,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         <ArrowLeft className="w-5 h-5" />
         <span>Back to Home</span>
       </Button>
-      
+
       <Card className="w-full max-w-xl shadow-lg">
         <CardHeader className="space-y-6 pb-8">
           <div className="flex flex-col md:flex-row md:relative md:items-start items-center gap-4">
