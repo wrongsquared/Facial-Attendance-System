@@ -123,7 +123,7 @@ export default function App() {
     institutionName: string;
   } | null>(null);
   const [selectedUserData, setSelectedUserData] = useState<{
-    userId: string;
+    uuid: string;
     name: string;
     role: string;
     status: string;
@@ -421,7 +421,7 @@ export default function App() {
   };
 
   const handleNavigateToUpdateUser = (userData: {
-    userId: string;
+    uuid: string;
     name: string;
     role: string;
     status: string;
@@ -935,6 +935,7 @@ export default function App() {
           onBack={handleBackToAdminDashboard}
           onCreateUser={handleNavigateToCreateUser}
           onUpdateUser={handleNavigateToUpdateUser}
+          onNavigateToProfile={handleNavigateToAdminProfile}
         />
       )}
       {userRole === 'admin' && adminView === 'createUser' && (
@@ -942,6 +943,7 @@ export default function App() {
           onLogout={handleLogout}
           onBack={handleBackToManageUsers}
           onCreateSuccess={handleBackToManageUsers}
+          onNavigateToProfile={handleNavigateToAdminProfile}
         />
       )}
       {userRole === 'admin' && adminView === 'updateUser' && selectedUserData && (
@@ -949,6 +951,7 @@ export default function App() {
           onLogout={handleLogout}
           onBack={handleBackToManageUsers}
           onUpdateSuccess={handleBackToManageUsers}
+          onNavigateToProfile={handleNavigateToAdminProfile}
           userData={selectedUserData}
           showToast={showToast}
         />

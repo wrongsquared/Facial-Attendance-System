@@ -9,13 +9,8 @@ import {
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
-  BookOpen,
-  LogOut,
   ArrowLeft,
-  Bell,
-  Settings,
 } from "lucide-react";
 import {
   Select,
@@ -24,125 +19,115 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
+import { Navbar } from "./Navbar";
+import { getUserDetails, updateUser, getCampusCourses } from "../services/api";
+import { UpdateUserPayload, UserDetails, Course } from "../types/adminInnards";
+import { useAuth } from "../cont/AuthContext";
 
 interface UpdateUserProps {
   onLogout: () => void;
   onBack: () => void;
   onUpdateSuccess: () => void;
   userData: {
-    userId: string;
+    uuid: string;
     name: string;
     role: string;
     status: string;
   };
   showToast: (message: string) => void;
+  onNavigateToProfile: () => void;
 }
 
-export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showToast }: UpdateUserProps) {
-  const [userType, setUserType] = useState<string>(userData.role);
-  const [userId, setUserId] = useState(userData.userId);
-  const [password, setPassword] = useState("");
+export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showToast, onNavigateToProfile }: UpdateUserProps) {
+  const { token } = useAuth()
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState("");
+  const [selectedCourseID, setSelectedCourseID] = useState("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const targetUUID = userData?.uuid;
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [newPassword, setNewPassword] = useState(""); // Default to empty
+  const [userIdInput, setUserIdInput] = useState("");
+  const [courses, setCourses] = useState<Course[]>([]);
 
-  const handleSaveChanges = () => {
-    // Validation
-    if (!userType) {
-      alert("Please select a user type");
-      return;
-    }
-    if (!userId) {
-      alert("Please enter a User ID");
-      return;
-    }
-    // Only validate password if it's being changed
-    if (password || confirmPassword) {
-      if (password !== confirmPassword) {
-        alert("Passwords do not match");
-        return;
+  useEffect(() => {
+    const loadInitialData = async () => {
+      if (!token) return;
+      try {
+        // Fetch courses for the dropdown
+        const coursesData = await getCampusCourses(token);
+        setCourses(coursesData);
+
+        // Fetch the user details (existing logic)
+        if (targetUUID) {
+          const user = await getUserDetails(targetUUID, token);
+          setName(user.name || "");
+          setEmail(user.email || "");
+          setRole(user.role || ""); 
+
+          if (user.role.toLowerCase() === "student") {
+            setUserIdInput(user.studentNum || "");
+            setSelectedCourseID(user.courseID?.toString() || "");
+          } else {
+            // This handles specialistIn or jobTitle
+            setUserIdInput(user.specialistIn || user.jobTitle || "");
+          }
+        }
+      } catch (err) {
+        console.error("Initialization failed:", err);
       }
+    };
+    loadInitialData();
+  }, [targetUUID, token]);
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
+    // Validation
+    if (newPassword && newPassword !== confirmPassword) {
+      alert("Passwords do not match");
+      return;
     }
 
-    // In a real app, this would make an API call to update the user
-    console.log("Updating user:", { userType, userId, password });
-    
-    // Show success toast
-    showToast("User Account Updated!");
-    
-    // Navigate back to manage users page
-    onUpdateSuccess();
-  };
+    setLoading(true);
 
-  const handleCancel = () => {
-    onBack();
-  };
+    // Payload
+    const payload: UpdateUserPayload = {
+      name,
+      email,
+    };
 
+    if (newPassword.trim() !== "") {
+      payload.password = newPassword;
+    }
+
+    // Map dynamic fields back for the backend
+    const roleKey = role.toLowerCase();
+    if (roleKey === "student") {
+      payload.studentNum = userIdInput;
+      payload.courseID =  selectedCourseID ? Number(selectedCourseID) : undefined;
+    } else if (roleKey === "lecturer") {
+      payload.specialistIn = userIdInput;
+    } else if (roleKey === "admin") {
+      payload.jobTitle = userIdInput;
+    }
+
+    // API Call
+    try {
+      await updateUser(targetUUID, payload, token!);
+      showToast("User updated successfully!");
+      onUpdateSuccess();
+    } catch (err: any) {
+      alert(err.message || "Update failed");
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl">Attendify</h1>
-              <p className="text-sm text-gray-600">Admin Portal</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarFallback>AM</AvatarFallback>
-              </Avatar>
-              <div className="hidden md:block">
-                <p>Admin User</p>
-                <p className="text-sm text-gray-600">System Administrator</p>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </header>
-
+      <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile}/>
+      
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
         {/* Back Button */}
@@ -156,38 +141,77 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
           <CardHeader>
             <CardTitle>Update User Account</CardTitle>
             <CardDescription>
-              Update user account information for {userData.name}
+              Update user account information for {email}
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-6">
-              {/* Update As Dropdown */}
-              <div className="space-y-2">
-                <Label htmlFor="userType">Updated As:</Label>
-                <Select value={userType} onValueChange={setUserType}>
-                  <SelectTrigger id="userType">
-                    <SelectValue placeholder="Select user type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Student">Student</SelectItem>
-                    <SelectItem value="Lecturer">Lecturer</SelectItem>
-                    <SelectItem value="Admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
               {/* User ID Input */}
               <div className="space-y-2">
-                <Label htmlFor="userId">User ID:</Label>
-                <Input
-                  id="userId"
-                  type="text"
-                  placeholder="Enter user ID"
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                />
+                <Label>Full Name:</Label>
+                <Input value={name} disabled={true} onChange={(e) => setName(e.target.value)} />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="email">User E-mail:</Label>
+                <Input
+                  id="email"
+                  type="text"
+                  placeholder="Enter E-mail"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              {role.toLowerCase() === 'student' && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Student Number:</Label>
+                    <Input 
+                      value={userIdInput} 
+                      onChange={(e) => setUserIdInput(e.target.value)} 
+                      placeholder="Enter Student ID"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="course-select">Course:</Label>
+                    <Select value={selectedCourseID} onValueChange={(value: string) => setSelectedCourseID(value)}>
+                      <SelectTrigger id="course-select">
+                        <SelectValue placeholder="Select a Course" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {courses.map((course) => (
+                          <SelectItem key={course.courseID} value={course.courseID.toString()}>
+                            {course.courseCode}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {role.toLowerCase() === 'lecturer' && (
+                <div className="space-y-2">
+                  <Label>Lecturer Specialisation:</Label>
+                  <Input
+                    placeholder="e.g. Data Science, Ethics"
+                    value={userIdInput}
+                    onChange={(e) => setUserIdInput(e.target.value)}
+                  />
+                </div>
+              )}
+
+              {role.toLowerCase() === 'admin' && (
+                <div className="space-y-2">
+                  <Label>Admin Job Role:</Label>
+                  <Input
+                    placeholder="e.g. Faculty Manager"
+                    value={userIdInput}
+                    onChange={(e) => setUserIdInput(e.target.value)}
+                  />
+                </div>
+              )}
               {/* Password Input */}
               <div className="space-y-2">
                 <Label htmlFor="password">Password:</Label>
@@ -195,8 +219,8 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
                   id="password"
                   type="password"
                   placeholder="Enter new password (leave blank to keep current)"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
                 />
               </div>
 
@@ -214,14 +238,15 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
 
               {/* Action Buttons */}
               <div className="flex justify-center gap-4 pt-4">
-                <Button variant="outline" onClick={handleCancel}>
+                <Button variant="outline" onClick={onBack}>
                   Cancel
                 </Button>
-                <Button onClick={handleSaveChanges} className="bg-blue-600 text-white hover:bg-blue-700">
-                  Save Changes
+                <Button type="submit" disabled={loading} className="bg-blue-600 text-white hover:bg-blue-700">
+                  {loading ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </div>
+          </form>
           </CardContent>
         </Card>
       </main>

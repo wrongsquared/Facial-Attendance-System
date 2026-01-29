@@ -52,7 +52,7 @@ import { Navbar } from "./Navbar";
 import { getAdminModuleList, getAdminAttendanceLog } from "../services/api";
 import { useAuth } from "../cont/AuthContext";
 import { AttendanceLogEntry } from "../types/lecturerinnards";
-interface AttendanceRecord {
+export interface AttendanceRecord {
   userId: string;
   studentName: string;
   module: string;

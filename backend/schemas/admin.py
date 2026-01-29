@@ -91,3 +91,13 @@ class ModuleUpdateSchema(BaseModel):
     startDate: str
     endDate: str
     lecturerID: Optional[str] = None
+
+class UpdateUserSchema(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None # Optional password reset
+    # Role specific fields
+    studentNum: Optional[str] = None
+    courseID: Optional[int] = None
+    specialistIn: Optional[str] = None
+    jobTitle: Optional[str] = None

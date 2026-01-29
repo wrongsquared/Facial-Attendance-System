@@ -45,7 +45,7 @@ interface ManageUserAccountsProps {
   onCreateUser: () => void;
   onNavigateToProfile?: () => void;
   onUpdateUser: (userData: {
-    userId: string;
+    uuid: string;
     name: string;
     role: string;
     status: string;
@@ -58,6 +58,7 @@ export function ManageUserAccounts({
   onBack,
   onCreateUser,
   onNavigateToProfile,
+  onUpdateUser
 }: ManageUserAccountsProps) {
   const {token} = useAuth()
   const [users, setUsers] = useState<AdminUserAccount[]>([]);
@@ -227,7 +228,7 @@ export function ManageUserAccounts({
                             <Button
                               variant="outline"
                               size="sm"
-                              // onClick={() => onUpdateUser(user)}
+                              onClick={() => onUpdateUser(user)}
                             >
                               Update
                             </Button>

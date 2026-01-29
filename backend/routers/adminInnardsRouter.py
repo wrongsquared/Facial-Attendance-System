@@ -6,7 +6,14 @@ from database.db import (
     User, UserProfile, Student, Lesson, Module, AttdCheck, 
     StudentModules, LecMod, EntLeave, Lecturer, Admin, Courses
 )
-from schemas import CreateUserSchema, UserListItem, UserManageSchema, AttendanceLogEntry, AttendanceLogResponse, Literal, AttendanceUpdateRequest
+from schemas import (CreateUserSchema, 
+                     UserListItem, 
+                     UserManageSchema, 
+                     AttendanceLogEntry, 
+                     AttendanceLogResponse, 
+                     Literal, 
+                     AttendanceUpdateRequest,
+                     UpdateUserSchema)
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session, aliased
 from database.db_config import get_db
@@ -673,3 +680,88 @@ def create_new_user(
         "campusID": admin_campus_id,
         "profileTypeID": target_type_id
     }
+
+@router.get("/admin/users/{user_uuid}")
+def get_user_details(user_uuid: str, db: Session = Depends(get_db)):
+    # Find the base user to see their role
+    user = db.query(User).filter(User.userID == user_uuid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get profile-specific details
+    role_name = user.profileType.profileTypeName.lower()
+    details = {
+        "uuid": user.userID,
+        "name": user.name,
+        "email": user.email,
+        "role": role_name,
+    }
+
+    if role_name == "student":
+        profile = db.query(Student).filter(Student.userID == user_uuid).first()
+        details.update({"studentNum": profile.studentNum, "courseID": profile.courseID})
+    elif role_name == "lecturer":
+        profile = db.query(Lecturer).filter(Lecturer.userID == user_uuid).first()
+        details.update({"specialistIn": profile.specialistIn})
+    elif role_name == "admin":
+        profile = db.query(Admin).filter(Admin.userID == user_uuid).first()
+        details.update({"jobTitle": profile.role}) # in your DB, Admin.role is the job title
+
+    return details
+
+@router.patch("/admin/users/{user_uuid}")
+def update_user_full(
+    user_uuid: str, 
+    user_data: UpdateUserSchema, 
+    db: Session = Depends(get_db)
+):
+    # Update Supabase Auth (Login Credentials)
+    auth_updates = {}
+    if user_data.email: auth_updates["email"] = user_data.email
+    if user_data.password: auth_updates["password"] = user_data.password
+    if user_data.name: auth_updates["user_metadata"] = {"name": user_data.name}
+
+    try:
+        if auth_updates:
+            supabase_adm.auth.admin.update_user_by_id(user_uuid, auth_updates)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Auth update failed: {str(e)}")
+
+    # Update the Local Database
+    # Fetch the base user
+    user_record = db.query(User).filter(User.userID == user_uuid).first()
+    if not user_record:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Update common fields in User table
+    if user_data.name: user_record.name = user_data.name
+    if user_data.email: user_record.email = user_data.email
+
+    # Update the specific Role table
+    role_name = user_record.profileType.profileTypeName.lower()
+
+    if role_name == "student":
+        profile = db.query(Student).filter(Student.userID == user_uuid).first()
+        if profile:
+            if user_data.courseID: profile.courseID = user_data.courseID
+            if user_data.studentNum: profile.studentNum = user_data.studentNum
+            # If name/email are also duplicated in the Student table:
+            if user_data.name: profile.name = user_data.name
+            if user_data.email: profile.email = user_data.email
+
+    elif role_name == "lecturer":
+        profile = db.query(Lecturer).filter(Lecturer.userID == user_uuid).first()
+        if profile:
+            if user_data.specialistIn: profile.specialistIn = user_data.specialistIn
+            if user_data.name: profile.name = user_data.name
+            if user_data.email: profile.email = user_data.email
+
+    elif role_name == "admin":
+        profile = db.query(Admin).filter(Admin.userID == user_uuid).first()
+        if profile:
+            if user_data.jobTitle: profile.role = user_data.jobTitle # Admin table uses .role for title
+            if user_data.name: profile.name = user_data.name
+            if user_data.email: profile.email = user_data.email
+
+    db.commit()
+    return {"message": "User credentials and profile updated successfully"}

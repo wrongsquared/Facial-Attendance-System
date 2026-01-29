@@ -1,5 +1,5 @@
 
-import { Course, CreateUserPayload } from "../types/adminInnards";
+import { Course, CreateUserPayload, UpdateUserPayload, UserDetails } from "../types/adminInnards";
 import { LoginCredentials, AuthResponse, ProfileUpdateData } from "../types/auth";
 import { AttendanceLogFilters, AttendanceLogResponse } from "../types/lecturerinnards";
 
@@ -417,7 +417,12 @@ export const updateModule = async (moduleId: string, moduleData: any, token: str
     console.error("Update module error:", errorText);
     throw new Error(`Failed to update module: ${response.status} ${errorText}`);
   }
-  return await response.json();
+  return await response;
+};
+export const getUserDetails = async (userUUID: string, token: string): Promise<UserDetails> => {
+  const response = await fetchProtected(`/admin/users/${userUUID}`, token);
+
+  return response;
 };
 export const createUser = async (data: CreateUserPayload, token: string) => {
   return await fetchProtected("/admin/users/create", token, {
@@ -429,6 +434,16 @@ export const getCampusCourses = async (token: string): Promise<Course[]> => {
   const data = await fetchProtected("/admin/campus-courses", token);
 
   return data;
+};
+export const updateUser = async (userUUID: string, payload: UpdateUserPayload, token: string) => {
+  return await fetchProtected(
+    `/admin/users/${userUUID}`, 
+    token,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }
+  );
 };
 //Admin Routes end
 

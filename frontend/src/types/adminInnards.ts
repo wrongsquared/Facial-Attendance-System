@@ -33,3 +33,25 @@ export interface Course {
   courseCode: string;
   // courseName: string;
 }
+
+export interface UserDetails {
+  uuid: string;
+  name: string;
+  email: string;
+  role: string;
+  // Role-specific optional fields
+  studentNum?: string;
+  courseID?: number;
+  specialistIn?: string;
+  jobTitle?: string;
+}
+
+export interface UpdateUserPayload {
+  name: string;
+  email: string;
+  password?: string; // Optional: only sent if admin fills the box
+  studentNum?: string;
+  courseID?: number;
+  specialistIn?: string;
+  jobTitle?: string;
+}
