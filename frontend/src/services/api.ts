@@ -1,4 +1,5 @@
 
+import { CreateUserPayload } from "../types/adminInnards";
 import { LoginCredentials, AuthResponse, ProfileUpdateData } from "../types/auth";
 import { AttendanceLogFilters, AttendanceLogResponse } from "../types/lecturerinnards";
 
@@ -365,6 +366,12 @@ export const deleteUser = async (userId: string, token: string) => {
 export const deleteModule = async (moduleId: string, token: string) => {
   return await fetchProtected(`/admin/modules/${moduleId}`, token, {
     method: "DELETE",
+  });
+}
+export const createUser = async (data: CreateUserPayload, token: string) => {
+  return await fetchProtected("/admin/users/create", token, {
+    method: "POST",
+    body: JSON.stringify(data),
   });
 };
 //Admin Routes end

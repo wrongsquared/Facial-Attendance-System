@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import Literal, List, Optional
 from datetime import date
 from uuid import UUID
@@ -73,3 +73,14 @@ class UserManageSchema(BaseModel):
 
     class Config:
         from_attributes = True
+
+class CreateUserSchema(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+    role: str # "student", "lecturer", "admin"
+    
+    # These are missing from the Form.
+    studentNum: Optional[str] = None 
+    specialistIn: Optional[str] = None # For lecturers
+    jobTitle: Optional[str] = None     # For admins

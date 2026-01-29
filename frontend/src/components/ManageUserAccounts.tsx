@@ -83,11 +83,6 @@ export function ManageUserAccounts({
     };
     fetchData();
   }, [token, debouncedSearch, roleFilter, statusFilter]);
-  // Filter users
-  // const handleDeleteUser = (userId: string) => {
-  //   setUsers(users.filter((user) => user.userId !== userId));
-  //   setUserToDelete(null);
-  // };
   const handleDeleteClick = (user: AdminUserAccount) => {
     setUserToDelete(user); // This opens the dialog because userToDelete is not null
   };

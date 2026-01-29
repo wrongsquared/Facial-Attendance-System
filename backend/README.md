@@ -47,23 +47,23 @@
     From the Supabase Dashboard you may retrieve the following required keys.
     ### SPDB_URL
     In your individual project's navbar, you will see a button labeled "Connect" at the top left.
-    Select it and set the Connection Method to Session Pooler, this will ensure that it is connecting in IPV4
+    Select it and go to Connection String, set the Connection Method to Session Pooler, copy the given string into "SPDB_URL" and
     Replace the initial postgres in the first part of the line with 
         
         postgresql+psycopg2
     
     So the start of the Connection String will look like:
 
-        postgresql+psycopg2://postgres(rest of the Connection string to follow)
+        "postgresql+psycopg2://postgres"(rest of the Connection string to follow)
+    The password is the Database Password set during the creation of the Database.
+
     ### SPBASE_URL, SPBASE_KEY, SPBASE_SKEY
     This contains the field of your Project's URL.
 
-    In your Supabase project's main Project Overview page, scroll down to "Connecting to your new project", on the right, under Project API you will find the Project's URL and API Key.
+    In the sliding menu to the left of your Project's Dashboard, look for "Project Settings", select and look for "Data API"
+    This is where you will take the "SPBASE_URL" key.
 
-    Replace the SPBASE_URL with the URL retrieved from Supabase and the SPBASE_KEY with the key retrieved from Supabase.
-
-    SPBASE_SKEY can be retrieved from Project Settings --> API Keys --> Legacy anon, service_role API keys.
-    It is required for the seeding of data and for routing.
+    You will find the SPBASE_KEY, SPBASE_SKEY in "Project Settings" under "API Keys", they are the Publishable keys and Secret Keys respectively. You may create your own API keys by pressing either "New publishable key" or "New Secret Key". For this project, you may just use the defaults given.
 
 7. ## Activate FastAPI
         fastapi dev main.py

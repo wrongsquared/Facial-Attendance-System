@@ -38,7 +38,8 @@ from .admin import (AdminDashboardStats,
                     AdminReportRequest,
                     AdminProfileUpdateRequest,
                     AttendanceUpdateRequest,
-                    UserManageSchema)
+                    UserManageSchema,
+                    CreateUserSchema)
 from .platformManager import (PlatformManagerDashboard, 
                               DashboardStats, 
                               UniversityDisplay, 
