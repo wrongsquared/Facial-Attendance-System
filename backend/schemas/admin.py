@@ -84,3 +84,10 @@ class CreateUserSchema(BaseModel):
     studentNum: Optional[str] = None 
     specialistIn: Optional[str] = None # For lecturers
     jobTitle: Optional[str] = None     # For admins
+
+class ModuleUpdateSchema(BaseModel):
+    moduleName: str
+    moduleCode: str
+    startDate: str
+    endDate: str
+    lecturerID: Optional[str] = None

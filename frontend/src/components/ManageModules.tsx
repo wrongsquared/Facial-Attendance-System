@@ -27,6 +27,7 @@ interface ModuleData {
   moduleName: string;
   startDate: string | null;
   endDate: string | null;
+  lecturerID?: string | null;
 }
 
 interface ManageModulesProps {
@@ -34,6 +35,7 @@ interface ManageModulesProps {
   onLogout?: () => void;
   onNavigateToProfile?: () => void;
   onNavigateToCreateModule?: () => void;
+  onNavigateToUpdateModule?: (moduleData: ModuleData) => void;
   refreshTrigger?: number; // Add refresh trigger prop
 }
 
@@ -42,6 +44,7 @@ export function ManageModules({
   onLogout,
   onNavigateToProfile,
   onNavigateToCreateModule,
+  onNavigateToUpdateModule,
   refreshTrigger,
 }: ManageModulesProps) {
   const [modules, setModules] = useState<ModuleData[]>([]);
@@ -96,8 +99,10 @@ export function ManageModules({
   };
 
   const handleEditModule = (moduleId: string) => {
-    // TODO: Implement edit module functionality
-    console.log("Edit module:", moduleId);
+    const module = modules.find(m => m.moduleID === moduleId);
+    if (module && onNavigateToUpdateModule) {
+      onNavigateToUpdateModule(module);
+    }
   };
 
   const handleDeleteClick = (moduleId: string) => {
@@ -109,6 +114,7 @@ export function ManageModules({
 
   const confirmDelete = async () => {
     if (!moduleToDelete || !token) return;
+
 
     try {
       await deleteModule(moduleToDelete.moduleID, token);
@@ -268,7 +274,7 @@ export function ManageModules({
                                     Delete Module
                                   </AlertDialogTitle>
                                   <AlertDialogDescription className="text-black">
-                                    Are you sure you want to delete <strong>"{moduleToDelete?.moduleName}" ({moduleToDelete?.moduleCode})</strong>?
+                                    Are you sure you want to delete <strong>"{moduleToDelete?.moduleName} ({moduleToDelete?.moduleCode})"</strong>
                                   </AlertDialogDescription>
                                   <AlertDialogDescription className="text-black">
                                     This action cannot be undone.

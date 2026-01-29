@@ -368,6 +368,24 @@ export const deleteModule = async (moduleId: string, token: string) => {
     method: "DELETE",
   });
 }
+
+export const updateModule = async (moduleId: string, moduleData: any, token: string) => {
+  const response = await fetch(`${API_URL}/admin/modules/${moduleId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify(moduleData)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Update module error:", errorText);
+    throw new Error(`Failed to update module: ${response.status} ${errorText}`);
+  }
+  return await response.json();
+};
 export const createUser = async (data: CreateUserPayload, token: string) => {
   return await fetchProtected("/admin/users/create", token, {
     method: "POST",

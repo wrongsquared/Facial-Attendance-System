@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, and_, or_ 
 from database.db_config import get_db
 from schemas import AdminDashboardStats, CourseAttentionItem, UserManagementItem,ReportHistoryEntry
-from schemas.admin import AdminReportRequest, AdminProfileUpdateRequest
+from schemas.admin import AdminReportRequest, AdminProfileUpdateRequest, ModuleUpdateSchema
 from dependencies.deps import get_current_user_id
 from database.db import Lesson, AttdCheck, User, Student, StudentModules, Module, LecMod, Lecturer, UserProfile,GeneratedReport
 from datetime import datetime, timedelta
@@ -197,16 +197,25 @@ def get_all_modules_for_admin(
     Returns a simple list of all modules for the Admin Report dropdown.
     """
     modules = db.query(Module).all()
-    return [
-        {
-            "moduleID": m.moduleID, 
-            "moduleCode": m.moduleCode, 
-            "moduleName": m.moduleName,
-            "startDate": m.startDate.isoformat() if m.startDate else None,
-            "endDate": m.endDate.isoformat() if m.endDate else None
-        } 
-        for m in modules
-    ]
+    result = []
+    
+    for module in modules:
+        # Get the lecturer assigned to this module
+        lecmod = db.query(LecMod).filter(LecMod.moduleID == module.moduleID).first()
+        lecturer_id = str(lecmod.lecturerID) if lecmod else None
+        
+        print(f"Module {module.moduleID}: lecmod found: {lecmod is not None}, lecturerID: {lecturer_id}")
+        
+        result.append({
+            "moduleID": module.moduleID, 
+            "moduleCode": module.moduleCode, 
+            "moduleName": module.moduleName,
+            "startDate": module.startDate.isoformat() if module.startDate else None,
+            "endDate": module.endDate.isoformat() if module.endDate else None,
+            "lecturerID": lecturer_id  # Convert UUID to string
+        })
+    
+    return result
 
 @router.post("/admin/modules")
 def create_module(
@@ -233,11 +242,17 @@ def create_module(
         
         # Create lecturer-module relationship
         if module_data.get("lecturerID"):
-            lecturer_module = LecMod(
-                lecturerID=module_data["lecturerID"],
-                moduleID=new_module.moduleID
-            )
-            db.add(lecturer_module)
+            try:
+                # Convert string to UUID
+                lecturer_uuid = uuid.UUID(module_data["lecturerID"])
+                lecturer_module = LecMod(
+                    lecturerID=lecturer_uuid,
+                    moduleID=new_module.moduleID
+                )
+                db.add(lecturer_module)
+            except ValueError as e:
+                db.rollback()
+                raise HTTPException(status_code=400, detail=f"Invalid lecturerID format: {str(e)}")
         
         db.commit()
         
@@ -284,6 +299,92 @@ def delete_module(
         if isinstance(e, HTTPException):
             raise
         raise HTTPException(status_code=400, detail=f"Error deleting module: {str(e)}")
+
+@router.put("/admin/modules/{module_id}")
+def update_module(
+    module_id: str,
+    module_data: ModuleUpdateSchema,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Update an existing module
+    """
+    try:
+        # Convert module_id to integer since database expects int
+        try:
+            module_id_int = int(module_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid module ID format")
+        
+        # Check if the module exists
+        module = db.query(Module).filter(Module.moduleID == module_id_int).first()
+        if not module:
+            raise HTTPException(status_code=404, detail="Module not found")
+        
+        # Update module fields
+        module.moduleName = module_data.moduleName
+        module.moduleCode = module_data.moduleCode
+        
+        try:
+            module.startDate = datetime.fromisoformat(module_data.startDate)
+            module.endDate = datetime.fromisoformat(module_data.endDate)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+        
+        # Handle lecturer assignment
+        # Get existing lecturer-module relationship
+        existing_lecmod = db.query(LecMod).filter(LecMod.moduleID == module_id_int).first()
+        
+        if module_data.lecturerID:
+            # Convert lecturer ID to UUID
+            try:
+                lecturer_uuid = uuid.UUID(module_data.lecturerID)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid lecturer ID format")
+            
+            if existing_lecmod:
+                # Update existing LecMod record instead of deleting/creating
+                existing_lecmod.lecturerID = lecturer_uuid
+            else:
+                # Create new LecMod record if none exists
+                new_lecmod = LecMod(
+                    lecturerID=lecturer_uuid,
+                    moduleID=module_id_int
+                )
+                db.add(new_lecmod)
+        else:
+            # If no lecturer assigned and there's an existing LecMod, we need to handle lessons
+            if existing_lecmod:
+                # Check if there are lessons referencing this LecMod
+                lesson_count = db.query(Lesson).filter(Lesson.lecModID == existing_lecmod.lecModID).count()
+                if lesson_count > 0:
+                    # Don't allow removing lecturer if there are lessons
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Cannot remove lecturer assignment. There are {lesson_count} lessons that depend on this lecturer-module relationship."
+                    )
+                else:
+                    # Safe to delete since no lessons depend on it
+                    db.delete(existing_lecmod)
+        
+        db.commit()
+        
+        return {
+            "message": "Module updated successfully",
+            "moduleID": module.moduleID,
+            "moduleCode": module.moduleCode,
+            "moduleName": module.moduleName,
+            "startDate": module.startDate.isoformat() if module.startDate else None,
+            "endDate": module.endDate.isoformat() if module.endDate else None
+        }
+        
+    except Exception as e:
+        db.rollback()
+        print(f"Error updating module {module_id}: {str(e)}")
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(status_code=400, detail=f"Error updating module: {str(e)}")
 
 @router.get("/admin/reports/history")
 def get_report_history(

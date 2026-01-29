@@ -38,6 +38,7 @@ import { UpdateUser } from './components/UpdateUser';
 import { Toast } from './components/Toast';
 import { ManageModules } from './components/ManageModules';
 import { CreateModule } from './components/CreateModule';
+import { UpdateModule } from './components/UpdateModule';
 
 // Custom goals API functions
 const updateStudentAttendanceMinimum = async (token: string, userId: string, attendanceMinimum: number) => {
@@ -98,7 +99,7 @@ interface UserProfileData {
 }
 
 type LecturerView = 'dashboard' | 'reports' | 'profile' | 'timetable' | 'records';
-type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'manageCustomGoals' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser' | 'viewAdminProfile' | 'updateAdminProfile' | 'manageModules' | 'createModule';
+type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'manageCustomGoals' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser' | 'viewAdminProfile' | 'updateAdminProfile' | 'manageModules' | 'createModule' | 'updateModule';
 type StudentView = 'dashboard' | 'attendanceHistory' | 'timetable' | 'profile' | 'progress';
 type PlatformManagerView = 'dashboard' | 'manageInstitutions' | 'viewInstitution' | 'updateInstitution' | 'createInstitution';
 type MarketingPage = 'home' | 'about' | 'features' | 'services' | 'registration' | 'login';
@@ -111,6 +112,7 @@ export default function App() {
   const [studentView, setStudentView] = useState<StudentView>('dashboard');
   const [platformManagerView, setPlatformManagerView] = useState<PlatformManagerView>('dashboard');
   const [moduleRefreshTrigger, setModuleRefreshTrigger] = useState<number>(0);
+  const [moduleToUpdate, setModuleToUpdate] = useState<any>(null);
   const [selectedInstitutionData, setSelectedInstitutionData] = useState<{
     institutionId: string;
     institutionName: string;
@@ -437,6 +439,11 @@ export default function App() {
 
   const handleNavigateToCreateModule = () => {
     setAdminView('createModule');
+  };
+
+  const handleNavigateToUpdateModule = (moduleData: any) => {
+    setModuleToUpdate(moduleData);
+    setAdminView('updateModule');
   };
 
   const handleNavigateToBiometricProfile = () => {
@@ -956,6 +963,7 @@ export default function App() {
           onLogout={handleLogout}
           onNavigateToProfile={handleNavigateToAdminProfile}
           onNavigateToCreateModule={handleNavigateToCreateModule}
+          onNavigateToUpdateModule={handleNavigateToUpdateModule}
           refreshTrigger={moduleRefreshTrigger}
         />
       )}
@@ -964,6 +972,19 @@ export default function App() {
           onBack={() => {
             setModuleRefreshTrigger(prev => prev + 1);
             setAdminView('manageModules');
+          }}
+          onLogout={handleLogout}
+          onNavigateToProfile={handleNavigateToAdminProfile}
+        />
+      )}
+
+      {userRole === 'admin' && adminView === 'updateModule' && moduleToUpdate && (
+        <UpdateModule
+          moduleData={moduleToUpdate}
+          onBack={() => {
+            setModuleRefreshTrigger(prev => prev + 1);
+            setAdminView('manageModules');
+            setModuleToUpdate(null);
           }}
           onLogout={handleLogout}
           onNavigateToProfile={handleNavigateToAdminProfile}
