@@ -3,6 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy import func, distinct, case, literal, and_
 from fastapi.middleware.cors import CORSMiddleware 
 
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, joinedload
 from database.db_config import get_db #Gets the Initialized db session
@@ -35,7 +36,8 @@ from routers import (adminDashboardRouter,
                      lecturerInnardsRouter,
                      PlatformManagerRouter, 
                      studentInnardsRouter,
-                     adminInnardsRouter)
+                     adminInnardsRouter,
+                     aiRouter)
 
 
 app = FastAPI()
@@ -345,4 +347,5 @@ app.include_router(PlatformManagerRouter.router)
 app.include_router(studentInnardsRouter.router)
 app.include_router(lecturerInnardsRouter.router)
 app.include_router(adminInnardsRouter.router)
+app.include_router(aiRouter.router)
 

@@ -20,10 +20,10 @@ except Exception:
 # ------------------------------
 # CONFIG
 # ------------------------------
-BACKEND_URL = "http://localhost:8000/ai/attendance"
+BACKEND_URL = "http://localhost:8000"
 
 ACCEPT_PROBA = 0.70          # 70% threshold
-SNAPSHOT_SECONDS = 10 * 60   # 10 minutes (change to 15*60 if needed)
+SNAPSHOT_SECONDS = 60   # 1 minutes (change to 15*60 if needed for 15 mins)
 
 # Face size gating (relative to frame width)
 MIN_FACE_RATIO = 0.10        # if face is smaller than 10% of frame width => Too small
