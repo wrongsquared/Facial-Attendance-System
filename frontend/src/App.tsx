@@ -36,6 +36,8 @@ import { StudentProgressTracker } from './components/StudentProgressTracker';
 import { CreateUser } from './components/CreateUser';
 import { UpdateUser } from './components/UpdateUser';
 import { Toast } from './components/Toast';
+import { ManageModules } from './components/ManageModules';
+import { CreateModule } from './components/CreateModule';
 
 // Custom goals API functions
 const updateStudentAttendanceMinimum = async (token: string, userId: string, attendanceMinimum: number) => {
@@ -96,7 +98,7 @@ interface UserProfileData {
 }
 
 type LecturerView = 'dashboard' | 'reports' | 'profile' | 'timetable' | 'records';
-type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'manageCustomGoals' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser' | 'viewAdminProfile' | 'updateAdminProfile';
+type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'manageCustomGoals' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser' | 'viewAdminProfile' | 'updateAdminProfile' | 'manageModules' | 'createModule';
 type StudentView = 'dashboard' | 'attendanceHistory' | 'timetable' | 'profile' | 'progress';
 type PlatformManagerView = 'dashboard' | 'manageInstitutions' | 'viewInstitution' | 'updateInstitution' | 'createInstitution';
 type MarketingPage = 'home' | 'about' | 'features' | 'services' | 'registration' | 'login';
@@ -108,6 +110,7 @@ export default function App() {
   const [adminView, setAdminView] = useState<AdminView>('dashboard');
   const [studentView, setStudentView] = useState<StudentView>('dashboard');
   const [platformManagerView, setPlatformManagerView] = useState<PlatformManagerView>('dashboard');
+  const [moduleRefreshTrigger, setModuleRefreshTrigger] = useState<number>(0);
   const [selectedInstitutionData, setSelectedInstitutionData] = useState<{
     institutionId: string;
     institutionName: string;
@@ -426,6 +429,14 @@ export default function App() {
 
   const handleNavigateToManageCustomGoals = () => {
     setAdminView('manageCustomGoals');
+  };
+
+  const handleNavigateToManageModules = () => {
+    setAdminView('manageModules');
+  };
+
+  const handleNavigateToCreateModule = () => {
+    setAdminView('createModule');
   };
 
   const handleNavigateToBiometricProfile = () => {
@@ -889,6 +900,7 @@ export default function App() {
           onNavigateToAttendanceRecords={handleNavigateToAdminAttendanceRecords}
           onNavigateToReports={handleNavigateToAdminReports}
           onNavigateToProfile={handleNavigateToAdminProfile}
+          onNavigateToManageModules={handleNavigateToManageModules}
         />
       )}
       {userRole === 'admin' && adminView === 'manageUsers' && (
@@ -936,6 +948,25 @@ export default function App() {
           userProfiles={userProfiles}
           goalMetadata={goalMetadata}
           loading={isLoadingStudents}
+        />
+      )}
+      {userRole === 'admin' && adminView === 'manageModules' && (
+        <ManageModules
+          onBack={handleBackToAdminDashboard}
+          onLogout={handleLogout}
+          onNavigateToProfile={handleNavigateToAdminProfile}
+          onNavigateToCreateModule={handleNavigateToCreateModule}
+          refreshTrigger={moduleRefreshTrigger}
+        />
+      )}
+      {userRole === 'admin' && adminView === 'createModule' && (
+        <CreateModule
+          onBack={() => {
+            setModuleRefreshTrigger(prev => prev + 1);
+            setAdminView('manageModules');
+          }}
+          onLogout={handleLogout}
+          onNavigateToProfile={handleNavigateToAdminProfile}
         />
       )}
       {userRole === 'admin' && adminView === 'updateUserProfile' && selectedBiometricUserData && (

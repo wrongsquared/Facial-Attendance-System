@@ -45,6 +45,7 @@ interface AdminDashboardProps {
   onNavigateToAttendanceRecords: () => void;
   onNavigateToReports: () => void;
   onNavigateToProfile?: () => void;
+  onNavigateToManageModules: () => void;
 }
 
 export function AdminDashboard({
@@ -55,6 +56,7 @@ export function AdminDashboard({
   onNavigateToAttendanceRecords,
   onNavigateToProfile,
   onNavigateToReports,
+  onNavigateToManageModules,
 }: AdminDashboardProps) {
   const [loading, setLoading] = useState(true);
   const { token, user } = useAuth();
@@ -217,24 +219,24 @@ export function AdminDashboard({
                   <FileEdit className="h-4 w-4 mr-2" />
                   Manage Custom Goals
                 </Button>
-                {/* <Button
+                <Button
                   className="w-full justify-start h-18"
                   variant="outline"
-                  onClick={onNavigateToBiometricProfile}
+                  onClick={onNavigateToManageModules}
                 >
-                  <Fingerprint className="h-4 w-4 mr-2" />
-                  Manage Biometric Data
+                  <FileText className="h-4 w-4 mr-2" />
+                  Manage Modules
                 </Button>
-                {onNavigateToProfile && (
-                  <Button
-                    className="w-full justify-start h-18"
-                    variant="outline"
-                    onClick={onNavigateToProfile}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    View Profile
-                  </Button>
-                )} */}
+
+                <Button
+                  className="w-full justify-start h-18"
+                  variant="outline"
+
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Manage Lessons
+                </Button>
+
               </div>
             </CardContent>
           </Card>

@@ -37,7 +37,7 @@ export const fetchProtected = async (endpoint: string, token: string, options: R
     throw new Error("Request failed");
   }
   if (response.status === 204) {
-      return {}; 
+    return {};
   }
   return response.json();
 };
@@ -64,6 +64,22 @@ const sendUpdate = async (endpoint: string, token: string, data: any) => {
 
   if (!response.ok) {
     throw new Error("Failed to update profile");
+  }
+  return await response.json();
+};
+
+const sendCreate = async (endpoint: string, token: string, data: any) => {
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create resource");
   }
   return await response.json();
 };
@@ -230,6 +246,10 @@ export const getAdminModuleList = async (token: string) => {
   return await fetchProtected("/admin/modules", token);
 };
 
+export const createModule = async (token: string, moduleData: any) => {
+  return await sendCreate("/admin/modules", token, moduleData);
+};
+
 export const getAdminAttendanceLog = async (token: string, filters: AttendanceLogFilters): Promise<AttendanceLogResponse> => {
   const params = new URLSearchParams();
   if (filters.searchTerm) params.append("search_term", filters.searchTerm);
@@ -338,6 +358,12 @@ export const updateAttendanceRecord = async (
 };
 export const deleteUser = async (userId: string, token: string) => {
   return await fetchProtected(`/admin/users/${userId}`, token, {
+    method: "DELETE",
+  });
+};
+
+export const deleteModule = async (moduleId: string, token: string) => {
+  return await fetchProtected(`/admin/modules/${moduleId}`, token, {
     method: "DELETE",
   });
 };

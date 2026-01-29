@@ -201,10 +201,89 @@ def get_all_modules_for_admin(
         {
             "moduleID": m.moduleID, 
             "moduleCode": m.moduleCode, 
-            "moduleName": m.moduleName
+            "moduleName": m.moduleName,
+            "startDate": m.startDate.isoformat() if m.startDate else None,
+            "endDate": m.endDate.isoformat() if m.endDate else None
         } 
         for m in modules
     ]
+
+@router.post("/admin/modules")
+def create_module(
+    module_data: dict,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Creates a new module and assigns it to a lecturer.
+    """
+    from datetime import datetime
+    
+    try:
+        # Create the module
+        new_module = Module(
+            moduleName=module_data["moduleName"],
+            moduleCode=module_data["moduleCode"],
+            startDate=datetime.fromisoformat(module_data["startDate"]) if module_data.get("startDate") else None,
+            endDate=datetime.fromisoformat(module_data["endDate"]) if module_data.get("endDate") else None
+        )
+        
+        db.add(new_module)
+        db.flush()  # Get the module ID
+        
+        # Create lecturer-module relationship
+        if module_data.get("lecturerID"):
+            lecturer_module = LecMod(
+                lecturerID=module_data["lecturerID"],
+                moduleID=new_module.moduleID
+            )
+            db.add(lecturer_module)
+        
+        db.commit()
+        
+        return {
+            "message": "Module created successfully",
+            "moduleID": new_module.moduleID,
+            "moduleCode": new_module.moduleCode,
+            "moduleName": new_module.moduleName,
+            "startDate": new_module.startDate.isoformat() if new_module.startDate else None,
+            "endDate": new_module.endDate.isoformat() if new_module.endDate else None
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error creating module: {str(e)}")
+
+@router.delete("/admin/modules/{module_id}")
+def delete_module(
+    module_id: str,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Delete a module and its related records
+    """
+    try:
+        # First, check if the module exists
+        module = db.query(Module).filter(Module.moduleID == module_id).first()
+        if not module:
+            raise HTTPException(status_code=404, detail="Module not found")
+        
+        # Delete related lecturer-module relationships
+        db.query(LecMod).filter(LecMod.moduleID == module_id).delete()
+        
+        # Delete the module
+        db.query(Module).filter(Module.moduleID == module_id).delete()
+        
+        db.commit()
+        
+        return {"message": f"Module {module_id} deleted successfully"}
+        
+    except Exception as e:
+        db.rollback()
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(status_code=400, detail=f"Error deleting module: {str(e)}")
 
 @router.get("/admin/reports/history")
 def get_report_history(
