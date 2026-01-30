@@ -282,8 +282,7 @@ export function UpdateModule({
                   {lecturers.map((lecturer) => (
                     <SelectItem key={lecturer.uuid} value={lecturer.uuid}>
                       <div className="flex flex-col">
-                        <span className="font-medium">{lecturer.name}</span>
-                        <span className="text-sm">{lecturer.email}</span>
+                        <span className="font-medium">{lecturer.name} - {lecturer.email}</span>
                         {lecturer.studentNum !== "-" && (
                           <span className="text-xs ">Specialist: {lecturer.studentNum}</span>
                         )}

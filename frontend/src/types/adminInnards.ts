@@ -31,7 +31,7 @@ export interface CreateUserPayload {
 export interface Course {
   courseID: number;
   courseCode: string;
-  // courseName: string;
+  courseName?: string;
 }
 
 export interface UserDetails {

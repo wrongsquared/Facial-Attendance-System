@@ -435,9 +435,26 @@ export const getCampusCourses = async (token: string): Promise<Course[]> => {
 
   return data;
 };
+
+export const createCourse = async (token: string, courseData: any) => {
+  return await sendCreate("/admin/courses", token, courseData);
+};
+
+export const deleteCourse = async (courseId: number, token: string) => {
+  return await fetchProtected(`/admin/courses/${courseId}`, token, {
+    method: "DELETE",
+  });
+};
+
+export const updateCourse = async (courseId: number, courseData: any, token: string) => {
+  return await fetchProtected(`/admin/courses/${courseId}`, token, {
+    method: "PUT",
+    body: JSON.stringify(courseData),
+  });
+};
 export const updateUser = async (userUUID: string, payload: UpdateUserPayload, token: string) => {
   return await fetchProtected(
-    `/admin/users/${userUUID}`, 
+    `/admin/users/${userUUID}`,
     token,
     {
       method: "PATCH",

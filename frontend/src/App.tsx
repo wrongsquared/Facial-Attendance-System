@@ -42,6 +42,9 @@ import { UpdateModule } from './components/UpdateModule';
 import { ManageLessons } from './components/ManageLessons';
 import { CreateLesson } from './components/CreateLesson';
 import { UpdateLesson } from './components/UpdateLesson';
+import { ManageCourses } from './components/ManageCourses';
+import { CreateCourse } from './components/CreateCourse';
+import { UpdateCourse } from './components/UpdateCourse';
 
 // Custom goals API functions
 const updateStudentAttendanceMinimum = async (token: string, userId: string, attendanceMinimum: number) => {
@@ -102,7 +105,7 @@ interface UserProfileData {
 }
 
 type LecturerView = 'dashboard' | 'reports' | 'profile' | 'timetable' | 'records';
-type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'manageCustomGoals' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser' | 'viewAdminProfile' | 'updateAdminProfile' | 'manageModules' | 'createModule' | 'updateModule' | 'manageLessons' | 'createLesson' | 'updateLesson';
+type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'manageCustomGoals' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser' | 'viewAdminProfile' | 'updateAdminProfile' | 'manageModules' | 'createModule' | 'updateModule' | 'manageLessons' | 'createLesson' | 'updateLesson' | 'manageCourses' | 'createCourse' | 'updateCourse';
 type StudentView = 'dashboard' | 'attendanceHistory' | 'timetable' | 'profile' | 'progress';
 type PlatformManagerView = 'dashboard' | 'manageInstitutions' | 'viewInstitution' | 'updateInstitution' | 'createInstitution';
 type MarketingPage = 'home' | 'about' | 'features' | 'services' | 'registration' | 'login';
@@ -117,6 +120,8 @@ export default function App() {
   const [moduleRefreshTrigger, setModuleRefreshTrigger] = useState<number>(0);
   const [moduleToUpdate, setModuleToUpdate] = useState<any>(null);
   const [lessonRefreshTrigger, setLessonRefreshTrigger] = useState<number>(0);
+  const [courseRefreshTrigger, setCourseRefreshTrigger] = useState<number>(0);
+  const [courseToUpdate, setCourseToUpdate] = useState<any>(null);
   const [lessonToUpdate, setLessonToUpdate] = useState<any>(null);
   const [selectedInstitutionData, setSelectedInstitutionData] = useState<{
     institutionId: string;
@@ -462,6 +467,19 @@ export default function App() {
   const handleNavigateToUpdateLesson = (lessonData: any) => {
     setLessonToUpdate(lessonData);
     setAdminView('updateLesson');
+  };
+
+  const handleNavigateToManageCourses = () => {
+    setAdminView('manageCourses');
+  };
+
+  const handleNavigateToCreateCourse = () => {
+    setAdminView('createCourse');
+  };
+
+  const handleNavigateToUpdateCourse = (courseData: any) => {
+    setCourseToUpdate(courseData);
+    setAdminView('updateCourse');
   };
 
   const handleNavigateToBiometricProfile = () => {
@@ -927,6 +945,7 @@ export default function App() {
           onNavigateToProfile={handleNavigateToAdminProfile}
           onNavigateToManageModules={handleNavigateToManageModules}
           onNavigateToManageLessons={handleNavigateToManageLessons}
+          onNavigateToManageCourses={handleNavigateToManageCourses}
         />
       )}
       {userRole === 'admin' && adminView === 'manageUsers' && (
@@ -1021,6 +1040,37 @@ export default function App() {
           onNavigateToCreateLesson={handleNavigateToCreateLesson}
           onNavigateToUpdateLesson={handleNavigateToUpdateLesson}
           refreshTrigger={lessonRefreshTrigger}
+        />
+      )}
+      {userRole === 'admin' && adminView === 'manageCourses' && (
+        <ManageCourses
+          onBack={handleBackToAdminDashboard}
+          onLogout={handleLogout}
+          onNavigateToProfile={handleNavigateToAdminProfile}
+          onNavigateToCreateCourse={handleNavigateToCreateCourse}
+          onNavigateToUpdateCourse={handleNavigateToUpdateCourse}
+          refreshTrigger={courseRefreshTrigger}
+        />
+      )}
+      {userRole === 'admin' && adminView === 'createCourse' && (
+        <CreateCourse
+          onBack={() => {
+            setCourseRefreshTrigger(prev => prev + 1);
+            setAdminView('manageCourses');
+          }}
+          onLogout={handleLogout}
+          onNavigateToProfile={handleNavigateToAdminProfile}
+        />
+      )}
+      {userRole === 'admin' && adminView === 'updateCourse' && courseToUpdate && (
+        <UpdateCourse
+          onBack={() => {
+            setCourseRefreshTrigger(prev => prev + 1);
+            setAdminView('manageCourses');
+          }}
+          onLogout={handleLogout}
+          onNavigateToProfile={handleNavigateToAdminProfile}
+          courseData={courseToUpdate}
         />
       )}
       {userRole === 'admin' && adminView === 'createLesson' && (

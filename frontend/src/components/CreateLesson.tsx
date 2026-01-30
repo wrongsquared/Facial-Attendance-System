@@ -263,8 +263,7 @@ export function CreateLesson({
                   {modules.map((module) => (
                     <SelectItem key={module.moduleCode} value={module.moduleCode}>
                       <div className="flex flex-col">
-                        <span className="font-medium">{module.moduleCode}</span>
-                        <span className="text-sm text-gray-600">{module.moduleName}</span>
+                        <span className="font-medium">{module.moduleCode} - {module.moduleName}</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -286,8 +285,7 @@ export function CreateLesson({
                   {lecturers.map((lecturer) => (
                     <SelectItem key={lecturer.uuid} value={lecturer.uuid}>
                       <div className="flex flex-col">
-                        <span className="font-medium">{lecturer.name}</span>
-                        <span className="text-sm text-gray-600">{lecturer.email}</span>
+                        <span className="font-medium">{lecturer.name} - {lecturer.email}</span>
                         {lecturer.studentNum !== "-" && (
                           <span className="text-xs text-gray-500">Specialist: {lecturer.studentNum}</span>
                         )}

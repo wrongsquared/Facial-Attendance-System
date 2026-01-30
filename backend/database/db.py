@@ -249,7 +249,7 @@ class Courses(Base): #Student Courses
     __tablename__ = "courses"
     courseID: Mapped[int] = mapped_column(primary_key= True)
     courseCode: Mapped[str] = mapped_column(String(10))
-
+    courseName: Mapped[str] = mapped_column(String(100), nullable=True)
     students: Mapped[list[Student]] = relationship(back_populates="course")
     #Belongs to a Campus
     campusID: Mapped[int] = mapped_column(ForeignKey("campus.campusID"))

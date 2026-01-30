@@ -577,8 +577,126 @@ def get_campus_courses(
 
     # Fetch courses for that campus
     courses = db.query(Courses).filter(Courses.campusID == admin.campusID).all()
-    # Not returning Coursename, we need to add CourseName
-    return [{"courseID": c.courseID, "courseCode": c.courseCode} for c in courses]
+    # Return courseID, courseCode, and courseName
+    return [{"courseID": c.courseID, "courseCode": c.courseCode, "courseName": c.courseName} for c in courses]
+
+@router.post("/admin/courses")
+def create_course(
+    course_data: dict,
+    current_user: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Creates a new course for the admin's campus.
+    """
+    try:
+        # Retrieve admin campus
+        admin = db.query(Admin).filter(Admin.userID == current_user).first()
+        if not admin:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Create the course
+        new_course = Courses(
+            courseCode=course_data["courseCode"],
+            courseName=course_data["courseName"],
+            campusID=admin.campusID
+        )
+        
+        db.add(new_course)
+        db.commit()
+        
+        return {
+            "message": "Course created successfully",
+            "courseID": new_course.courseID,
+            "courseCode": new_course.courseCode,
+            "courseName": new_course.courseName
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error creating course: {str(e)}")
+
+@router.delete("/admin/courses/{course_id}")
+def delete_course(
+    course_id: int,
+    current_user: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a course from the admin's campus.
+    """
+    try:
+        # Retrieve admin campus
+        admin = db.query(Admin).filter(Admin.userID == current_user).first()
+        if not admin:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Check if the course exists and belongs to admin's campus
+        course = db.query(Courses).filter(
+            Courses.courseID == course_id,
+            Courses.campusID == admin.campusID
+        ).first()
+        
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found or access denied")
+        
+        # Delete the course
+        db.delete(course)
+        db.commit()
+        
+        return {"message": f"Course {course.courseCode} deleted successfully"}
+        
+    except Exception as e:
+        db.rollback()
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(status_code=400, detail=f"Error deleting course: {str(e)}")
+
+@router.put("/admin/courses/{course_id}")
+def update_course(
+    course_id: int,
+    course_data: dict,
+    current_user: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Update a course in the admin's campus.
+    """
+    try:
+        # Retrieve admin campus
+        admin = db.query(Admin).filter(Admin.userID == current_user).first()
+        if not admin:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Check if the course exists and belongs to admin's campus
+        course = db.query(Courses).filter(
+            Courses.courseID == course_id,
+            Courses.campusID == admin.campusID
+        ).first()
+        
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found or access denied")
+        
+        # Update the course fields
+        if "courseCode" in course_data:
+            course.courseCode = course_data["courseCode"]
+        if "courseName" in course_data:
+            course.courseName = course_data["courseName"]
+        
+        db.commit()
+        
+        return {
+            "message": "Course updated successfully",
+            "courseID": course.courseID,
+            "courseCode": course.courseCode,
+            "courseName": course.courseName
+        }
+        
+    except Exception as e:
+        db.rollback()
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(status_code=400, detail=f"Error updating course: {str(e)}")
 
 @router.post("/admin/users/create", status_code=201)
 def create_new_user(

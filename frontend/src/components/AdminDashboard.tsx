@@ -47,6 +47,7 @@ interface AdminDashboardProps {
   onNavigateToProfile?: () => void;
   onNavigateToManageModules: () => void;
   onNavigateToManageLessons: () => void;
+  onNavigateToManageCourses: () => void;
 }
 
 export function AdminDashboard({
@@ -59,6 +60,7 @@ export function AdminDashboard({
   onNavigateToReports,
   onNavigateToManageModules,
   onNavigateToManageLessons,
+  onNavigateToManageCourses,
 }: AdminDashboardProps) {
   const [loading, setLoading] = useState(true);
   const { token, user } = useAuth();
@@ -221,6 +223,15 @@ export function AdminDashboard({
                   <FileEdit className="h-4 w-4 mr-2" />
                   Manage Custom Goals
                 </Button>
+                <Button
+                  className="w-full justify-start h-18"
+                  variant="outline"
+                  onClick={onNavigateToManageCourses}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Manage Courses
+                </Button>
+
                 <Button
                   className="w-full justify-start h-18"
                   variant="outline"
