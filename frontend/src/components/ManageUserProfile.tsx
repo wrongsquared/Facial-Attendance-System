@@ -1,15 +1,11 @@
-import { SetStateAction, useState } from "react";
+import { SetStateAction, useEffect, useState } from "react";
 import {
   Card,
   CardContent,
 } from "./ui/card";
 import { Button } from "./ui/button";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Input } from "./ui/input";
 import {
-  BookOpen,
-  LogOut,
-  Bell,
   ArrowLeft,
   Search,
   ChevronLeft,
@@ -32,6 +28,8 @@ import {
   TableRow,
 } from "./ui/table";
 import { Navbar } from "./Navbar";
+import { useAuth } from "../cont/AuthContext";
+import { getUsers } from "../services/api";
 interface ManageUserProfileProps {
   onLogout: () => void;
   onBack: () => void;
@@ -43,7 +41,7 @@ interface ManageUserProfileProps {
     currentGoal: number | null;
   }) => void;
   onNavigateToUpdateUserProfile: (userData: {
-    userId: string;
+    uuid: string;
     name: string;
     role: string;
   }) => void;
@@ -73,94 +71,7 @@ type UserProfile = {
 };
 
 // Mock user profile data
-const allUserProfiles: UserProfile[] = [
-  {
-    userId: "7891011",
-    name: "John Smith",
-    role: "Student",
-    status: "Active",
-    currentGoals: "85%",
-  },
-  {
-    userId: "7891012",
-    name: "Emma Johnson",
-    role: "Student",
-    status: "Active",
-    currentGoals: "90%",
-  },
-  {
-    userId: "7891013",
-    name: "Michael Brown",
-    role: "Student",
-    status: "Inactive",
-    currentGoals: "80%",
-  },
-  {
-    userId: "L001",
-    name: "Dr. Rachel Wong",
-    role: "Lecturer",
-    status: "Active",
-    currentGoals: "N/A",
-  },
-  {
-    userId: "L002",
-    name: "Prof. David Chen",
-    role: "Lecturer",
-    status: "Active",
-    currentGoals: "N/A",
-  },
-  {
-    userId: "7891014",
-    name: "Sarah Williams",
-    role: "Student",
-    status: "Active",
-    currentGoals: "85%",
-  },
-  {
-    userId: "7891015",
-    name: "James Davis",
-    role: "Student",
-    status: "Active",
-    currentGoals: "75%",
-  },
-  {
-    userId: "A001",
-    name: "Admin User",
-    role: "Admin",
-    status: "Active",
-    currentGoals: "N/A",
-  },
-  {
-    userId: "7891016",
-    name: "Lisa Anderson",
-    role: "Student",
-    status: "Inactive",
-    currentGoals: "90%",
-  },
-  {
-    userId: "L003",
-    name: "Dr. Maria Garcia",
-    role: "Lecturer",
-    status: "Active",
-    currentGoals: "N/A",
-  },
-  {
-    userId: "7891017",
-    name: "Robert Taylor",
-    role: "Student",
-    status: "Active",
-    currentGoals: "80%",
-  },
-  {
-    userId: "7891018",
-    name: "Jennifer Martinez",
-    role: "Student",
-    status: "Active",
-    currentGoals: "85%",
-  },
-];
 
-const PROFILES_PER_PAGE = 8;
 
 export function ManageUserProfile({
   onLogout,
@@ -171,22 +82,46 @@ export function ManageUserProfile({
   userProfiles,
   onNavigateToProfile
 }: ManageUserProfileProps) {
-  const [searchQuery, setSearchQuery] = useState("");
+  const {token} = useAuth();
+  const [users, setUsers] = useState<any[]>([]); 
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const PROFILES_PER_PAGE = 8;
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+  useEffect(() => {
+    const loadUsers = async () => {
+      if (!token) return;
+      try {
+        setLoading(true);
+        const data = await getUsers(token);
+        setUsers(data); 
+      } catch (err) {
+        console.error("Failed to load users:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadUsers();
+  }, [token]);
   // Filter profiles based on search and filters
-  const filteredProfiles = allUserProfiles.filter((profile) => {
+  const filteredProfiles = users.filter((profile) => {
     const matchesSearch =
-      profile.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      profile.userId.toLowerCase().includes(searchQuery.toLowerCase());
+      profile.name.toLowerCase().includes(search.toLowerCase()) ||
+      profile.userId.toLowerCase().includes(search.toLowerCase());
     const matchesRole =
       roleFilter === "all" ||
       profile.role.toLowerCase() === roleFilter.toLowerCase();
+    const status = profile.active ? "active" : "inactive";
     const matchesStatus =
-      statusFilter === "all" ||
-      profile.status.toLowerCase() === statusFilter.toLowerCase();
+      statusFilter === "all" || status === statusFilter.toLowerCase();
 
     return matchesSearch && matchesRole && matchesStatus;
   });
@@ -194,13 +129,8 @@ export function ManageUserProfile({
   // Pagination
   const totalPages = Math.ceil(filteredProfiles.length / PROFILES_PER_PAGE);
   const startIndex = (currentPage - 1) * PROFILES_PER_PAGE;
-  const endIndex = startIndex + PROFILES_PER_PAGE;
-  const currentProfiles = filteredProfiles.slice(startIndex, endIndex);
+  const currentProfiles = filteredProfiles.slice(startIndex, startIndex + PROFILES_PER_PAGE);
 
-  // Reset to page 1 when filters change
-  const handleFilterChange = () => {
-    setCurrentPage(1);
-  };
 
   const handlePreviousPage = () => {
     if (currentPage > 1) {
@@ -213,33 +143,10 @@ export function ManageUserProfile({
       setCurrentPage(currentPage + 1);
     }
   };
-
-  const handleEditGoal = (userId: string, currentGoal: string) => {
-    // Find the user profile
-    const userProfile = allUserProfiles.find(profile => profile.userId === userId);
-    if (userProfile) {
-      // Get the actual goal value from userGoals state or parse from string
-      let goalValue: number | null;
-      if (userGoals[userId] !== undefined) {
-        goalValue = userGoals[userId];
-      } else if (currentGoal === "N/A" || currentGoal === "None") {
-        goalValue = null;
-      } else {
-        goalValue = parseInt(currentGoal);
-      }
-      onNavigateToCreateCustomGoal({
-        userId: userProfile.userId,
-        name: userProfile.name,
-        role: userProfile.role,
-        currentGoal: goalValue,
-      });
-    }
-  };
-
   const handleManageProfile = (userId: string, name: string, role: string) => {
     // Mock manage profile functionality
     onNavigateToUpdateUserProfile({
-      userId: userId,
+      uuid: userId,
       name: name,
       role: role,
     });
@@ -275,10 +182,10 @@ export function ManageUserProfile({
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search by name or user ID..."
-                  value={searchQuery}
+                  value={search}
                   onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    handleFilterChange();
+                    setSearch(e.target.value);
+                    setCurrentPage(1);
                   }}
                   className="pl-10 h-12"
                 />
@@ -290,7 +197,7 @@ export function ManageUserProfile({
                   value={roleFilter}
                   onValueChange={(value: SetStateAction<string>) => {
                     setRoleFilter(value);
-                    handleFilterChange();
+                    setCurrentPage(1);
                   }}
                 >
                   <SelectTrigger className="h-12">
@@ -311,7 +218,7 @@ export function ManageUserProfile({
                   value={statusFilter}
                   onValueChange={(value: SetStateAction<string>) => {
                     setStatusFilter(value);
-                    handleFilterChange();
+                    setCurrentPage(1);
                   }}
                 >
                   <SelectTrigger className="h-12">
@@ -334,77 +241,78 @@ export function ManageUserProfile({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[120px]">User ID</TableHead>
+                  <TableHead className="w-[200px]">User ID</TableHead>
                   <TableHead className="w-[200px]">Name</TableHead>
                   <TableHead className="w-[100px]">Role</TableHead>
                   <TableHead className="w-[100px]">Status</TableHead>
-                  <TableHead className="w-[120px]">Current Goals</TableHead>
+                  <TableHead className="w-[100px]">Current Goals</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {currentProfiles.length > 0 ? (
-                  currentProfiles.map((profile) => {
-                    // Get updated profile data from userProfiles state if available
-                    const updatedProfile = userProfiles[profile.userId] || profile;
-                    const displayName = updatedProfile.name;
-                    const displayRole = updatedProfile.role;
-                    const displayStatus = updatedProfile.status;
-                    
-                    // Get the current goal from userGoals prop
-                    // If userId exists in userGoals with a value, show that
-                    // If userId exists in userGoals but is null, show "None" (deleted)
-                    // Otherwise use hardcoded value
-                    let currentGoal: string;
-                    if (profile.userId in userGoals) {
-                      const goalValue = userGoals[profile.userId];
-                      currentGoal = goalValue !== null ? `${goalValue}%` : "None";
-                    } else {
-                      currentGoal = profile.currentGoals;
-                    }
-                    
-                    return (
-                    <TableRow key={profile.userId}>
-                      <TableCell className="align-middle">{profile.userId}</TableCell>
-                      <TableCell className="align-middle">{displayName}</TableCell>
-                      <TableCell className="align-middle">{displayRole}</TableCell>
-                      <TableCell className="align-middle">
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-                            displayStatus === "Active"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {displayStatus}
-                        </span>
+                 {loading ? (
+                      <TableRow>
+                      {/* colSpan={6} makes the cell stretch across all 6 columns */}
+                      <TableCell colSpan={6} className="text-center py-20 text-gray-500">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          {/* Optional: Add a simple loading spinner if you have one, or just keep the text */}
+                          <span className="text-lg font-medium">Loading users...</span>
+                        </div>
                       </TableCell>
-                      <TableCell className="align-middle">{currentGoal}</TableCell>
-                      <TableCell className="text-right align-middle">
-                        <div className="flex items-center justify-end gap-2">
+                    </TableRow>
+                  ) : currentProfiles.length > 0 ? (
+                  currentProfiles.map((profile) => {
+                    const isStudent = profile.role.toLowerCase() === "student";
+                    const displayGoal = isStudent && profile.attendanceMinimum != null 
+                      ? `${profile.attendanceMinimum}%` 
+                      : "N/A";
+                    const isActive = profile.active === true; 
+                    return (
+                      <TableRow key={profile.userID}>
+                        {/* User ID Column */}
+                        <TableCell className="align-middle text-sm">
+                          {profile.userID}
+                        </TableCell>
+
+                        {/* Name Column */}
+                        <TableCell className="align-middle">{profile.name}</TableCell>
+
+                        {/* Role Column */}
+                        <TableCell className="align-middle">{profile.role}</TableCell>
+
+                        {/* Status Column */}
+                        <TableCell className="align-middle">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            isActive 
+                              ? "bg-green-100 text-green-800" 
+                              : "bg-gray-100 text-gray-800"
+                          }`}>
+                            {isActive ? "Active" : "Inactive"}
+                          </span>
+                        </TableCell>
+                        
+                        {/* Current Goals Column (RE-IMPLEMENTED) */}
+                        <TableCell className="align-middle">
+                          {displayGoal}
+                        </TableCell>
+                        
+                        {/* Actions Column */}
+                        <TableCell className="text-right align-middle">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() =>
-                              handleManageProfile(profile.userId, displayName, displayRole)
-                            }
+                            onClick={() => handleManageProfile(profile.userID, profile.name, profile.role)}
                           >
                             <Edit className="h-4 w-4 mr-2" />
                             Manage Profile
                           </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )})
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      <p className="text-gray-500">
-                        No profiles found matching your criteria
-                      </p>
-                    </TableCell>
-                  </TableRow>
-                )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )  : (
+                    <TableRow><TableCell colSpan={6} className="text-center py-20 text-gray-500">No users found.</TableCell></TableRow>
+                  )}
               </TableBody>
             </Table>
 

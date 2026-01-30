@@ -799,6 +799,62 @@ def create_new_user(
         "profileTypeID": target_type_id
     }
 
+
+@router.get("/admin/users/manageProfileDisplay")
+def get_all_users_for_manage(
+    current_user: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    # Get the Admin's campus
+    admin_executing = db.query(Admin).filter(Admin.userID == current_user).first()
+    if not admin_executing:
+        raise HTTPException(status_code=403, detail="Admin profile not found.")
+    
+    target_campus_id = admin_executing.campusID
+
+    # Query the tables 
+    students = db.query(Student).filter(Student.campusID == target_campus_id).all()
+    lecturers = db.query(Lecturer).filter(Lecturer.campusID == target_campus_id).all()
+    admins = db.query(Admin).filter(Admin.campusID == target_campus_id).all()
+
+    results = []
+
+    # Process Students
+    for s in students:
+        results.append({
+            "userID": s.userID,
+            "name": s.name,
+            "role": "Student",
+            "active": s.active, 
+            "studentNum": s.studentNum,
+            "attendanceMinimum": s.attendanceMinimum
+        })
+
+    # Process Lecturers
+    for l in lecturers:
+        results.append({
+            "userID": l.userID,
+            "name": l.name,
+            "role": "Lecturer",
+            "active": l.active, 
+            "studentNum": None,
+            "attendanceMinimum": None
+        })
+
+    # Process Admins
+    for a in admins:
+        results.append({
+            "userID": a.userID,
+            "name": a.name,
+            "role": "Admin",
+            "active": a.active,
+            "studentNum": None,
+            "attendanceMinimum": None
+        })
+
+    return results
+
+
 @router.get("/admin/users/{user_uuid}")
 def get_user_details(user_uuid: str, db: Session = Depends(get_db)):
     # Find the base user to see their role

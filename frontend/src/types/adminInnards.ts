@@ -55,3 +55,12 @@ export interface UpdateUserPayload {
   specialistIn?: string;
   jobTitle?: string;
 }
+
+export interface UserListItem {
+  userID: string;      // The UUID
+  name: string;
+  role: string;
+  active: boolean;     // Status from DB
+  studentNum?: string; // Optional for the User ID column
+  attendanceMinimum?: number| null;
+}

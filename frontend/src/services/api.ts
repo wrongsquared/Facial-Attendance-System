@@ -1,5 +1,5 @@
 
-import { Course, CreateUserPayload, UpdateUserPayload, UserDetails } from "../types/adminInnards";
+import { Course, CreateUserPayload, UpdateUserPayload, UserDetails, UserListItem } from "../types/adminInnards";
 import { LoginCredentials, AuthResponse, ProfileUpdateData } from "../types/auth";
 import { AttendanceLogFilters, AttendanceLogResponse } from "../types/lecturerinnards";
 
@@ -461,6 +461,9 @@ export const updateUser = async (userUUID: string, payload: UpdateUserPayload, t
       body: JSON.stringify(payload),
     }
   );
+};
+export const getUsers = async (token: string): Promise<UserListItem[]> => {
+  return await fetchProtected("/admin/users/manageProfileDisplay", token);
 };
 //Admin Routes end
 
