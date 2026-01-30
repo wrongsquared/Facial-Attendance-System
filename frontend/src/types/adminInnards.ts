@@ -38,13 +38,32 @@ export interface UserDetails {
   uuid: string;
   name: string;
   email: string;
-  role: string;
+  role: string; 
   // Role-specific optional fields
   studentNum?: string;
   courseID?: number;
   specialistIn?: string;
   jobTitle?: string;
+
 }
+export interface UserAccDetails {
+  uuid: string;
+  name: string;
+  email: string;
+  role: string;
+  active: boolean;         
+  phone?: string;           
+  fulladdress?: string;    
+  // Role-specific optional fields
+  studentNum?: string;
+  courseID?: number;
+  specialistIn?: string;
+  attendanceMinimum?: number; 
+  jobTitle?: string;
+  creationDate?: string;
+  associatedModules?: string; 
+}
+
 
 export interface UpdateUserPayload {
   name: string;
@@ -54,6 +73,14 @@ export interface UpdateUserPayload {
   courseID?: number;
   specialistIn?: string;
   jobTitle?: string;
+}
+export interface UpdateProfilePayload {
+  name: string;
+  phone: string;
+  fulladdress: string;
+  roleName: string;
+  status: string;
+  attendanceMinimum?: number;
 }
 
 export interface UserListItem {

@@ -13,7 +13,8 @@ from schemas import (CreateUserSchema,
                      AttendanceLogResponse, 
                      Literal, 
                      AttendanceUpdateRequest,
-                     UpdateUserSchema)
+                     UpdateUserSchema,
+                     UpdateProfileSchema)
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session, aliased
 from database.db_config import get_db
@@ -883,6 +884,67 @@ def get_user_details(user_uuid: str, db: Session = Depends(get_db)):
 
     return details
 
+@router.get("/admin/usersProf/{user_uuid}")
+def get_user_acc_details(user_uuid: str, db: Session = Depends(get_db)):
+    # Fetch the base User record
+    user = db.query(User).filter(User.userID == user_uuid).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found in system.")
+
+    # Identify the role name 
+    role_name = user.profileType.profileTypeName.lower()
+
+    # Create the response object 
+    result = {
+        "userID": str(user.userID),
+        "name": user.name,
+        "email": user.email,
+        "active": user.active,
+        "phone": user.contactNumber,          # From users table
+        "fulladdress": user.address, # From users table
+        "role": user.profileType.profileTypeName,
+        "creationDate": user.creationDate.isoformat() if user.creationDate else None,
+        "associatedModules": "N/A"
+    }
+
+    #  Fetch details based on the Role
+    if role_name == "student":
+        student = db.query(Student).filter(Student.userID == user_uuid).first()
+        if student:
+            modules_query = db.query(Module.moduleCode).join(
+                StudentModules, Module.moduleID == StudentModules.modulesID
+            ).filter(StudentModules.studentID == user_uuid).all()
+            module_list = [m[0] for m in modules_query]
+            modules_string = ", ".join(module_list) if module_list else "N/A"
+            result.update({
+                "studentNum": student.studentNum,
+                "attendanceMinimum": student.attendanceMinimum,
+                "associatedModules": modules_string
+            })
+    elif role_name == "lecturer":
+        lecturer = db.query(Lecturer).filter(Lecturer.userID == user_uuid).first()
+        if lecturer:
+            modules_query = db.query(Module.moduleCode).join(
+                LecMod, Module.moduleID == LecMod.moduleID
+            ).filter(LecMod.lecturerID == user_uuid).all()
+            
+            module_list = [m[0] for m in modules_query]
+            
+            result.update({
+                "specialistIn": lecturer.specialistIn,
+                "associatedModules": ", ".join(module_list) if module_list else "N/A"
+            })
+
+    elif role_name == "admin":
+        admin = db.query(Admin).filter(Admin.userID == user_uuid).first()
+        if admin:
+            result.update({
+                "jobTitle": admin.role,
+                "campusID": admin.campusID
+            })
+
+    return result
 @router.patch("/admin/users/{user_uuid}")
 def update_user_full(
     user_uuid: str, 
@@ -939,3 +1001,24 @@ def update_user_full(
 
     db.commit()
     return {"message": "User credentials and profile updated successfully"}
+@router.patch("/admin/usersProf/{user_uuid}")
+def update_user_profile(user_uuid: str, data: UpdateProfileSchema, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.userID == user_uuid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    #Update Base User fields
+    if data.name: user.name = data.name
+    if data.phone: user.phone = data.phone
+    if data.fulladdress: user.fulladdress = data.fulladdress
+    if data.status:
+        user.active = True if data.status == "Active" else False
+
+    # Update Student specific fields
+    if user.profileType.profileTypeName.lower() == "student":
+        student_record = db.query(Student).filter(Student.userID == user_uuid).first()
+        if student_record and data.attendanceMinimum is not None:
+            student_record.attendanceMinimum = data.attendanceMinimum
+
+    db.commit()
+    return {"message": "Profile updated"}

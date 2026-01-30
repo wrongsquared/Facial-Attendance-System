@@ -62,17 +62,6 @@ interface ManageUserProfileProps {
   }>;
 }
 
-type UserProfile = {
-  userId: string;
-  name: string;
-  role: string;
-  status: string;
-  currentGoals: string;
-};
-
-// Mock user profile data
-
-
 export function ManageUserProfile({
   onLogout,
   onBack,
@@ -115,7 +104,7 @@ export function ManageUserProfile({
   const filteredProfiles = users.filter((profile) => {
     const matchesSearch =
       profile.name.toLowerCase().includes(search.toLowerCase()) ||
-      profile.userId.toLowerCase().includes(search.toLowerCase());
+      profile.userID?.toLowerCase().includes(search.toLowerCase());
     const matchesRole =
       roleFilter === "all" ||
       profile.role.toLowerCase() === roleFilter.toLowerCase();
@@ -143,12 +132,15 @@ export function ManageUserProfile({
       setCurrentPage(currentPage + 1);
     }
   };
-  const handleManageProfile = (userId: string, name: string, role: string) => {
-    // Mock manage profile functionality
+  const handleManageProfile = (userId: string) => {
+    //Look up the extended profile from the 'userProfiles' prop
+    const detailedProfile = userProfiles[userId];
+    
+    // Use the navigation prop passed from the parent
     onNavigateToUpdateUserProfile({
-      uuid: userId,
-      name: name,
-      role: role,
+      uuid: userId, //  ID used for the API call
+      name: detailedProfile?.name || "",
+      role: detailedProfile?.role || ""
     });
   };
 
@@ -255,9 +247,8 @@ export function ManageUserProfile({
                       {/* colSpan={6} makes the cell stretch across all 6 columns */}
                       <TableCell colSpan={6} className="text-center py-20 text-gray-500">
                         <div className="flex flex-col items-center justify-center gap-2">
-                          {/* Optional: Add a simple loading spinner if you have one, or just keep the text */}
                           <span className="text-lg font-medium">Loading users...</span>
-                        </div>
+                        </div>      
                       </TableCell>
                     </TableRow>
                   ) : currentProfiles.length > 0 ? (
@@ -301,7 +292,7 @@ export function ManageUserProfile({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleManageProfile(profile.userID, profile.name, profile.role)}
+                            onClick={() => handleManageProfile(profile.userID)}
                           >
                             <Edit className="h-4 w-4 mr-2" />
                             Manage Profile

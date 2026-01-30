@@ -1,5 +1,5 @@
 
-import { Course, CreateUserPayload, UpdateUserPayload, UserDetails, UserListItem } from "../types/adminInnards";
+import { Course, CreateUserPayload, UpdateProfilePayload, UpdateUserPayload, UserAccDetails, UserDetails, UserListItem } from "../types/adminInnards";
 import { LoginCredentials, AuthResponse, ProfileUpdateData } from "../types/auth";
 import { AttendanceLogFilters, AttendanceLogResponse } from "../types/lecturerinnards";
 
@@ -423,6 +423,18 @@ export const getUserDetails = async (userUUID: string, token: string): Promise<U
   const response = await fetchProtected(`/admin/users/${userUUID}`, token);
 
   return response;
+};
+export const getUserAccDetails = async (userUUID: string, token: string): Promise<UserAccDetails> => {
+  const response = await fetchProtected(`/admin/usersProf/${userUUID}`, token);
+
+  return response;
+};
+
+export const updateUserProfile = async (userUUID: string, payload: UpdateProfilePayload, token: string) => {
+  return await fetchProtected(`/admin/usersProf/${userUUID}`, token, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 };
 export const createUser = async (data: CreateUserPayload, token: string) => {
   return await fetchProtected("/admin/users/create", token, {

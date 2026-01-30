@@ -7,9 +7,9 @@ import {
 } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
 import {
   ArrowLeft,
-  Fingerprint,
 } from "lucide-react";
 import {
   Select,
@@ -18,8 +18,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-
+import { getUserAccDetails, updateUser, updateUserProfile } from "../services/api";
+import { useAuth } from "../cont/AuthContext";
 import { Navbar } from "./Navbar";
+import { UpdateProfilePayload } from "../types/adminInnards";
 
 interface AdminUpdateUserProfileProps {
   onLogout: () => void;
@@ -27,7 +29,7 @@ interface AdminUpdateUserProfileProps {
   onNavigateToProfile?: () => void;
   onNavigateToBiometricProfile: () => void;
   userData: {
-    userId: string;
+    uuid: string;
     name: string;
     role: string;
   };
@@ -71,55 +73,106 @@ export function AdminUpdateUserProfile({
   onNavigateToProfile
 }: AdminUpdateUserProfileProps) {
   // Edit mode state
+  const { token } = useAuth();
+  const [loading, setLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0); 
+  // --- Form State (Initialized empty to avoid 'uncontrolled' warnings) ---
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [contactNumber, setContactNumber] = useState("");
+  const [address, setAddress] = useState("");
+  const [role, setRole] = useState("");
+  const [status, setStatus] = useState("");
+  const [creationDate, setCreationDate] = useState("");
+  const [associatedModules, setAssociatedModules] = useState("");
+  const [studnum,setstudnum] = useState("");
+  const hardName = name;
+  // Role specific fields
+  const [studentNum, setStudentNum] = useState("");
+  const [attendance, setAttendance] = useState("");
+  const formatDate = (dateString: string | undefined): string => {
+    if (!dateString) return "N/A"; // Fallback if date is missing
 
-  // Personal Information - use userProfileData if available, otherwise defaults
-  const [name, setName] = useState(userProfileData?.name || userData.name);
-  const [email, setEmail] = useState(userProfileData?.email || "john.smith@uow.edu.au");
-  const [dateOfBirth, setDateOfBirth] = useState(userProfileData?.dateOfBirth || "1998-05-15");
-  const [contactNumber, setContactNumber] = useState(userProfileData?.contactNumber || "+61 412 345 678");
-  const [address, setAddress] = useState(userProfileData?.address || "123 Main Street, Wollongong NSW 2500");
+    const date = new Date(dateString);
 
-  // Account & System Information
-  const [role, setRole] = useState(userProfileData?.role || userData.role);
-  const [status, setStatus] = useState(userProfileData?.status || "Active");
-  const enrollmentDate = userProfileData?.enrollmentDate || "15 Feb 2023";
-  const associatedModules = userProfileData?.associatedModules || "CSCI334, CSCI251, CSCI203";
-
-  // Biometric Profile
-  const biometricStatus = userProfileData?.biometricStatus || "Enrolled";
-  const biometricLastUpdated = userProfileData?.biometricLastUpdated || "28 Oct 2025";
-
-  const handleSave = () => {
-    onUpdateProfile(userData.userId, {
-      name,
-      role,
-      status,
-      email,
-      dateOfBirth,
-      contactNumber,
-      address,
-      enrollmentDate,
-      associatedModules,
-      biometricStatus,
-      biometricLastUpdated,
-    });
-    showToast("User Profile Updated!");
-    setIsEditMode(false);
+    // This produces the "15 Feb 2023" format
+    return new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    }).format(date);
   };
+  useEffect(() => {
+    const loadData = async () => {
+      if (!userData.uuid || !token) return;
+      try {
+        setLoading(true);
+        const data = await getUserAccDetails(userData.uuid, token);
+        
+        // Map backend fields to frontend state
+        setName(data.name || "");
+        setEmail(data.email || "");
+        setRole(data.role || "");
+        setStatus(data.active ? "Active" : "Inactive");
+        setstudnum(data.studentNum || "");
+        // Fields from your DB 'users' table
+        setContactNumber(data.phone || ""); 
+        setAddress(data.fulladdress || "");
+        
+        // Fields from 'student' table (if applicable)
+        if (data.role.toLowerCase() === "student") {
+            setStudentNum(data.studentNum || "");
+            setAttendance(data.attendanceMinimum?.toString() || "");
+        }
+        setCreationDate(formatDate(data.creationDate) ?? "");
+        setAssociatedModules(data.associatedModules || "N/A");
+      } catch (err: any) {
+        showToast("Error loading profile: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [userData.uuid, token, refreshKey]);
 
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+
+      const payload: UpdateProfilePayload = {
+        name: name,
+        phone: contactNumber,
+        fulladdress: address,
+        roleName: role,
+        status: status,
+      };
+
+      // Only include attendance if the user is a Student
+      if (role.toLowerCase() === "student") {
+        // Convert the string state to a number for the backend
+        payload.attendanceMinimum = Number(attendance);
+      }
+
+      await updateUserProfile(userData.uuid, payload, token!);
+
+      showToast("User Profile Updated Successfully!");
+      setIsEditMode(false);
+      setRefreshKey(prev => prev + 1); 
+
+  } catch (err: any) {
+    showToast("Update failed: " + err.message);
+  } finally {
+    setLoading(false);
+  }
+  };
   const handleCancel = () => {
-    // Reset form to original values
-    setName(userProfileData?.name || userData.name);
-    setEmail(userProfileData?.email || "john.smith@uow.edu.au");
-    setDateOfBirth(userProfileData?.dateOfBirth || "1998-05-15");
-    setContactNumber(userProfileData?.contactNumber || "+61 412 345 678");
-    setAddress(userProfileData?.address || "123 Main Street, Wollongong NSW 2500");
-    setRole(userProfileData?.role || userData.role);
-    setStatus(userProfileData?.status || "Active");
     setIsEditMode(false);
+    setRefreshKey(prev => prev + 1); // Force the useEffect to re-run
+    showToast("Changes discarded.");
   };
 
+  if (loading && !isEditMode) return <div className="p-10 text-center">Loading Profile...</div>;
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile} />
@@ -136,8 +189,8 @@ export function AdminUpdateUserProfile({
         <div className="mb-8">
           <h2 className="text-3xl mb-2">{isEditMode ? 'Update User Profile' : 'View User Profile'}</h2>
           <div className="mt-4 space-y-1">
-            <p className="text-gray-600">User ID: {userData.userId}</p>
-            <p className="text-gray-600">User Name: {userData.name}</p>
+            <p className="text-gray-600">User ID: {userData.uuid}</p>
+            <p className="text-gray-600">User Name: {hardName}</p>
           </div>
         </div>
 
@@ -148,7 +201,7 @@ export function AdminUpdateUserProfile({
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm text-gray-600 mb-2 block">Name:</label>
+              <label className="text-sm text-gray-600 mb-2 block">Full Name:</label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -163,18 +216,7 @@ export function AdminUpdateUserProfile({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter email"
-                disabled={!isEditMode}
-              />
-            </div>
-            <div>
-              <label className="text-sm text-gray-600 mb-2 block">
-                Date of Birth:
-              </label>
-              <Input
-                type="date"
-                value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)}
-                disabled={!isEditMode}
+                disabled // This can be edited in UserAccounts Edit
               />
             </div>
             <div>
@@ -193,7 +235,7 @@ export function AdminUpdateUserProfile({
               <label className="text-sm text-gray-600 mb-2 block">
                 Address:
               </label>
-              <Input
+              <Textarea // Multiline Support
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="Enter address"
@@ -211,9 +253,9 @@ export function AdminUpdateUserProfile({
           <CardContent className="space-y-4">
             <div>
               <label className="text-sm text-gray-600 mb-2 block">
-                User ID:
+                User ID: / Student Num
               </label>
-              <p className="font-medium">{userData.userId}</p>
+              <p className="font-medium">{userData.uuid} / {studnum}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">Role:</label>
@@ -245,15 +287,26 @@ export function AdminUpdateUserProfile({
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">
-                Enrollment Date:
+                Account Creation Date:
               </label>
-              <p className="font-medium">{enrollmentDate}</p>
+              <p className="font-medium">{creationDate}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">
                 Associated Modules:
               </label>
               <p className="font-medium">{associatedModules}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-2 block">
+                Attendance (%):
+              </label>
+              <Input
+                value={attendance}
+                onChange={(e) => setAttendance(e.target.value)}
+                placeholder="Attendance"
+                disabled={!isEditMode}
+              />
             </div>
           </CardContent>
         </Card>
@@ -268,9 +321,10 @@ export function AdminUpdateUserProfile({
               <label className="text-sm text-gray-600 mb-2 block">
                 Status:
               </label>
-              <p className="font-medium">{biometricStatus}</p>
+              <p className="font-medium">Not Created</p>
             </div>
-            <div>
+            {/* not in use */}
+            {/* <div>
               <label className="text-sm text-gray-600 mb-2 block">
                 Last updated:
               </label>
@@ -285,7 +339,7 @@ export function AdminUpdateUserProfile({
                 <Fingerprint className="h-4 w-4 mr-2" />
                 Manage Biometric Profile
               </Button>
-            </div>
+            </div> */}
           </CardContent>
         </Card>
 
@@ -293,10 +347,10 @@ export function AdminUpdateUserProfile({
         <div className="flex justify-center gap-4">
           {isEditMode ? (
             <>
-              <Button variant="outline" onClick={handleCancel}>
+              <Button disabled={loading} variant="outline" onClick={handleCancel}>
                 Cancel
               </Button>
-              <Button onClick={handleSave} className="bg-blue-600 text-white hover:bg-blue-700">
+              <Button disabled={loading} onClick={handleSave} className="bg-blue-600 text-white hover:bg-blue-700">
                 Save Changes
               </Button>
             </>
