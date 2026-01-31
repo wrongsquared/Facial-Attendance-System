@@ -91,6 +91,7 @@ class ModuleUpdateSchema(BaseModel):
     startDate: str
     endDate: str
     lecturerID: Optional[str] = None
+    courseIDs: Optional[list[int]] = None
 
 class UpdateUserSchema(BaseModel):
     name: Optional[str] = None

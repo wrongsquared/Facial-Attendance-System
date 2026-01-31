@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Save, Calendar } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
@@ -7,7 +7,7 @@ import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Navbar } from "./Navbar";
 import { useAuth } from "../cont/AuthContext";
-import { getManageUsers, createModule } from "../services/api";
+import { getManageUsers, createModule, getCampusCourses } from "../services/api";
 
 interface LecturerData {
   uuid: string;
@@ -18,16 +18,20 @@ interface LecturerData {
   status: string;
 }
 
+interface Course {
+  courseID: number;
+  courseCode: string;
+  courseName?: string;
+}
+
 interface CreateModuleProps {
   onBack: () => void;
-  onLogout?: () => void;
   onNavigateToProfile?: () => void;
   onSave?: (moduleData: any) => void;
 }
 
 export function CreateModule({
   onBack,
-  onLogout,
   onNavigateToProfile,
   onSave,
 }: CreateModuleProps) {
@@ -38,9 +42,11 @@ export function CreateModule({
     startDate: "",
     endDate: "",
     lecturerID: "",
+    courseIDs: [] as number[]
   });
 
   const [lecturers, setLecturers] = useState<LecturerData[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -48,7 +54,7 @@ export function CreateModule({
   const { token } = useAuth();
 
   useEffect(() => {
-    const fetchLecturers = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
         if (!token) {
@@ -56,63 +62,33 @@ export function CreateModule({
           return;
         }
 
-        // Get users with lecturer role filter
-        const data = await getManageUsers(token, "", "Lecturer", "");
-        setLecturers(data);
+        // Get lecturers and courses in parallel
+        const [lecturerData, courseData] = await Promise.all([
+          getManageUsers(token, "", "Lecturer", ""),
+          getCampusCourses(token)
+        ]);
+
+        console.log('Lecturer data fetched:', lecturerData);
+        console.log('Course data fetched:', courseData);
+
+        setLecturers(lecturerData);
+        setCourses(courseData || []);
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching lecturers:', error);
+        console.error('Error fetching data:', error);
         setLoading(false);
       }
     };
 
-    fetchLecturers();
+    fetchData();
   }, [token]);
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | number[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
     }
-  };
-
-  const validateForm = () => {
-    const newErrors: { [key: string]: string } = {};
-
-    if (!formData.moduleID.trim()) {
-      newErrors.moduleID = "Module ID is required";
-    }
-
-    if (!formData.moduleCode.trim()) {
-      newErrors.moduleCode = "Module Code is required";
-    }
-
-    if (!formData.moduleName.trim()) {
-      newErrors.moduleName = "Module Name is required";
-    }
-
-    if (!formData.startDate) {
-      newErrors.startDate = "Start Date is required";
-    }
-
-    if (!formData.endDate) {
-      newErrors.endDate = "End Date is required";
-    }
-
-    if (!formData.lecturerID) {
-      newErrors.lecturerID = "Lecturer is required";
-    }
-
-    // Validate date range
-    if (formData.startDate && formData.endDate) {
-      if (new Date(formData.startDate) >= new Date(formData.endDate)) {
-        newErrors.endDate = "End date must be after start date";
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = async () => {
@@ -321,6 +297,39 @@ export function CreateModule({
               </Select>
               {errors.lecturerID && (
                 <p className="text-red-500 text-sm">{errors.lecturerID}</p>
+              )}
+            </div>
+
+            {/* Course Assignment */}
+            <div className="space-y-2">
+              <Label htmlFor="courses">Assign to Courses</Label>
+              <div className="space-y-2 max-h-40 overflow-y-auto border rounded-md p-2">
+                {courses.map((course) => (
+                  <div key={course.courseID} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`course-${course.courseID}`}
+                      checked={formData.courseIDs.includes(course.courseID)}
+                      onChange={(e) => {
+                        const isChecked = e.target.checked;
+                        const newCourseIDs = isChecked
+                          ? [...formData.courseIDs, course.courseID]
+                          : formData.courseIDs.filter(id => id !== course.courseID);
+                        handleInputChange("courseIDs", newCourseIDs);
+                      }}
+                      className="rounded border-gray-300"
+                    />
+                    <label htmlFor={`course-${course.courseID}`} className="text-sm flex-1 cursor-pointer">
+                      <span className="font-medium">{course.courseCode}</span> - {course.courseName}
+                    </label>
+                  </div>
+                ))}
+                {courses.length === 0 && (
+                  <p className="text-gray-500 text-sm">No courses available</p>
+                )}
+              </div>
+              {errors.courseIDs && (
+                <p className="text-red-500 text-sm">{errors.courseIDs}</p>
               )}
             </div>
 

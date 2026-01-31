@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Search, ArrowLeft, Plus, Edit, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, ArrowLeft, Plus } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Badge } from "./ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,7 +31,6 @@ interface ModuleData {
 
 interface ManageModulesProps {
   onBack: () => void;
-  onLogout?: () => void;
   onNavigateToProfile?: () => void;
   onNavigateToCreateModule?: () => void;
   onNavigateToUpdateModule?: (moduleData: ModuleData) => void;
@@ -41,7 +39,6 @@ interface ManageModulesProps {
 
 export function ManageModules({
   onBack,
-  onLogout,
   onNavigateToProfile,
   onNavigateToCreateModule,
   onNavigateToUpdateModule,
@@ -49,6 +46,7 @@ export function ManageModules({
 }: ManageModulesProps) {
   const [modules, setModules] = useState<ModuleData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [moduleFilter, setModuleFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -60,17 +58,21 @@ export function ManageModules({
   useEffect(() => {
     const fetchModules = async () => {
       setLoading(true);
+      setError(null);
       try {
         if (!token) {
           setLoading(false);
           return;
         }
 
+        console.log("Fetching modules...");
         const data = await getAdminModuleList(token);
+        console.log("Modules data received:", data);
         setModules(data);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching modules:', error);
+        setError(error instanceof Error ? error.message : 'Failed to fetch modules');
         setLoading(false);
       }
     };
@@ -139,6 +141,21 @@ export function ManageModules({
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading modules data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Modules</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700">
+            Retry
+          </Button>
         </div>
       </div>
     );

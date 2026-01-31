@@ -2,16 +2,17 @@ import uuid
 import os
 import csv
 import traceback
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func, extract, and_, or_ 
 from database.db_config import get_db
 from schemas import AdminDashboardStats, CourseAttentionItem, UserManagementItem,ReportHistoryEntry
 from schemas.admin import AdminReportRequest, AdminProfileUpdateRequest, ModuleUpdateSchema
 from dependencies.deps import get_current_user_id
-from database.db import Lesson, AttdCheck, User, Student, StudentModules, Module, LecMod, Lecturer, UserProfile, GeneratedReport, Admin
-from datetime import datetime, timedelta
+from database.db import Lesson, AttdCheck, User, Student, StudentModules, Module, LecMod, Lecturer, UserProfile, GeneratedReport, Admin, Courses
+from datetime import datetime, timedelta, time
 import os
 import csv
 import uuid
@@ -20,25 +21,60 @@ router = APIRouter()
 REPORT_DIR = "generated_reports_files"
 os.makedirs(REPORT_DIR, exist_ok=True)
 @router.get("/admin/stats", response_model=AdminDashboardStats)
-def get_admin_dashboard_stats(db: Session = Depends(get_db)):
+def get_admin_dashboard_stats(
+    current_user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    # Verify the user is an admin and get their campus
+    current_admin = db.query(Admin).filter(Admin.adminID == current_user_id).first()
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+    my_campus_id = current_admin.campusID
+    
     now = datetime.now()
     current_month = now.month
     current_year = now.year
 
-    # Total Active Users
-    total_users = db.query(func.count(User.userID)).scalar() or 0
+    # Total Active Users (from this campus only)
+    StudentTable = aliased(Student)
+    LecturerTable = aliased(Lecturer)
+    AdminTable = aliased(Admin)
+    
+    total_users = (
+        db.query(func.count(User.userID))
+        .join(UserProfile, User.profileTypeID == UserProfile.profileTypeID)
+        .outerjoin(StudentTable, User.userID == StudentTable.studentID)
+        .outerjoin(LecturerTable, User.userID == LecturerTable.lecturerID)
+        .outerjoin(AdminTable, User.userID == AdminTable.adminID)
+        .filter(
+            or_(
+                StudentTable.campusID == my_campus_id,
+                LecturerTable.campusID == my_campus_id,
+                AdminTable.campusID == my_campus_id
+            )
+        )
+        .filter(UserProfile.profileTypeName != 'Pmanager')
+        .scalar()
+    ) or 0
 
-    # Total Records (Attendance checks)
-    total_records = db.query(func.count(AttdCheck.AttdCheckID)).scalar() or 0
+    # Total Records (Attendance checks from this campus only)
+    total_records = (
+        db.query(func.count(AttdCheck.AttdCheckID))
+        .join(Student, AttdCheck.studentID == Student.studentID)
+        .filter(Student.campusID == my_campus_id)
+        .scalar()
+    ) or 0
 
-    # Overall Attendance Rate
+    # Overall Attendance Rate (for this campus only)
     # (Total Attended / Total Expected Lessons * Students)
     total_possible_slots = (
         db.query(func.count(StudentModules.studentID))
         .join(Module, StudentModules.modulesID == Module.moduleID)
         .join(LecMod, Module.moduleID == LecMod.moduleID)
         .join(Lesson, LecMod.lecModID == Lesson.lecModID)
-        .filter(Lesson.endDateTime < now) # Only count lessons that have finished
+        .join(Student, StudentModules.studentID == Student.studentID)
+        .filter(Lesson.endDateTime < now)  # Only count lessons that have finished
+        .filter(Student.campusID == my_campus_id)  # Filter by campus
         .scalar()
     ) or 0
 
@@ -48,27 +84,31 @@ def get_admin_dashboard_stats(db: Session = Depends(get_db)):
     if total_possible_slots > 0:
         attendance_rate = round((total_records / total_possible_slots) * 100, 1)
 
-    # Monthly Absences
+    # Monthly Absences (for this campus only)
     possible_month = (
         db.query(func.count(StudentModules.studentID))
         .join(Module, StudentModules.modulesID == Module.moduleID)
         .join(LecMod, Module.moduleID == LecMod.moduleID)
         .join(Lesson, LecMod.lecModID == Lesson.lecModID)
+        .join(Student, StudentModules.studentID == Student.studentID)
         .filter(
             extract('month', Lesson.startDateTime) == current_month,
             extract('year', Lesson.startDateTime) == current_year,
-            Lesson.endDateTime < now
+            Lesson.endDateTime < now,
+            Student.campusID == my_campus_id  # Filter by campus
         )
         .scalar()
     ) or 0
 
-    #Actual Presents
+    #Actual Presents (for this campus only)
     actual_month = (
         db.query(func.count(AttdCheck.AttdCheckID))
         .join(Lesson, AttdCheck.lessonID == Lesson.lessonID)
+        .join(Student, AttdCheck.studentID == Student.studentID)
         .filter(
             extract('month', Lesson.startDateTime) == current_month,
-            extract('year', Lesson.startDateTime) == current_year
+            extract('year', Lesson.startDateTime) == current_year,
+            Student.campusID == my_campus_id  # Filter by campus
         )
         .scalar()
     ) or 0
@@ -88,9 +128,25 @@ def get_admin_dashboard_stats(db: Session = Depends(get_db)):
     }
 
 @router.get("/admin/courses/attention", response_model=list[CourseAttentionItem])
-def get_courses_requiring_attention(db: Session = Depends(get_db)):
+def get_courses_requiring_attention(
+    current_user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    # Verify the user is an admin and get their campus
+    current_admin = db.query(Admin).filter(Admin.adminID == current_user_id).first()
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+    my_campus_id = current_admin.campusID
     
-    modules = db.query(Module).all()
+    # Get only modules taught by lecturers from this campus
+    modules = (
+        db.query(Module)
+        .join(LecMod, Module.moduleID == LecMod.moduleID)
+        .join(Lecturer, LecMod.lecturerID == Lecturer.lecturerID)
+        .filter(Lecturer.campusID == my_campus_id)
+        .distinct()
+        .all()
+    )
     results = []
     
     now = datetime.now()
@@ -107,9 +163,16 @@ def get_courses_requiring_attention(db: Session = Depends(get_db)):
         )
         lecturer_name = lecturer_user.name if lecturer_user else "Unknown"
 
-        # Count Enrolled Students
-        student_count = db.query(func.count(StudentModules.studentID))\
-            .filter(StudentModules.modulesID == mod.moduleID).scalar() or 0
+        # Count Enrolled Students (from this campus only)
+        student_count = (
+            db.query(func.count(StudentModules.studentID))
+            .join(Student, StudentModules.studentID == Student.studentID)
+            .filter(
+                StudentModules.modulesID == mod.moduleID,
+                Student.campusID == my_campus_id
+            )
+            .scalar()
+        ) or 0
 
         if student_count == 0:
             continue # Skip empty courses
@@ -155,16 +218,40 @@ def get_courses_requiring_attention(db: Session = Depends(get_db)):
 
 @router.get("/admin/users/recent", response_model=list[UserManagementItem])
 def get_recent_users(
+    current_user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
     limit: int = 5
 ):
-    # Query Users + Profile Type Name
+    # Verify the user is an admin and get their campus
+    current_admin = db.query(Admin).filter(Admin.adminID == current_user_id).first()
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+    my_campus_id = current_admin.campusID
+    
+    # Query Users + Profile Type Name with campus filtering
+    StudentTable = aliased(Student)
+    LecturerTable = aliased(Lecturer)
+    AdminTable = aliased(Admin)
+    
     results = (
         db.query(
             User,
             UserProfile.profileTypeName
         )
         .join(UserProfile, User.profileTypeID == UserProfile.profileTypeID)
+        .outerjoin(StudentTable, User.userID == StudentTable.studentID)
+        .outerjoin(LecturerTable, User.userID == LecturerTable.lecturerID)
+        .outerjoin(AdminTable, User.userID == AdminTable.adminID)
+        # Filter to only show users from the admin's campus
+        .filter(
+            or_(
+                StudentTable.campusID == my_campus_id,
+                LecturerTable.campusID == my_campus_id,
+                AdminTable.campusID == my_campus_id
+            )
+        )
+        .filter(UserProfile.profileTypeName != 'Pmanager')  # Exclude Platform Managers
+        .order_by(User.creationDate.desc())
         .limit(limit)
         .all()
     )
@@ -197,26 +284,34 @@ def get_all_modules_for_admin(
     """
     Returns a simple list of all modules for the Admin Report dropdown.
     """
-    modules = db.query(Module).all()
-    result = []
-    
-    for module in modules:
-        # Get the lecturer assigned to this module
-        lecmod = db.query(LecMod).filter(LecMod.moduleID == module.moduleID).first()
-        lecturer_id = str(lecmod.lecturerID) if lecmod else None
+    try:
+        modules = db.query(Module).all()
+        result = []
         
-        print(f"Module {module.moduleID}: lecmod found: {lecmod is not None}, lecturerID: {lecturer_id}")
+        for module in modules:
+            # Get the lecturer assigned to this module
+            lecmod = db.query(LecMod).filter(LecMod.moduleID == module.moduleID).first()
+            lecturer_id = str(lecmod.lecturerID) if lecmod else None
+            
+            print(f"Module {module.moduleID}: lecmod found: {lecmod is not None}, lecturerID: {lecturer_id}")
+            
+            result.append({
+                "moduleID": str(module.moduleID),  # Ensure it's a string
+                "moduleCode": module.moduleCode, 
+                "moduleName": module.moduleName,
+                "startDate": module.startDate.isoformat() if module.startDate else None,
+                "endDate": module.endDate.isoformat() if module.endDate else None,
+                "lecturerID": lecturer_id  # Convert UUID to string
+            })
         
-        result.append({
-            "moduleID": module.moduleID, 
-            "moduleCode": module.moduleCode, 
-            "moduleName": module.moduleName,
-            "startDate": module.startDate.isoformat() if module.startDate else None,
-            "endDate": module.endDate.isoformat() if module.endDate else None,
-            "lecturerID": lecturer_id  # Convert UUID to string
-        })
-    
-    return result
+        print(f"Returning {len(result)} modules")
+        return result
+        
+    except Exception as e:
+        print(f"Error in get_all_modules_for_admin: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error fetching modules: {str(e)}")
 
 @router.post("/admin/modules")
 def create_module(
@@ -280,20 +375,22 @@ def delete_module(
     Delete a module and its related records
     """
     try:
+        # Convert module_id to integer since database expects int
+        try:
+            module_id_int = int(module_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid module ID format")
+            
         # First, check if the module exists
-        module = db.query(Module).filter(Module.moduleID == module_id).first()
+        module = db.query(Module).filter(Module.moduleID == module_id_int).first()
         if not module:
             raise HTTPException(status_code=404, detail="Module not found")
         
-        # Delete related lecturer-module relationships
-        db.query(LecMod).filter(LecMod.moduleID == module_id).delete()
-        
-        # Delete the module
-        db.query(Module).filter(Module.moduleID == module_id).delete()
-        
+        # Delete the module (related records will be deleted automatically due to cascade)
+        db.delete(module)
         db.commit()
         
-        return {"message": f"Module {module_id} deleted successfully"}
+        return {"message": f"Module {module.moduleCode} deleted successfully"}
         
     except Exception as e:
         db.rollback()
@@ -369,6 +466,21 @@ def update_module(
                     # Safe to delete since no lessons depend on it
                     db.delete(existing_lecmod)
         
+        # Handle course assignments
+        if hasattr(module_data, 'courseIDs') and module_data.courseIDs is not None:
+            # Remove existing course assignments
+            existing_course_modules = db.query(CourseModules).filter(CourseModules.moduleID == module_id_int).all()
+            for cm in existing_course_modules:
+                db.delete(cm)
+                
+            # Add new course assignments
+            for course_id in module_data.courseIDs:
+                course_module = CourseModules(
+                    courseID=course_id,
+                    moduleID=module_id_int
+                )
+                db.add(course_module)
+        
         db.commit()
         
         return {
@@ -377,7 +489,8 @@ def update_module(
             "moduleCode": module.moduleCode,
             "moduleName": module.moduleName,
             "startDate": module.startDate.isoformat() if module.startDate else None,
-            "endDate": module.endDate.isoformat() if module.endDate else None
+            "endDate": module.endDate.isoformat() if module.endDate else None,
+            "courseIDs": module_data.courseIDs if hasattr(module_data, 'courseIDs') and module_data.courseIDs is not None else []
         }
         
     except Exception as e:
@@ -435,6 +548,11 @@ def generate_report(
 ):
     # 1. Setup
     user_uuid = uuid.UUID(current_user_id)
+    
+    # SECURITY: Get admin's campus to filter reports to their campus only
+    current_admin = db.query(Admin).filter(Admin.userID == user_uuid).first()
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
 
     # Calculate Sequential Number
     existing_count = db.query(func.count(GeneratedReport.reportID))\
@@ -459,9 +577,15 @@ def generate_report(
     if req.report_type == "Module Performance":
         csv_data.append(["Date", "Module Code", "Lecturer", "Lesson Type", "Total Students", "Present", "Attendance Rate (%)"])
         
-        query = db.query(Lesson).filter(Lesson.startDateTime >= req.date_from, Lesson.endDateTime <= req.date_to)
+        # SECURITY: Filter lessons to only include those from lecturers in the admin's campus
+        query = db.query(Lesson)\
+            .join(LecMod)\
+            .join(Lecturer, LecMod.lecturerID == Lecturer.userID)\
+            .filter(Lecturer.campusID == current_admin.campusID)\
+            .filter(Lesson.startDateTime >= req.date_from, Lesson.endDateTime <= req.date_to)
+        
         if req.course_id != "All":
-            query = query.join(LecMod).join(Module).filter(Module.moduleCode == req.course_id)
+            query = query.join(Module, LecMod.moduleID == Module.moduleID).filter(Module.moduleCode == req.course_id)
         
         lessons = query.all()
         for lesson in lessons:
@@ -482,18 +606,42 @@ def generate_report(
     elif req.report_type == "Low Attendance Rate":
         csv_data.append(["Student ID", "Student Name", "Module Code", "Total Lessons", "Attended", "Attendance Rate (%)", "Status"])
 
-        enrollment_query = db.query(Student, Module).join(StudentModules, Student.studentID == StudentModules.studentID).join(Module, StudentModules.modulesID == Module.moduleID)
+        # SECURITY: Filter enrollments to only include students from the admin's campus
+        enrollment_query = db.query(Student, Module)\
+            .join(StudentModules, Student.studentID == StudentModules.studentID)\
+            .join(Module, StudentModules.modulesID == Module.moduleID)\
+            .filter(Student.campusID == current_admin.campusID)
+            
         if req.course_id != "All":
             enrollment_query = enrollment_query.filter(Module.moduleCode == req.course_id)
         
         enrollments = enrollment_query.all()
 
         for student, module in enrollments:
-            total_lessons = db.query(func.count(Lesson.lessonID)).join(LecMod).filter(LecMod.moduleID == module.moduleID).filter(Lesson.startDateTime >= req.date_from).filter(Lesson.endDateTime <= req.date_to).scalar() or 0
+            # SECURITY: Count lessons only from lecturers in the same campus
+            total_lessons = db.query(func.count(Lesson.lessonID))\
+                .join(LecMod)\
+                .join(Lecturer, LecMod.lecturerID == Lecturer.userID)\
+                .filter(Lecturer.campusID == current_admin.campusID)\
+                .filter(LecMod.moduleID == module.moduleID)\
+                .filter(Lesson.startDateTime >= req.date_from)\
+                .filter(Lesson.endDateTime <= req.date_to)\
+                .scalar() or 0
             
             if total_lessons == 0: continue
 
-            attended_count = db.query(func.count(AttdCheck.AttdCheckID)).join(Lesson).join(LecMod).filter(LecMod.moduleID == module.moduleID).filter(AttdCheck.studentID == student.studentID).filter(Lesson.startDateTime >= req.date_from).filter(Lesson.endDateTime <= req.date_to).scalar() or 0
+            # SECURITY: Count attended lessons only from lecturers in the same campus
+            attended_count = db.query(func.count(AttdCheck.AttdCheckID))\
+                .join(Lesson)\
+                .join(LecMod)\
+                .join(Lecturer, LecMod.lecturerID == Lecturer.userID)\
+                .filter(Lecturer.campusID == current_admin.campusID)\
+                .filter(LecMod.moduleID == module.moduleID)\
+                .filter(AttdCheck.studentID == student.studentID)\
+                .filter(AttdCheck.status == "Present")\
+                .filter(Lesson.startDateTime >= req.date_from)\
+                .filter(Lesson.endDateTime <= req.date_to)\
+                .scalar() or 0
 
             rate = (attended_count / total_lessons) * 100
             
@@ -542,10 +690,20 @@ def download_report(
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
-    report = db.query(GeneratedReport).filter(GeneratedReport.reportID == report_id).first()
+    # SECURITY: Verify admin access and get admin's campus
+    user_uuid = uuid.UUID(current_user_id)
+    current_admin = db.query(Admin).filter(Admin.userID == user_uuid).first()
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    # SECURITY: Only allow downloading reports created by current admin
+    report = db.query(GeneratedReport).filter(
+        GeneratedReport.reportID == report_id,
+        GeneratedReport.lecturerID == user_uuid  # Ensure report belongs to this admin
+    ).first()
     
     if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
+        raise HTTPException(status_code=404, detail="Report not found or access denied")
 
     # Clean filename
     clean_filename = os.path.basename(report.fileName)
@@ -620,11 +778,13 @@ def test_admin_access(
 
 @router.get("/admin/lessons")
 def get_all_lessons_for_admin(
+    date_from: Optional[str] = Query(None, description="Start date filter (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="End date filter (YYYY-MM-DD)"),
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
     """
-    Returns a list of all lessons for the admin's campus.
+    Returns a list of all lessons for the admin's campus, optionally filtered by date range.
     """
     try:
         # Convert user_id string to UUID for comparison
@@ -687,14 +847,34 @@ def get_all_lessons_for_admin(
             # Step 4: Filter by campus and get lecturer names
             try:
                 # Since Lecturer inherits from User, we can directly access User fields from Lecturer
-                campus_lessons = (
+                # Build query with campus filter
+                query = (
                     db.query(Lesson, LecMod, Module, Lecturer)
                     .join(LecMod, Lesson.lecModID == LecMod.lecModID)
                     .join(Module, LecMod.moduleID == Module.moduleID)
                     .join(Lecturer, LecMod.lecturerID == Lecturer.lecturerID)
                     .filter(Lecturer.campusID == admin_campus_id)
-                    .all()
                 )
+                
+                # Add date filters if provided
+                if date_from:
+                    try:
+                        start_date = datetime.strptime(date_from, "%Y-%m-%d").date()
+                        start_datetime = datetime.combine(start_date, time.min)
+                        query = query.filter(Lesson.startDateTime >= start_datetime)
+                    except ValueError:
+                        raise HTTPException(status_code=400, detail="Invalid date_from format. Use YYYY-MM-DD.")
+                
+                if date_to:
+                    try:
+                        end_date = datetime.strptime(date_to, "%Y-%m-%d").date()
+                        end_datetime = datetime.combine(end_date, time.max)
+                        query = query.filter(Lesson.startDateTime <= end_datetime)
+                    except ValueError:
+                        raise HTTPException(status_code=400, detail="Invalid date_to format. Use YYYY-MM-DD.")
+                
+                # Order by start date and execute query
+                campus_lessons = query.order_by(Lesson.startDateTime.desc()).all()
                 print(f"Lessons for campus {admin_campus_id}: {len(campus_lessons)}")
             except Exception as join_error:
                 print(f"Error with query: {str(join_error)}")

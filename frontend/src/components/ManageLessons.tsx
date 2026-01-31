@@ -6,6 +6,8 @@ import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Calendar } from "./ui/calendar";
 
 import { Navbar } from "./Navbar";
 import { useAuth } from "../cont/AuthContext";
@@ -34,6 +36,7 @@ export function ManageLessons({
   const [searchTerm, setSearchTerm] = useState("");
   const [moduleFilter, setModuleFilter] = useState<string>("all");
   const [lessonTypeFilter, setLessonTypeFilter] = useState<string>("all");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
 
@@ -53,7 +56,13 @@ export function ManageLessons({
 
         // const adminTest = await testAdminAccess(token);
 
-        const data = await getAdminLessonList(token);
+        // Convert Date to YYYY-MM-DD format
+        let dateStr = "";
+        if (selectedDate) {
+          dateStr = selectedDate.toLocaleDateString("en-CA");
+        }
+
+        const data = await getAdminLessonList(token, dateStr, dateStr);
         setLessons(data || []);
         setLoading(false);
       } catch (error) {
@@ -65,7 +74,7 @@ export function ManageLessons({
     };
 
     fetchLessons();
-  }, [token, refreshTrigger]);
+  }, [token, refreshTrigger, selectedDate]);
 
   // Filter lessons based on search, module filter, and lesson type filter
   const filteredLessons = lessons.filter(lesson => {
@@ -125,6 +134,14 @@ export function ManageLessons({
     setCurrentPage(1); // Reset to first page when search changes
   };
 
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
 
 
   const formatDateTime = (dateTimeString: string) => {
@@ -175,7 +192,7 @@ export function ManageLessons({
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Filter Header */}
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
               {/* Search Bar */}
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -188,41 +205,66 @@ export function ManageLessons({
               </div>
 
               {/* Module Filter */}
-              <div className="w-48">
-                <Select value={moduleFilter} onValueChange={handleModuleFilterChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filter by Module" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Modules</SelectItem>
-                    {uniqueModules.filter(Boolean).map(moduleCode => (
-                      <SelectItem key={moduleCode} value={moduleCode}>
-                        {moduleCode}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select value={moduleFilter} onValueChange={handleModuleFilterChange}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Module Code" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Modules</SelectItem>
+                  {uniqueModules.filter(Boolean).map(moduleCode => (
+                    <SelectItem key={moduleCode} value={moduleCode}>
+                      {moduleCode}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
               {/* Lesson Type Filter */}
-              <div className="w-48">
-                <Select value={lessonTypeFilter} onValueChange={handleLessonTypeFilterChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filter by Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    {uniqueLessonTypes.filter(Boolean).map(lessonType => (
-                      <SelectItem key={lessonType} value={lessonType}>
-                        {lessonType}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select value={lessonTypeFilter} onValueChange={handleLessonTypeFilterChange}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Lesson Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {uniqueLessonTypes.filter(Boolean).map(lessonType => (
+                    <SelectItem key={lessonType} value={lessonType}>
+                      {lessonType}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Date Picker */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full md:w-[180px]">
+                    {selectedDate ? formatDate(selectedDate) : "Select Date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    initialFocus
+                  />
+                  {selectedDate && (
+                    <div className="p-3 border-t">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setSelectedDate(undefined)}
+                      >
+                        Clear Date
+                      </Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
 
               {/* Add New Lesson Button */}
-              <Button onClick={handleAddLesson} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={handleAddLesson} className="bg-blue-600 hover:bg-blue-700 w-full md:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Lesson
               </Button>

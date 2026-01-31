@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Save, Calendar } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
@@ -18,6 +18,8 @@ interface LecturerData {
   status: string;
 }
 
+
+
 interface ModuleData {
   moduleID: string;
   moduleCode: string;
@@ -29,7 +31,6 @@ interface ModuleData {
 
 interface UpdateModuleProps {
   onBack: () => void;
-  onLogout?: () => void;
   onNavigateToProfile?: () => void;
   onSave?: (moduleData: any) => void;
   moduleData: ModuleData;
@@ -37,7 +38,6 @@ interface UpdateModuleProps {
 
 export function UpdateModule({
   onBack,
-  onLogout,
   onNavigateToProfile,
   onSave,
   moduleData,
@@ -48,7 +48,7 @@ export function UpdateModule({
     moduleName: moduleData.moduleName || "",
     startDate: moduleData.startDate ? moduleData.startDate.slice(0, 16) : "",
     endDate: moduleData.endDate ? moduleData.endDate.slice(0, 16) : "",
-    lecturerID: moduleData.lecturerID || "",
+    lecturerID: moduleData.lecturerID || ""
   });
 
   const [lecturers, setLecturers] = useState<LecturerData[]>([]);
@@ -59,7 +59,7 @@ export function UpdateModule({
   const { token } = useAuth();
 
   useEffect(() => {
-    const fetchLecturers = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
         if (!token) {
@@ -67,17 +67,20 @@ export function UpdateModule({
           return;
         }
 
-        // Get users with lecturer role filter
-        const data = await getManageUsers(token, "", "Lecturer", "");
-        setLecturers(data);
+        // Get lecturers
+        const lecturerData = await getManageUsers(token, "", "Lecturer", "");
+
+        console.log('Lecturer data fetched:', lecturerData);
+
+        setLecturers(lecturerData);
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching lecturers:', error);
+        console.error('Error fetching data:', error);
         setLoading(false);
       }
     };
 
-    fetchLecturers();
+    fetchData();
   }, [token]);
 
   const handleInputChange = (field: string, value: string) => {
@@ -179,7 +182,7 @@ export function UpdateModule({
         {/* Header Section */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Update Module</h1>
-          <p className="text-gray-600 mt-1">Modify the module details and update lecturer assignment</p>
+          <p className="text-gray-600 mt-1">Modify the module details and lecturer assignment</p>
         </div>
 
         {/* Update Module Form */}

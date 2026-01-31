@@ -259,8 +259,18 @@ export const updateLesson = async (lessonId: string, lessonData: any, token: str
   return await sendUpdate(`/admin/lessons/${lessonId}`, token, lessonData);
 };
 
-export const getAdminLessonList = async (token: string) => {
-  return await fetchProtected("/admin/lessons", token);
+export const getAdminLessonList = async (token: string, dateFrom?: string, dateTo?: string) => {
+  let url = "/admin/lessons";
+  const params = new URLSearchParams();
+
+  if (dateFrom) params.append("date_from", dateFrom);
+  if (dateTo) params.append("date_to", dateTo);
+
+  if (params.toString()) {
+    url += `?${params.toString()}`;
+  }
+
+  return await fetchProtected(url, token);
 };
 
 export const testAdminAccess = async (token: string) => {

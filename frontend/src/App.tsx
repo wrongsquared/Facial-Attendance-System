@@ -1002,7 +1002,6 @@ export default function App() {
       {userRole === 'admin' && adminView === 'manageModules' && (
         <ManageModules
           onBack={handleBackToAdminDashboard}
-          onLogout={handleLogout}
           onNavigateToProfile={handleNavigateToAdminProfile}
           onNavigateToCreateModule={handleNavigateToCreateModule}
           onNavigateToUpdateModule={handleNavigateToUpdateModule}

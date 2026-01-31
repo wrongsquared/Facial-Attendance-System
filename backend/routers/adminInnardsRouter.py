@@ -232,11 +232,16 @@ def get_admin_attendance_log_filtered(
     db: Session = Depends(get_db)
 ):
     """
-    Admin version of attendance log - shows ALL attendance records across all lecturers
+    Admin version of attendance log - shows attendance records for students in the admin's campus only
     """
     
-    # 1. BUILD THE QUERY
-    # Same as lecturer version but without filtering by lecturer ID
+    # Verify the user is an admin and get their campus
+    current_admin = db.query(Admin).filter(Admin.adminID == user_id).first()
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+    my_campus_id = current_admin.campusID
+    
+    # 1. BUILD THE QUERY with campus filtering
     query = (
         db.query(
             Lesson,
@@ -261,6 +266,9 @@ def get_admin_attendance_log_filtered(
         
         # Check their Entry Logs to see if they were late (Left Join)
         .outerjoin(EntLeave, (EntLeave.lessonID == Lesson.lessonID) & (EntLeave.studentID == Student.userID))
+        
+        # CRITICAL: Filter by admin's campus - only show students from this campus
+        .filter(Student.campusID == my_campus_id)
         
         # Base Filter: Show all lessons (not just past ones)
         # Removed: .filter(Lesson.endDateTime < datetime.now())
@@ -641,7 +649,7 @@ def delete_course(
         if not course:
             raise HTTPException(status_code=404, detail="Course not found or access denied")
         
-        # Delete the course
+        # Delete the course (students and related records will be deleted automatically due to cascade)
         db.delete(course)
         db.commit()
         
@@ -885,7 +893,17 @@ def get_user_details(user_uuid: str, db: Session = Depends(get_db)):
     return details
 
 @router.get("/admin/usersProf/{user_uuid}")
-def get_user_acc_details(user_uuid: str, db: Session = Depends(get_db)):
+def get_user_acc_details(
+    user_uuid: str, 
+    current_user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    # Verify the user is an admin and get their campus
+    current_admin = db.query(Admin).filter(Admin.adminID == current_user_id).first()
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+    my_campus_id = current_admin.campusID
+    
     # Fetch the base User record
     user = db.query(User).filter(User.userID == user_uuid).first()
     
@@ -894,6 +912,22 @@ def get_user_acc_details(user_uuid: str, db: Session = Depends(get_db)):
 
     # Identify the role name 
     role_name = user.profileType.profileTypeName.lower()
+    
+    # Verify the user belongs to the same campus as the admin
+    user_campus_id = None
+    if role_name == "student":
+        student = db.query(Student).filter(Student.userID == user_uuid).first()
+        user_campus_id = student.campusID if student else None
+    elif role_name == "lecturer":
+        lecturer = db.query(Lecturer).filter(Lecturer.userID == user_uuid).first()
+        user_campus_id = lecturer.campusID if lecturer else None
+    elif role_name == "admin":
+        admin = db.query(Admin).filter(Admin.userID == user_uuid).first()
+        user_campus_id = admin.campusID if admin else None
+    
+    # Campus security check
+    if user_campus_id != my_campus_id:
+        raise HTTPException(status_code=404, detail="User not found or access denied")
 
     # Create the response object 
     result = {

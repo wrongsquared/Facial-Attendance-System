@@ -656,9 +656,16 @@ def get_detailed_attendance_record(
     db: Session = Depends(get_db)
 ):
     
-    # Base Query: Start from Student and fetch all related data
+    # Security: Verify this lecturer teaches this lesson
+    lecturer_lesson = db.query(Lesson, LecMod)\
+        .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
+        .filter(Lesson.lessonID == lesson_id, LecMod.lecturerID == user_id)\
+        .first()
     
-    # We will query all needed entities (Student, Lesson, Module) but start the FROM clause at Student
+    if not lecturer_lesson:
+        raise HTTPException(status_code=403, detail="Access denied: You are not authorized to view this lesson's attendance.")
+    
+    # Base Query: Start from Student and fetch all related data
     record = db.query(Student, Lesson, Module)\
         .select_from(Student) \
         .join(Lesson, Lesson.lessonID == lesson_id) \
@@ -889,17 +896,17 @@ def get_overall_class_attendance_details(
     db: Session = Depends(get_db)
 ):
     
-    # 1. Fetch Lesson/Module Data
-    lesson_module = db.query(Lesson, Module)\
+    # 1. Security: Verify this lecturer teaches this lesson and fetch Lesson/Module Data
+    lesson_module = db.query(Lesson, Module, LecMod)\
         .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
         .join(Module, LecMod.moduleID == Module.moduleID)\
-        .filter(Lesson.lessonID == lesson_id)\
+        .filter(Lesson.lessonID == lesson_id, LecMod.lecturerID == user_id)\
         .first()
     
     if not lesson_module:
-        raise HTTPException(status_code=404, detail="Lesson not found.")
+        raise HTTPException(status_code=404, detail="Lesson not found or access denied.")
         
-    lesson, module = lesson_module
+    lesson, module, lecmod = lesson_module
 
     # 2. Get all enrolled students first
     all_students = db.query(Student).join(StudentModules).filter(
