@@ -3,7 +3,7 @@ import os
 import uuid
 import random
 
-
+from sqlalchemy import func
 from faker import Faker
 from sqlalchemy.orm import Session
 from db_config import SessionLocal, DATABASE_URL
@@ -92,7 +92,8 @@ def seedCoursesOSS(dbSessionLocalInstance: Session, spbase: Client):
     print(f"Seeding Courses: \n")
     campuses = dbSessionLocalInstance.query(Campus).all()
 
-    courseCodeHeader = ['ISIT', 'CSIT']
+    courseCodeHeader = ['ISIT', 'CSIT', 'CSCI']
+    courseNames = ["Bsc in Ba in B in Technology","Bsc in Advanced Programming","Bsc in Big Data Application", "Bsc in Cybersecurity", "Bsc in Game Development", "Bachelor in Computer Science", "Bsc in Information Technology", "Bsc in Computer Science", "Bc in Science Computer","Bs in Computer Arts"]
     i= 0
     loc = []
     while i < 10:
@@ -222,9 +223,14 @@ def platSeed(dbSessionLocalInstance: Session, spbase: Client):
             role="Platform Manager",
             email=email,
             name=name,
+            creationDate = datetime.today(),
+            contactNumber = random.randint(81111111, 99999999),
             photo=photo_path,
             address=fake.address(),
-            universityID=u.universityID # Explicitly link to the current university in the loop
+            universityID=u.universityID, # Explicitly link to the current university in the loop
+            emergencyContactName = fake.name(),
+            emergencyContactRelationship = "Spouse",
+            emergencyContactNumber = random.randint(81111111, 99999999)
         )
         
         dbSessionLocalInstance.add(new_manager)
@@ -246,7 +252,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
     specialNames = []
     #password is the same as the usernames
     userNames = []
-    numRandStudent = 10 #Number of Random Students to Generate
+    numRandStudent = 100 #Number of Random Students to Generate
     fake = Faker()
     
     #Random Students - 10
@@ -275,17 +281,21 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
     address = fake.address()
     gaiusgenericusPath = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png",spbase)
     all_campus = dbSessionLocalInstance.query(Campus).all()
-
     dbSessionLocalInstance.add(Student(userID = uuid.UUID(str(user_uuid)),
                                        profileType = studentProfile,
                                        email = baseemail,
                                        name= "Allison Lang",
                                        studentNum = "190036",
+                                       creationDate = datetime.today(),
                                        attendanceMinimum = 75.0,
                                        course = rCourse,
                                         photo=gaiusgenericusPath,
                                         address= address,
-                                        campusID=random.choice(all_campus).campusID
+                                        contactNumber = random.randint(81111111, 99999999),
+                                        campusID=random.choice(all_campus).campusID,
+                                        emergencyContactName = fake.name(),
+                                        emergencyContactRelationship = "Parent",
+                                        emergencyContactNumber = random.randint(81111111, 99999999)
                                         ))
     studNums.append("190036")
     while len(specialNames) > 0:
@@ -313,12 +323,17 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
                                         profileType = studentProfile,
                                         email = email,
                                         name = name,
+                                        creationDate = datetime.today(),
                                         studentNum = studNumGenstr,
                                         attendanceMinimum = 75.0,
                                         course = rCourse,
+                                        contactNumber = random.randint(81111111, 99999999),
                                         photo=gaiusgenericusPath,
                                         address= address ,
-                                        campusID=random.choice(all_campus).campusID
+                                        campusID=random.choice(all_campus).campusID,
+                                        emergencyContactName = fake.name(),
+                                        emergencyContactRelationship = "Parent",
+                                        emergencyContactNumber = random.randint(81111111, 99999999)
                                     ))
 
     dbSessionLocalInstance.commit()
@@ -326,135 +341,203 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
     return None
 
 def adminSeed(dbSessionLocalInstance: Session, spbase: Client): 
-    #No Primary Keys
     print(f"Seeding Admins: \n")
+    
+    # Setup Dependencies
+    fake = Faker()
     AdminProfile = dbSessionLocalInstance.query(UserProfile).filter_by(profileTypeName='Admin').first()
-    fake = Faker()
-    #Base Admin
-    #email:Admin@uow.edu.au
-    #Password: Valid123
-    baseemail = "Admin@uow.edu.au"
-    basepass = "Valid123"
-    user_uuid = createAccountgetuuid(baseemail, basepass, True)
-    address = fake.address()
     all_campus = dbSessionLocalInstance.query(Campus).all()
-    gaiusgenericusPath = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png",spbase)
-    dbSessionLocalInstance.add(Admin(userID = uuid.UUID(str(user_uuid)),
-                                    profileType = AdminProfile, 
-                                    name = "James Looker",
-                                    role = "System Administrator",
-                                    email = baseemail,
-                                    photo = gaiusgenericusPath,
-                                    address= address ,
-                                    campusID=random.choice(all_campus).campusID
-                                    ))
+    
+    if not AdminProfile or not all_campus:
+        print("Error: Missing Admin Profile or Campuses. Seed those first.")
+        return
 
+    # Define the list of Admins to create
+    admins_to_create = [
+        {
+            "name": "James Looker",
+            "email": "Admin@uow.edu.au",
+            "password": "Valid123"
+        }
+    ]
 
-    userNames = []
-    specialNames = []
-    numRandAdmins = 2 #Number of Admins to Generate
-    fake = Faker()
+    numRandAdmins = 4
     i = 0
+    generated_names = {"James Looker"} 
+    
     while i < numRandAdmins:
         fakeName = fake.name()
-        nameSplit = fakeName.split()
-        userName = ""
-        for j in nameSplit:
-            userName += j[0]
-        if fakeName in specialNames or userName in userNames:
+        if fakeName in generated_names: 
             continue
-        else:
-            userNames.append(userName)
-            specialNames.append(fakeName)
-            i+=1
+            
+        nameSplit = fakeName.split()
+        userName = "".join([j[0] for j in nameSplit]) + str(random.randint(1,99))
+        
+        admins_to_create.append({
+            "name": fakeName,
+            "email": f"{userName}@uow.edu.au",
+            "password": "Valid123" 
+        })
+        generated_names.add(fakeName)
+        i += 1
 
-    all_campus = dbSessionLocalInstance.query(Campus).all()
-    while len(specialNames) > 0:
-        name = specialNames.pop()
-        username = userNames.pop()
-        email = username + "@uow.edu.au"
-        # For simplicity's sake username is the password.
-        user_uuid = createAccountgetuuid(email, "Valid123", True)
-        address = fake.address()
-        gaiusgenericusPath = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png",spbase)
-        # Ghost Users that can not be logged in to
-        dbSessionLocalInstance.add(Admin(userID = uuid.UUID(str(user_uuid)),
-                                        profileType = AdminProfile,
-                                        email = email,
-                                        role = "System Administrator",
-                                        name = name, 
-                                        photo = gaiusgenericusPath,
-                                        address= address,
-                                        campusID=random.choice(all_campus).campusID
-                                        ))
+    for admin_data in admins_to_create:
+        email = admin_data["email"]
+        password = admin_data["password"]
+        name = admin_data["name"]
+
+        user_uuid = createAccountgetuuid(email, password, True)
+        
+        if not user_uuid:
+            print(f"   - User {email} might exist, fetching ID from Supabase...")
+            try:
+                users = spbase.auth.admin.list_users()
+                existing_user = next((u for u in users if u.email == email), None)
+                if existing_user:
+                    user_uuid = existing_user.id
+            except Exception as e:
+                print(f"Critical Auth Error for {email}: {e}")
+                continue 
+
+        if not user_uuid:
+            print(f"Could not resolve UUID for {email}. Skipping.")
+            continue
+
+        existing_profile = dbSessionLocalInstance.query(Admin).filter(Admin.adminID == user_uuid).first()
+
+        if not existing_profile:
+            try:
+
+                photo_path = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png", spbase)
+                
+                new_admin = Admin(
+                    userID=uuid.UUID(str(user_uuid)),
+                    profileType=AdminProfile, 
+                    name=name,
+                    role="System Administrator",
+                    email=email,
+                    creationDate=datetime.today(),
+                    photo=photo_path,
+                    address=fake.address(),
+                    campusID=random.choice(all_campus).campusID,
+                    contactNumber=str(random.randint(81111111, 99999999)),
+                    emergencyContactName=fake.name(),
+                    emergencyContactRelationship="Parent",
+                    emergencyContactNumber=str(random.randint(81111111, 99999999))
+                )
+                dbSessionLocalInstance.add(new_admin)
+                print(f"Added Admin: {name}")
+            except Exception as e:
+                print(f" DB Error adding {name}: {e}")
+        else:
+            print(f"Admin profile already exists: {name}")
 
     dbSessionLocalInstance.commit()
-
     return None
 
 def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client): 
-    #No Primary Keys
-    print(f"Seeding Lecturers: \n")
-    LecturerProfile = dbSessionLocalInstance.query(UserProfile).filter_by(profileTypeName='Lecturer').first()
-    #Base Lecturer
-    #lecturer@uow.edu.au
-    #Valid123
-    baseemail = "lecturer@uow.edu.au"
-    basepass = "Valid123"
+        print(f"Seeding Lecturers: \n")
 
-    fake = Faker()
-    user_uuid = createAccountgetuuid(baseemail, basepass, True)
-    address = fake.address()
-    all_campi = dbSessionLocalInstance.query(Campus).all()
-    gaiusgenericusPath = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png",spbase)
-    dbSessionLocalInstance.add(Lecturer(userID = uuid.UUID(str(user_uuid)),
-                                        profileType = LecturerProfile, 
-                                        name = "Agnes Lam",
-                                        specialistIn = "Computer Science",
-                                        email = baseemail, 
-                                        photo = gaiusgenericusPath,
-                                        address = address,
-                                        campusID=random.choice(all_campi).campusID
-                                        ))
-    
-    userNames = []
-    specialNames = []
-    numRandLecturer = 3 #number of random Lecturers to Generate
-    i = 0
-    while i < numRandLecturer:
-        fakeName = fake.name()
-        nameSplit = fakeName.split()
-        userName = ""
-        for j in nameSplit:
-            userName += j[0]
-        if fakeName in specialNames or userName in userNames:
-            continue
-        else:
-            userNames.append(userName)
-            specialNames.append(fakeName)
-            i+=1
-    # Ghost Users that can not be logged in to
-        while len(specialNames) > 0:
-            name = specialNames.pop()
-            username = userNames.pop()
-            email = username + "@uow.edu.au"
-            spec = random.choice(['Computer Science', 'Business'])
-            #For simplicity, Username is the password!
-            user_uuid = createAccountgetuuid(email, "Valid123", True)
-            address = fake.address()
-            gaiusgenericusPath = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png",spbase)
-            dbSessionLocalInstance.add(Lecturer(userID = uuid.UUID(str(user_uuid)),
-                                                profileType = LecturerProfile, 
-                                                name = name,
-                                                specialistIn = spec,
-                                                email = email,
-                                                photo = gaiusgenericusPath,
-                                                address = address,
-                                                campusID=random.choice(all_campi).campusID
-                                                ))
-    dbSessionLocalInstance.commit()
+        # Setup Dependencies
+        fake = Faker()
+        LecturerProfile = dbSessionLocalInstance.query(UserProfile).filter_by(profileTypeName='Lecturer').first()
+        all_campi = dbSessionLocalInstance.query(Campus).all()
 
-    return None
+        if not LecturerProfile or not all_campi:
+            print("Error: Missing Lecturer Profile or Campuses. Seed those first.")
+            return
+
+        # Define the list of Lecturers to create
+        lecturers_to_create = [
+            {
+                "name": "Agnes Lam",
+                "email": "lecturer@uow.edu.au",
+                "password": "Valid123",
+                "specialistIn": "Computer Science"
+            }
+        ]
+
+        # Generate Random Lecturers and add to the list
+        numRandLecturer = 10
+        i = 0
+        generated_names = {"Agnes Lam"} # Track to avoid duplicates
+
+        while i < numRandLecturer:
+            fakeName = fake.name()
+            if fakeName in generated_names: 
+                continue
+
+            # Generate username
+            nameSplit = fakeName.split()
+            userName = "".join([j[0] for j in nameSplit]) + str(random.randint(1,99))
+
+            lecturers_to_create.append({
+                "name": fakeName,
+                "email": f"{userName}@uow.edu.au",
+                "password": "Valid123",
+                "specialistIn": random.choice(['Computer Science', 'Business', 'Engineering', 'Arts'])
+            })
+            generated_names.add(fakeName)
+            i += 1
+
+        #Loop through list and Insert into DB
+        for lec_data in lecturers_to_create:
+            email = lec_data["email"]
+            password = lec_data["password"]
+            name = lec_data["name"]
+            specialist = lec_data["specialistIn"]
+
+            # Create from Supabase Auth
+            user_uuid = createAccountgetuuid(email, password, True)
+
+            # Handle case where user already exists in Auth but function returned None
+            if not user_uuid:
+                print(f"   - User {email} might exist, fetching ID from Supabase...")
+                try:
+                    users = spbase.auth.admin.list_users()
+                    existing_user = next((u for u in users if u.email == email), None)
+                    if existing_user:
+                        user_uuid = existing_user.id
+                except Exception as e:
+                    print(f" Critical Auth Error for {email}: {e}")
+                    continue 
+            if not user_uuid:
+                print(f"Could not resolve UUID for {email}. Skipping.")
+                continue
+
+            # Check if exists in Database (Prevent Duplicates)
+            existing_profile = dbSessionLocalInstance.query(Lecturer).filter(Lecturer.lecturerID == user_uuid).first()
+
+            if not existing_profile:
+                try:
+                    photo_path = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png", spbase)
+
+                    # Create DB Record
+                    new_lecturer = Lecturer(
+                        userID=uuid.UUID(str(user_uuid)),
+                        profileType=LecturerProfile, 
+                        name=name,
+                        specialistIn=specialist,
+                        email=email, 
+                        creationDate=datetime.today(),
+                        photo=photo_path,
+                        address=fake.address(),
+                        campusID=random.choice(all_campi).campusID,
+                        contactNumber=str(random.randint(81111111, 99999999)),
+                        emergencyContactName=fake.name(),
+                        emergencyContactRelationship="Parent",
+                        emergencyContactNumber=str(random.randint(81111111, 99999999))    
+                    )
+                    dbSessionLocalInstance.add(new_lecturer)
+                    print(f"Added Lecturer: {name}")
+                except Exception as e:
+                    print(f" DB Error adding {name}: {e}")
+            else:
+                print(f" Lecturer profile already exists: {name}")
+
+        # Commit all changes
+        dbSessionLocalInstance.commit()
+        return None
 
 def modulesSeed(dbSessionLocalInstance: Session, spbase: Client):
     #No Primary Keys
@@ -572,100 +655,135 @@ def lessonsSeed(dbSessionLocalInstance: Session, spbase: Client):
     return None
 
 def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client): 
-    #No Primary Keys
-    print(f"Seeding EntLeave: \n")
-    lessonobjs = dbSessionLocalInstance.query(Lesson).all()
-    studentobjs = dbSessionLocalInstance.query(Student).all()
+    print(f"Seeding EntLeave (Camera Detections): \n")
+    
+    lessons = dbSessionLocalInstance.query(Lesson).all()
+    
+    #  Pre-fetch Valid Enrollments to avoid random data noise
+    # Map: ModuleID -> Set of StudentIDs
+    enrollment_map = defaultdict(set)
+    enrollments = dbSessionLocalInstance.query(StudentModules).all()
+    for enroll in enrollments:
+        enrollment_map[enroll.modulesID].add(enroll.studentID)
 
+    # Pre-fetch Lesson -> Module mapping
+    # We need to know which module a lesson belongs to
+    # Map: LessonID -> ModuleID
+    lec_mods = dbSessionLocalInstance.query(LecMod).all()
+    lesson_module_map = {}
+    for lm in lec_mods:
+        for lesson in lm.lessons: # Assuming relationship exists
+            lesson_module_map[lesson.lessonID] = lm.moduleID
 
-    for lesson in lessonobjs:
-        for student in studentobjs:
-            #lesson, student, enter, leave
-            timerandomness = random.randint(0,30) # minutes
-            duration = timedelta(minutes = timerandomness)
-            ud = ['up', 'down']
-            upordown = random.choice(ud)
-            if upordown == 'up':
-                entDateTime = lesson.startDateTime + duration
+    detections = []
+
+    for lesson in lessons:
+        module_id = lesson_module_map.get(lesson.lessonID)
+        if not module_id: continue
+
+        valid_students = enrollment_map.get(module_id, set())
+
+        for student_id in valid_students:
+            # Simulate Attendance Logic
+            if random.random() < 0.10:
+                continue
+
+            # Simulate Punctuality
+            is_late = random.random() < 0.20
+            
+            start_offset = 0
+            if is_late:
+                start_offset = random.randint(16, 40)
             else:
-                entDateTime = lesson.startDateTime - duration
-            timerandomness = random.randint(0,30) # minutes
-            duration = timedelta(minutes = timerandomness)
-            upordown = random.choice(ud)
-            LeaveDateTime = lesson.endDateTime - duration
+                # Arrive 0-10 mins after start
+                start_offset = random.randint(0, 10)
+
+            # Generate Snapshots
+            num_detections = random.randint(3, 8)
+            
+            current_time = lesson.startDateTime + timedelta(minutes=start_offset)
+            
+            for _ in range(num_detections):
+
+                if current_time > lesson.endDateTime:
+                    break
+
+                detections.append(EntLeave(
+                    lessonID=lesson.lessonID,
+                    studentID=student_id,
+                    detectionTime=current_time 
+                ))
 
 
-            dbSessionLocalInstance.add(EntLeave(lesson = lesson,
-                                                student = student,
-                                                enter = entDateTime,
-                                                leave = LeaveDateTime
-                                                ))
-    dbSessionLocalInstance.commit()
+                current_time += timedelta(minutes=random.randint(15, 30))
+
+    if detections:
+        print(f"Adding {len(detections)} camera detections...")
+        dbSessionLocalInstance.add_all(detections)
+        dbSessionLocalInstance.commit()
+    
     return None
 
 def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
-    print(f"Seeding attdCheck: \n")
+    print(f"Seeding attdCheck (Processing Summaries): \n")
     
-    lessonobjs = dbSessionLocalInstance.query(Lesson, LecMod.moduleID).\
-        join(LecMod, Lesson.lecModID == LecMod.lecModID).all()
-        
-    lesson_durations = {}
-    lesson_module_map = {} # map: LessonID -> ModuleID
-    
-    for lesson, module_id in lessonobjs:
-        duration = lesson.endDateTime - lesson.startDateTime
-        lesson_durations[lesson.lessonID] = duration
-        lesson_module_map[lesson.lessonID] = module_id
+    #Get Lesson Start Times for 'Late' calculation
+    lessons = dbSessionLocalInstance.query(Lesson).all()
+    lesson_time_map = {l.lessonID: l.startDateTime for l in lessons}
 
-    # Get all Valid Enrollments (Student -> Module)
-    # Format: Set of (studentID, moduleID) tuples
-    valid_enrollments = set()
-    enrollment_objs = dbSessionLocalInstance.query(StudentModules).all()
-    for enroll in enrollment_objs:
-        valid_enrollments.add((enroll.studentID, enroll.modulesID))
+    # Aggregate Raw Detections
+    results = (
+        dbSessionLocalInstance.query(
+            EntLeave.studentID,
+            EntLeave.lessonID,
+            func.min(EntLeave.detectionTime).label("first_seen"),
+            func.max(EntLeave.detectionTime).label("last_seen"),
+            func.count(EntLeave.entLeaveID).label("count")
+        )
+        .group_by(EntLeave.studentID, EntLeave.lessonID)
+        .all()
+    )
 
-    # Calculate time spent based on Ent/Leave logs
-    EntLeaveobjs = dbSessionLocalInstance.query(EntLeave).all()
-    attendance_map = defaultdict(lambda: timedelta(0))
-    
-    for entL in EntLeaveobjs:
-        key = (entL.studentID, entL.lessonID)
-        duration = entL.leave - entL.enter
-        attendance_map[key] += duration
-
-    # Generate Checks
     new_checks = []
-    
-    # Iterating through (Student, Lesson) pairs
-    for (student_id, lesson_id), total_time in attendance_map.items():
+
+    for student_id, lesson_id, first_seen, last_seen, count in results:
         
-        lesson_length = lesson_durations.get(lesson_id)
+        start_time = lesson_time_map.get(lesson_id)
+        if not start_time: continue
+
+        # Determine Status
+        # Grace period of 15 minutes
+        status = "Present"
+        late_threshold = start_time + timedelta(minutes=15)
         
-        if not lesson_length:
-            continue
+        if first_seen > late_threshold:
+            status = "Late"
 
-        # NEW: Check if Student is actually enrolled in this lesson's module, if not skip
-        module_id = lesson_module_map.get(lesson_id)
-        if (student_id, module_id) not in valid_enrollments:
-            continue
+        # Create Record
+        new_checks.append(AttdCheck(
+            lessonID=lesson_id,
+            studentID=student_id,
+            status=status,
+            firstDetection=first_seen, # New Column
+            lastDetection=last_seen,   # New Column
+            remarks=f"Camera Capture ({count} detections)"
+        ))
 
-        # Calculate Ratio
-        ratio = total_time / lesson_length
-        if ratio > 0.5:
-            new_checks.append(AttdCheck(lessonID=lesson_id, studentID=student_id, remarks = "Camera Capture")) 
-
-    # Commit
     if new_checks:
-        print(f"Adding {len(new_checks)} verified attendance checks.")
+        print(f"Adding {len(new_checks)} verified attendance summaries.")
         dbSessionLocalInstance.add_all(new_checks)
         dbSessionLocalInstance.commit()
     
     return None
-def seedLazyStudent(db:Session, spbase:Client):
+
+def seedLazyStudent(db: Session, spbase: Client):
+    print("\n--- Seeding 'Lazy Larry' (The At-Risk Student) ---")
+    fake = Faker()
+    
     email = "lazy@uow.edu.au"
     password = "Valid123"
-    
-    # Try to get existing user or create new
+    lazy_uuid = None
+
     try:
         auth_user = spbase.auth.admin.create_user({
             "email": email,
@@ -674,55 +792,78 @@ def seedLazyStudent(db:Session, spbase:Client):
         })
         lazy_uuid = auth_user.user.id
     except Exception:
-        # If already exists, fetch ID (simplified logic)
+        # User exists in Auth, fetch ID
         users = spbase.auth.admin.list_users()
         lazy_uuid = next((u.id for u in users if u.email == email), None)
         if lazy_uuid:
-            spbase.auth.admin.update_user_by_id(
-                lazy_uuid, 
-                {"password": password} # Ensure it is 'Valid123'
-            )
-    student_profile = db.query(UserProfile).filter_by(profileTypeName='Student').first()
-    # We need a Lecturer to assign to the module
-    lecturer = db.query(Lecturer).first() 
-    
-    # Create a Specific Module for this test
-    test_module = Module(
-        moduleCode="TEST101",
-        moduleName="Skipping Class 101"
-    )
-    db.add(test_module)
-    db.flush() # Flush to get moduleID
+            # Force reset password to ensure we can log in
+            spbase.auth.admin.update_user_by_id(lazy_uuid, {"password": password})
 
-    # Link Lecturer to Module (LecMod)
-    lec_mod = LecMod(lecturers=lecturer, modules=test_module)
-    db.add(lec_mod)
-    db.flush() # Flush to get lecModID
-    # assign to a degree (e.g. Computer Science) and a location
+    if not lazy_uuid:
+        print("Critical Error: Could not get UUID for Lazy Larry.")
+        return
+
+    #  Check if Larry exists in Local DB (Prevent Duplicates)
+    existing_student = db.query(Student).filter(Student.studentID == lazy_uuid).first()
+    if existing_student:
+        print("   - Lazy Larry already exists in DB. Skipping creation.")
+        return lazy_uuid
+
+    #  Get Dependencies
+    student_profile = db.query(UserProfile).filter_by(profileTypeName='Student').first()
+    lecturer = db.query(Lecturer).first()
     random_course = db.query(Courses).first()
     random_campus = db.query(Campus).first()
-    gaiusgenericusPath = upload_photo(lazy_uuid, "./genericimage/gaiusgenericus.png",spbase)
-    # Create the Student Profile
+
+    if not lecturer or not random_course:
+        print("Error: Seed Lecturers, Courses, and Campuses first.")
+        return
+
+    # Create/Get the specific Test Module
+    test_module = db.query(Module).filter_by(moduleCode="TEST101").first()
+    if not test_module:
+        test_module = Module(
+            moduleCode="TEST101",
+            moduleName="Skipping Class 101"
+        )
+        db.add(test_module)
+        db.flush()
+        
+        # Link Lecturer to this new module
+        lec_mod = LecMod(lecturers=lecturer, modules=test_module)
+        db.add(lec_mod)
+        db.flush()
+    else:
+        # Use existing link
+        lec_mod = db.query(LecMod).filter_by(moduleID=test_module.moduleID).first()
+
+    # Upload the photo to supabase bucket
+    gaiusgenericusPath = upload_photo(lazy_uuid, "./genericimage/gaiusgenericus.png", spbase)
+
+    # Create Student Profile
     lazy_student = Student(
-        userID=uuid.UUID(lazy_uuid),
+        userID=uuid.UUID(str(lazy_uuid)),
         profileType=student_profile,
         name="Lazy Larry",
         email=email,
         studentNum="000000",
-        attendanceMinimum=80.0, # High standard
-        # Link to a generic course/campus if required by your schema
-        # courseID=..., campusID=... 
+        attendanceMinimum=80.0, 
         courseID=random_course.courseID,
         campusID=random_campus.campusID,
-        photo=gaiusgenericusPath
+        photo=gaiusgenericusPath,
+        creationDate= datetime.today(),
+        # New required fields
+        address=fake.address(),
+        contactNumber="0400000000",
+        emergencyContactName=fake.name(),
+        emergencyContactRelationship="Parent",
+        emergencyContactNumber="0411111111"
     )
     db.add(lazy_student)
-    
-    # Enroll Student in the Module
+    #Student-Module Link
     enrollment = StudentModules(student=lazy_student, modules=test_module)
     db.add(enrollment)
-
-    # We create lessons that happened 1 to 10 days ago
+    # Fake Lessons
     past_lessons = []
     for i in range(1, 11):
         start = datetime.now() - timedelta(days=i)
@@ -739,29 +880,34 @@ def seedLazyStudent(db:Session, spbase:Client):
         db.add(lesson)
         past_lessons.append(lesson)
     
-    db.flush() # Get Lesson IDs
+    db.flush() 
 
-    # Mark Attendance for 1 Lesson (10% Attendance)
-    # We add an attendance check for the first lesson only
+    # Mark Attendance for ONLY 1 Lesson (10% Rate)
     attended_lesson = past_lessons[0]
-    attendance = AttdCheck(
+    
+    # Times for the attendance
+    detection_time_in = attended_lesson.startDateTime + timedelta(minutes=5) # 5 mins late
+    detection_time_out = attended_lesson.endDateTime - timedelta(minutes=5)  # Left 5 mins early
+
+    # Add Raw Detection (EntLeave)
+    entry_leave = EntLeave(
         lesson=attended_lesson,
         student=lazy_student,
-        remarks="Present"
-    )
-    db.add(attendance)
-
-    # Add EntLeave record for the attended lesson to provide timestamp
-    entry_leave = EntLeave(
-        lessonID=attended_lesson.lessonID,
-        studentID=lazy_student.userID,
-        enter=attended_lesson.startDateTime + timedelta(minutes=5),  # Entered 5 minutes late
-        leave=attended_lesson.endDateTime - timedelta(minutes=10)    # Left 10 minutes early
+        detectionTime=detection_time_in
     )
     db.add(entry_leave)
 
+    attendance = AttdCheck(
+        lesson=attended_lesson,
+        student=lazy_student,
+        status="Present", # or "Late" if you want to test that logic
+        firstDetection=detection_time_in,
+        lastDetection=detection_time_out,
+        remarks="Camera Capture"
+    )
+    db.add(attendance)
+
     db.commit()
-    
     return lazy_uuid
 if __name__ == "__main__":  
     db_session: Session = SessionLocal()

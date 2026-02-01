@@ -168,7 +168,7 @@ class Student(User): #Student, child of User
     campus:  Mapped[Campus] = relationship(back_populates="student_profiles")
     notifications: Mapped[list[StudentNotifications]] = relationship(back_populates="student", cascade="all, delete-orphan")
 
-class EntLeave(Base): # Camera marks time student is detected coming in, time student is detected leaving.
+class EntLeave(Base): # Camera marks time student is detected
     __tablename__ = "entleave"
     entLeaveID: Mapped[int]= mapped_column(primary_key=True)
     lessonID: Mapped[int] = mapped_column(ForeignKey("lessons.lessonID"))
@@ -177,8 +177,7 @@ class EntLeave(Base): # Camera marks time student is detected coming in, time st
     studentID: Mapped[uuid.UUID] = mapped_column(ForeignKey("students.studentID"))
     student: Mapped[Student] = relationship(back_populates="EntLeaves")
 
-    enter: Mapped[datetime.datetime]
-    leave: Mapped[datetime.datetime | None]
+    detectionTime: Mapped[datetime.datetime]
 
 class AttdCheck(Base): # Backend checks an AttdCheck variable based on an EntLeave variable, to mark student presence
     __tablename__ = "attdcheck"
@@ -190,6 +189,8 @@ class AttdCheck(Base): # Backend checks an AttdCheck variable based on an EntLea
     remarks: Mapped[str|None]
     # Values: 'Present', 'Late', 'Excused', 'Absent'
     status: Mapped[str] = mapped_column(String(20), default='Present')
+    firstDetection: Mapped[datetime.datetime | None] # First Time detected
+    lastDetection: Mapped[datetime.datetime | None]  # Last Time detected
 
 class Module(Base): #Modules
     __tablename__ = "modules"
