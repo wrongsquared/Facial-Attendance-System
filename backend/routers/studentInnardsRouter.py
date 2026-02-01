@@ -13,6 +13,7 @@ from schemas import( WeeklyLesson,
                      viewUserProfile
                      )
 from database.db import  Lesson, Module,  StudentModules, LecMod, AttdCheck, Student, User, StudentNotifications
+from dependencies.deps import check_single_student_risk
 
 
 router = APIRouter() 
@@ -226,9 +227,11 @@ def get_student_notifications(
     user_id: str = Depends(get_current_user_id), # This is the UUID
     db: Session = Depends(get_db)
 ):
-    # 1. Get raw DB rows
+    # First check for new notification alerts based on attendance
+    check_single_student_risk(db, user_id)
+    
+    # Then get all notifications
     raw_notifications = db.query(StudentNotifications).filter(StudentNotifications.studentID == user_id).all()
-
 
     return raw_notifications
 

@@ -77,13 +77,20 @@ def get_signed_url(path: str | None) -> str | None:
     
 
 def check_single_student_risk(db: Session, student_id: str):
+    print(f"[DEBUG] Checking notifications for student: {student_id}")
     student = db.query(Student).filter(Student.studentID == student_id).first()
-    if not student: return
+    if not student: 
+        print(f"[DEBUG] Student not found: {student_id}")
+        return
+
+    print(f"[DEBUG] Student found: {student.name}, attendance minimum: {student.attendanceMinimum}")
 
     # Get all modules this student is enrolled in
     enrollments = db.query(Module).join(StudentModules).filter(StudentModules.studentID == student_id).all()
+    print(f"[DEBUG] Student enrolled in {len(enrollments)} modules")
 
     for module in enrollments:
+        print(f"[DEBUG] Checking module: {module.moduleCode}")
         # Stats for THIS specific module
         total_past = (
             db.query(func.count(Lesson.lessonID))
@@ -92,7 +99,9 @@ def check_single_student_risk(db: Session, student_id: str):
             .scalar()
         ) or 0
 
-        if total_past == 0: continue # Skip if no classes yet
+        if total_past == 0: 
+            print(f"[DEBUG] No past lessons for {module.moduleCode}")
+            continue # Skip if no classes yet
 
         attended = (
             db.query(func.count(AttdCheck.AttdCheckID))
@@ -103,9 +112,11 @@ def check_single_student_risk(db: Session, student_id: str):
         ) or 0
 
         pct = (attended / total_past) * 100
+        print(f"[DEBUG] {module.moduleCode}: {attended}/{total_past} = {pct:.1f}%")
         
         # Check Threshold
         if pct < student.attendanceMinimum:
+            print(f"[DEBUG] {module.moduleCode} below threshold ({pct:.1f}% < {student.attendanceMinimum}%)")
             
             existing = db.query(StudentNotifications).filter(
                 StudentNotifications.studentID == student_id,
@@ -114,6 +125,7 @@ def check_single_student_risk(db: Session, student_id: str):
             ).first()
 
             if not existing:
+                print(f"[DEBUG] Creating new notification for {module.moduleCode}")
                 # CREATE RICH StudentNotifications
                 missed = total_past - attended
                 
@@ -133,5 +145,10 @@ def check_single_student_risk(db: Session, student_id: str):
                     }
                 )
                 db.add(alert)
+            else:
+                print(f"[DEBUG] Notification already exists for {module.moduleCode}")
+        else:
+            print(f"[DEBUG] {module.moduleCode} attendance OK ({pct:.1f}% >= {student.attendanceMinimum}%)")
 
     db.commit()
+    print(f"[DEBUG] Notification check completed for student {student_id}")
