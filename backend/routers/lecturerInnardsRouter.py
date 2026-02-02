@@ -411,44 +411,51 @@ def get_lecturer_attendance_log_filtered(
         print(f"DEBUG: Found {lesson_count} lessons for lecturer")
         
         # Build the main query
-        query = (
-            db.query(
-                Lesson,
-                Module.moduleCode,
-                Student.studentNum,
-                Student.name,
-                AttdCheck.AttdCheckID, # If this exists, they are Present
-                AttdCheck.remarks,
-                func.min(EntLeave.enter).label("entry_time") # Get the FIRST time they entered
+        try:
+            query = (
+                db.query(
+                    Lesson,
+                    Module.moduleCode,
+                    Student.studentNum,
+                    Student.name,
+                    AttdCheck.AttdCheckID, # If this exists, they are Present
+                    AttdCheck.remarks,
+                    func.min(EntLeave.detectionTime).label("entry_time") # Get the FIRST time they entered
+                )
+                .select_from(Lesson)
+                .join(LecMod, Lesson.lecModID == LecMod.lecModID)
+                .join(Module, LecMod.moduleID == Module.moduleID)
+                
+                # Link Lesson -> Module -> Enrolled Students
+                .join(StudentModules, Module.moduleID == StudentModules.modulesID)
+                .join(Student, StudentModules.studentID == Student.studentID)
+                
+                # Check if they have an Attendance Record (Left Join)
+                .outerjoin(AttdCheck, (AttdCheck.lessonID == Lesson.lessonID) & (AttdCheck.studentID == Student.studentID))
+                
+                # Check their Entry Logs to see if they were late (Left Join)
+                .outerjoin(EntLeave, (EntLeave.lessonID == Lesson.lessonID) & (EntLeave.studentID == Student.studentID))
+                
+                # Base Filters: Current Lecturer & Past Lessons only
+                .filter(LecMod.lecturerID == lecturer_uuid)
+                .filter(Lesson.endDateTime < datetime.now())
+                
+                # Grouping is required because we used an aggregate function: min(entry_time)
+                .group_by(
+                    Lesson.lessonID, 
+                    Module.moduleCode, 
+                    Student.studentNum, 
+                    Student.name, 
+                    AttdCheck.AttdCheckID,
+                    AttdCheck.remarks
+                )
             )
-            .select_from(Lesson)
-            .join(LecMod, Lesson.lecModID == LecMod.lecModID)
-            .join(Module, LecMod.moduleID == Module.moduleID)
-            
-            # Link Lesson -> Module -> Enrolled Students
-            .join(StudentModules, Module.moduleID == StudentModules.modulesID)
-            .join(Student, StudentModules.studentID == Student.studentID)
-            
-            # Check if they have an Attendance Record (Left Join)
-            .outerjoin(AttdCheck, (AttdCheck.lessonID == Lesson.lessonID) & (AttdCheck.studentID == Student.studentID))
-            
-            # Check their Entry Logs to see if they were late (Left Join)
-            .outerjoin(EntLeave, (EntLeave.lessonID == Lesson.lessonID) & (EntLeave.studentID == Student.studentID))
-            
-            # Base Filters: Current Lecturer & Past Lessons only
-            .filter(LecMod.lecturerID == lecturer_uuid)
-            .filter(Lesson.endDateTime < datetime.now())
-            
-            # Grouping is required because we used an aggregate function: min(entry_time)
-            .group_by(
-                Lesson.lessonID, 
-                Module.moduleCode, 
-                Student.studentNum, 
-                Student.name, 
-                AttdCheck.AttdCheckID,
-                AttdCheck.remarks
-            )
-        )
+            print(f"DEBUG: Query built successfully")
+        except Exception as query_error:
+            print(f"DEBUG: Error building query: {str(query_error)}")
+            import traceback
+            print(f"DEBUG: Query build traceback: {traceback.format_exc()}")
+            return {"data": [], "total": 0, "page": 1, "limit": limit}
 
         # Apply filters
         if date:
@@ -467,8 +474,15 @@ def get_lecturer_attendance_log_filtered(
             ))
 
         # Execute query
-        results = query.order_by(Lesson.startDateTime.desc()).all()
-        print(f"DEBUG: Raw query returned {len(results)} rows")
+        try:
+            print(f"DEBUG: Executing query...")
+            results = query.order_by(Lesson.startDateTime.desc()).all()
+            print(f"DEBUG: Raw query returned {len(results)} rows")
+        except Exception as exec_error:
+            print(f"DEBUG: Error executing query: {str(exec_error)}")
+            import traceback
+            print(f"DEBUG: Query execution traceback: {traceback.format_exc()}")
+            return {"data": [], "total": 0, "page": 1, "limit": limit}
 
         # Process results
         log_entries = []
@@ -575,7 +589,7 @@ def get_detailed_attendance_record(
     is_late = db.query(EntLeave).filter(
         EntLeave.lessonID == lesson_id, 
         EntLeave.studentID == student.studentID,
-        EntLeave.enter > lesson.startDateTime + timedelta(minutes=30)
+        EntLeave.detectionTime > lesson.startDateTime + timedelta(minutes=30)
     ).first()
 
     # C. Final Status Assignment
@@ -586,8 +600,8 @@ def get_detailed_attendance_record(
     else:
         status_str = 'Present'
         
-    # Get Timestamp (Use EntLeave.enter time if available, otherwise lesson start)
-    entry_time_record = db.query(EntLeave.enter).filter(EntLeave.lessonID == lesson_id, EntLeave.studentID == student.studentID).first()
+    # Get Timestamp (Use EntLeave.detectionTime time if available, otherwise lesson start)
+    entry_time_record = db.query(EntLeave.detectionTime).filter(EntLeave.lessonID == lesson_id, EntLeave.studentID == student.studentID).first()
     timestamp_str = (entry_time_record[0] if entry_time_record else lesson.startDateTime).strftime("%H:%M %p")
 
 

@@ -546,7 +546,7 @@ def generate_report(
                 status = "Absent"
                 if att:
                     status = "Present"
-                    if ent and ent.enter > lesson.startDateTime + timedelta(minutes=5):
+                    if ent and ent.detectionTime > lesson.startDateTime + timedelta(minutes=5):
                         status = "Late"
                     present_count += 1
                 
@@ -576,12 +576,14 @@ def generate_report(
             
             if ent:
                 status = "Present"
-                if ent.enter:
-                    t_in = ent.enter.strftime("%H:%M")
-                    if ent.enter > target_lesson.startDateTime + timedelta(minutes=5):
+                if ent.detectionTime:
+                    t_in = ent.detectionTime.strftime("%H:%M")
+                    if ent.detectionTime > target_lesson.startDateTime + timedelta(minutes=5):
                         status = "Late"
-                if ent.leave:
-                    t_out = ent.leave.strftime("%H:%M")
+                # Note: EntLeave only tracks detection time, not separate exit time
+                # if ent.leave:
+                #     t_out = ent.leave.strftime("%H:%M")
+                t_out = "N/A"  # Exit time not tracked in current schema
 
             # Filter Check
             if criteria.attendance_status != "All" and status != criteria.attendance_status:
@@ -690,7 +692,7 @@ def get_detailed_attendance_record(
     is_late = db.query(EntLeave).filter(
         EntLeave.lessonID == lesson_id, 
         EntLeave.studentID == student_num,
-        EntLeave.enter > lesson.startDateTime + timedelta(minutes=5)
+        EntLeave.detectionTime > lesson.startDateTime + timedelta(minutes=5)
     ).first()
 
     # C. Final Status Assignment
@@ -701,8 +703,8 @@ def get_detailed_attendance_record(
     else:
         status_str = 'Present'
         
-    # Get Timestamp (Use EntLeave.enter time if available, otherwise lesson start)
-    entry_time_record = db.query(EntLeave.enter).filter(EntLeave.lessonID == lesson_id, EntLeave.studentID == student_num).first()
+    # Get Timestamp (Use EntLeave.detectionTime time if available, otherwise lesson start)
+    entry_time_record = db.query(EntLeave.detectionTime).filter(EntLeave.lessonID == lesson_id, EntLeave.studentID == student_num).first()
     timestamp_str = (entry_time_record[0] if entry_time_record else lesson.startDateTime).strftime("%H:%M %p")
 
 
@@ -936,10 +938,10 @@ def get_overall_class_attendance_details(
             
             if ent_leave:
                 # Format time nicely: "06:15 PM" instead of "18:15 PM"
-                check_in_str = ent_leave.enter.strftime("%I:%M %p").lstrip('0') 
+                check_in_str = ent_leave.detectionTime.strftime("%I:%M %p").lstrip('0') 
                 
                 # Check Late Logic: Entry > Start Time + 5 Minutes
-                if ent_leave.enter > lesson.startDateTime + timedelta(minutes=5):
+                if ent_leave.detectionTime > lesson.startDateTime + timedelta(minutes=5):
                     status = 'Late'
                     calc_late += 1
                 else:
