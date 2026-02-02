@@ -250,7 +250,7 @@ def get_admin_attendance_log_filtered(
             Student.name,
             AttdCheck.AttdCheckID, # If this exists, they are Present
             AttdCheck.remarks,
-            func.min(EntLeave.enter).label("entry_time") # Get the FIRST time they entered
+            func.min(EntLeave.detectionTime).label("entry_time") # Get the FIRST time they entered
         )
         .select_from(Lesson)
         .join(LecMod, Lesson.lecModID == LecMod.lecModID)
@@ -498,15 +498,14 @@ def update_attendance_record(
                     
                     if existing_entry:
                         # Update existing entry to be late
-                        existing_entry.enter = late_entry_time
+                        existing_entry.detectionTime = late_entry_time
                         print(f"[DEBUG] Updated existing entry record to {late_entry_time}")
                     else:
                         # Create new entry record
                         new_entry = EntLeave(
                             studentID=student.userID,
                             lessonID=lesson.lessonID,
-                            enter=late_entry_time,
-                            leave=None
+                            detectionTime=late_entry_time
                         )
                         db.add(new_entry)
                         print(f"[DEBUG] Created late entry record at {late_entry_time}")
@@ -523,15 +522,14 @@ def update_attendance_record(
                     
                     if existing_entry:
                         # Update existing entry to be on time
-                        existing_entry.enter = on_time_entry
+                        existing_entry.detectionTime = on_time_entry
                         print(f"[DEBUG] Updated existing entry record to {on_time_entry}")
                     else:
                         # Create new entry record
                         new_entry = EntLeave(
                             studentID=student.userID,
                             lessonID=lesson.lessonID,
-                            enter=on_time_entry,
-                            leave=None
+                            detectionTime=on_time_entry
                         )
                         db.add(new_entry)
                         print(f"[DEBUG] Created on-time entry record at {on_time_entry}")

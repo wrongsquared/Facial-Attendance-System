@@ -189,7 +189,7 @@ export function ManageUserAccounts({
               </Select>
 
               {/* Create New User Button */}
-              <Button className="w-full md:w-auto" onClick={onCreateUser}>
+              <Button className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white" onClick={onCreateUser}>
                 <UserPlus className="h-4 w-4 mr-2" />
                 Create New User
               </Button>
@@ -214,9 +214,7 @@ export function ManageUserAccounts({
                         <TableCell>{user.uuid}</TableCell>
                         <TableCell>{user.name}</TableCell>
                         <TableCell>
-                          <Badge className={getRoleBadgeColor(user.role)}>
                             {user.role}
-                          </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(user.status)}>

@@ -290,11 +290,10 @@ export function ManageUserProfile({
                         {/* Actions Column */}
                         <TableCell className="text-right align-middle">
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            onClick={() => handleManageProfile(profile.userID)}
+                            onClick={() => handleManageProfile(profile.userID) }
                           >
-                            <Edit className="h-4 w-4 mr-2" />
                             Manage Profile
                           </Button>
                         </TableCell>

@@ -15,7 +15,7 @@ from datetime import datetime
 #
 # I will assume:
 # Student has fields: studentID (UUID PK), studentNum (string)
-# EntLeave has fields: entLeaveID, lessonID (int), studentID (UUID), enter (timestamp), leave (timestamp)
+# EntLeave has fields: entLeaveID, lessonID (int), studentID (UUID), detectionTime (timestamp)
 
 try:
     from database.db import Student, EntLeave  # <-- adjust if needed
@@ -86,15 +86,14 @@ def post_attendance(payload: AttendanceSnapshot, db: Session = Depends(get_db)):
             new_row = EntLeave(
                 lessonID=payload.lesson_id,
                 studentID=student.studentID,
-                enter=payload.captured_at,
-                leave=payload.captured_at,
+                detectionTime=payload.captured_at
             )
             db.add(new_row)
             created += 1
         else:
-            # Only move leave forward
-            if row.leave is None or payload.captured_at > row.leave:
-                row.leave = payload.captured_at
+            # Update detection time if this is a more recent detection
+            if payload.captured_at > row.detectionTime:
+                row.detectionTime = payload.captured_at
                 updated += 1
 
     db.commit()

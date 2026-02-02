@@ -241,11 +241,11 @@ export function CreateUser({ onLogout, onBack, onCreateSuccess,onNavigateToProfi
                 </div>
               )}
               {/* Action Buttons */}
-              <div className="flex justify-center gap-4 pt-4">
-                <Button type="button" variant="outline" onClick={onBack}>
+              <div className="flex justify-center gap-4 pt-4 w-full">
+                <Button type="button" variant="outline" onClick={onBack} className="flex-1">
                   Cancel
                 </Button>
-                <Button type="submit" disabled ={loading}>
+                <Button type="submit" disabled ={loading} className="bg-blue-600 hover:bg-blue-700 text-white flex-1">
                   {loading ? "Creating..." : "Create Account"}
                 </Button>
               </div>
