@@ -475,7 +475,7 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client):
                 "name": fakeName,
                 "email": f"{userName}@uow.edu.au",
                 "password": "Valid123",
-                "specialistIn": random.choice(['Computer Science', 'Business', 'Engineering', 'Arts'])
+                "specialistIn": random.choice(['Computer Science', 'Marketing', 'Engineering'])
             })
             generated_names.add(fakeName)
             i += 1

@@ -149,7 +149,7 @@ class Student(User): #Student, child of User
     __tablename__ = "students"
     __mapper_args__ = {"polymorphic_identity": "student"}
     studentID: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.userID"),  primary_key = True)
-    studentNum: Mapped[str] = mapped_column(String(6))
+    studentNum: Mapped[str] = mapped_column(String(8))
 
     courseID: Mapped[int] = mapped_column(ForeignKey("courses.courseID"))
     course: Mapped[Courses] = relationship(back_populates="students")
