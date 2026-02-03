@@ -30,6 +30,32 @@ interface CreateModuleProps {
   onSave?: (moduleData: any) => void;
 }
 
+// Module ID validation function
+const validateModuleID = (moduleID: string): { isValid: boolean; error: string } => {
+  // Check if empty
+  if (!moduleID.trim()) {
+    return { isValid: false, error: "Module ID is required" };
+  }
+
+  // Check if it's a positive integer
+  const numericValue = parseInt(moduleID.trim());
+  if (isNaN(numericValue) || !Number.isInteger(numericValue) || numericValue <= 0) {
+    return { isValid: false, error: "Module ID must be a positive integer (e.g., 1, 2, 3)" };
+  }
+
+  // Check if it's not too large (reasonable limit)
+  if (numericValue > 999999) {
+    return { isValid: false, error: "Module ID must be less than 1,000,000" };
+  }
+
+  // Check if it doesn't start with zero (if more than one digit)
+  if (moduleID.length > 1 && moduleID.startsWith('0')) {
+    return { isValid: false, error: "Module ID cannot start with zero" };
+  }
+
+  return { isValid: true, error: "" };
+};
+
 export function CreateModule({
   onBack,
   onNavigateToProfile,
@@ -85,15 +111,27 @@ export function CreateModule({
 
   const handleInputChange = (field: string, value: string | number[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: "" }));
+
+    // Real-time validation for moduleID
+    if (field === 'moduleID' && typeof value === 'string') {
+      const validation = validateModuleID(value);
+      if (!validation.isValid) {
+        setErrors(prev => ({ ...prev, moduleID: validation.error }));
+      } else {
+        setErrors(prev => ({ ...prev, moduleID: "" }));
+      }
+    } else {
+      // Clear error when user starts typing for other fields
+      if (errors[field]) {
+        setErrors(prev => ({ ...prev, [field]: "" }));
+      }
     }
   };
 
   const handleSave = async () => {
     // Validate required fields
     const requiredFields = [
+      { field: 'moduleID', label: 'Module ID' },
       { field: 'moduleCode', label: 'Module Code' },
       { field: 'moduleName', label: 'Module Name' },
       { field: 'startDate', label: 'Start Date' },
@@ -108,6 +146,14 @@ export function CreateModule({
     if (missingFields.length > 0) {
       const missingLabels = missingFields.map(({ label }) => label).join(', ');
       alert(`Missing data cannot be saved. Please fill in: ${missingLabels}`);
+      return;
+    }
+
+    // Validate module ID
+    const moduleIDValidation = validateModuleID(formData.moduleID);
+    if (!moduleIDValidation.isValid) {
+      setErrors(prev => ({ ...prev, moduleID: moduleIDValidation.error }));
+      alert(moduleIDValidation.error);
       return;
     }
 
@@ -128,6 +174,7 @@ export function CreateModule({
 
       // Call the API to create the module
       const result = await createModule(token, {
+        moduleID: parseInt(formData.moduleID),
         moduleName: formData.moduleName,
         moduleCode: formData.moduleCode,
         startDate: formData.startDate,
