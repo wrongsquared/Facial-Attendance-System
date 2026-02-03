@@ -23,6 +23,87 @@ import { useAuth } from "../cont/AuthContext";
 import { Navbar } from "./Navbar";
 import { UpdateProfilePayload } from "../types/adminInnards";
 
+// Name validation function
+const validateName = (name: string): { isValid: boolean; error: string } => {
+  if (!name.trim()) {
+    return { isValid: false, error: "Name is required" };
+  }
+  
+  if (name.trim().length < 2) {
+    return { isValid: false, error: "Name must be at least 2 characters long" };
+  }
+  
+  if (name.trim().length > 50) {
+    return { isValid: false, error: "Name must be less than 50 characters" };
+  }
+  
+  return { isValid: true, error: "" };
+};
+
+// Email validation function
+const validateEmail = (email: string): { isValid: boolean; error: string } => {
+  if (!email.trim()) {
+    return { isValid: false, error: "Email is required" };
+  }
+  
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return { isValid: false, error: "Please enter a valid email address" };
+  }
+  
+  return { isValid: true, error: "" };
+};
+
+// Phone validation function
+const validatePhone = (phone: string): { isValid: boolean; error: string } => {
+  if (!phone.trim()) {
+    return { isValid: false, error: "Contact number is required" };
+  }
+  
+  // Basic phone validation (allows digits, spaces, hyphens, parentheses, plus)
+  const phoneRegex = /^[\+]?[(]?[0-9\s\-\(\)]{8,15}$/;
+  if (!phoneRegex.test(phone.replace(/\s/g, ''))) {
+    return { isValid: false, error: "Please enter a valid contact number" };
+  }
+  
+  return { isValid: true, error: "" };
+};
+
+// Address validation function
+const validateAddress = (address: string): { isValid: boolean; error: string } => {
+  if (!address.trim()) {
+    return { isValid: false, error: "Address is required" };
+  }
+  
+  if (address.trim().length < 5) {
+    return { isValid: false, error: "Address must be at least 5 characters long" };
+  }
+  
+  if (address.trim().length > 200) {
+    return { isValid: false, error: "Address must be less than 200 characters" };
+  }
+  
+  return { isValid: true, error: "" };
+};
+
+// Attendance validation function
+const validateAttendance = (attendance: string): { isValid: boolean; error: string } => {
+  if (!attendance.trim()) {
+    return { isValid: false, error: "Attendance percentage is required" };
+  }
+  
+  const attendanceNum = parseFloat(attendance);
+  if (isNaN(attendanceNum)) {
+    return { isValid: false, error: "Attendance must be a valid number" };
+  }
+  
+  if (attendanceNum < 0 || attendanceNum > 100) {
+    return { isValid: false, error: "Attendance must be between 0 and 100" };
+  }
+  
+  return { isValid: true, error: "" };
+};
+
 interface AdminUpdateUserProfileProps {
   onLogout: () => void;
   onBack: () => void;
@@ -91,6 +172,59 @@ export function AdminUpdateUserProfile({
   // Role specific fields
   const [studentNum, setStudentNum] = useState("");
   const [attendance, setAttendance] = useState("");
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  // Handle input changes with real-time validation
+  const handleInputChange = (field: string, value: string) => {
+    // Update the appropriate state
+    switch (field) {
+      case 'name':
+        setName(value);
+        if (isEditMode) {
+          const nameValidation = validateName(value);
+          setErrors(prev => ({ ...prev, name: nameValidation.error }));
+        }
+        break;
+      case 'email':
+        setEmail(value);
+        if (isEditMode) {
+          const emailValidation = validateEmail(value);
+          setErrors(prev => ({ ...prev, email: emailValidation.error }));
+        }
+        break;
+      case 'contactNumber':
+        setContactNumber(value);
+        if (isEditMode) {
+          const phoneValidation = validatePhone(value);
+          setErrors(prev => ({ ...prev, contactNumber: phoneValidation.error }));
+        }
+        break;
+      case 'address':
+        setAddress(value);
+        if (isEditMode) {
+          const addressValidation = validateAddress(value);
+          setErrors(prev => ({ ...prev, address: addressValidation.error }));
+        }
+        break;
+      case 'attendance':
+        setAttendance(value);
+        if (isEditMode) {
+          const attendanceValidation = validateAttendance(value);
+          setErrors(prev => ({ ...prev, attendance: attendanceValidation.error }));
+        }
+        break;
+      case 'role':
+        setRole(value);
+        setErrors(prev => ({ ...prev, role: "" }));
+        break;
+      case 'status':
+        setStatus(value);
+        setErrors(prev => ({ ...prev, status: "" }));
+        break;
+      default:
+        break;
+    }
+  };
   const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return "N/A"; // Fallback if date is missing
 
@@ -137,6 +271,59 @@ export function AdminUpdateUserProfile({
   }, [userData.uuid, token, refreshKey]);
 
   const handleSave = async () => {
+    // Validate all fields before saving
+    const validationErrors: { [key: string]: string } = {};
+
+    // Name validation
+    const nameValidation = validateName(name);
+    if (!nameValidation.isValid) {
+      validationErrors.name = nameValidation.error;
+    }
+
+    // Email validation
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      validationErrors.email = emailValidation.error;
+    }
+
+    // Contact number validation
+    const phoneValidation = validatePhone(contactNumber);
+    if (!phoneValidation.isValid) {
+      validationErrors.contactNumber = phoneValidation.error;
+    }
+
+    // Address validation
+    const addressValidation = validateAddress(address);
+    if (!addressValidation.isValid) {
+      validationErrors.address = addressValidation.error;
+    }
+
+    // Role validation
+    if (!role.trim()) {
+      validationErrors.role = "Role is required";
+    }
+
+    // Status validation
+    if (!status.trim()) {
+      validationErrors.status = "Status is required";
+    }
+
+    // Attendance validation (only for students)
+    if (role.toLowerCase() === "student") {
+      const attendanceValidation = validateAttendance(attendance);
+      if (!attendanceValidation.isValid) {
+        validationErrors.attendance = attendanceValidation.error;
+      }
+    }
+
+    // If there are validation errors, show them and don't submit
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      const firstError = Object.values(validationErrors)[0];
+      showToast(`Validation Error: ${firstError}`);
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -169,6 +356,7 @@ export function AdminUpdateUserProfile({
   const handleCancel = () => {
     setIsEditMode(false);
     setRefreshKey(prev => prev + 1); // Force the useEffect to re-run
+    setErrors({}); // Clear validation errors
     showToast("Changes discarded.");
   };
 
@@ -204,20 +392,28 @@ export function AdminUpdateUserProfile({
               <label className="text-sm text-gray-600 mb-2 block">Full Name:</label>
               <Input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => handleInputChange("name", e.target.value)}
                 placeholder="Enter name"
                 disabled={!isEditMode}
+                className={errors.name ? "border-red-500" : ""}
               />
+              {errors.name && (
+                <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+              )}
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">Email:</label>
               <Input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => handleInputChange("email", e.target.value)}
                 placeholder="Enter email"
                 disabled // This can be edited in UserAccounts Edit
+                className={errors.email ? "border-red-500" : ""}
               />
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+              )}
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">
@@ -226,10 +422,14 @@ export function AdminUpdateUserProfile({
               <Input
                 type="tel"
                 value={contactNumber}
-                onChange={(e) => setContactNumber(e.target.value)}
+                onChange={(e) => handleInputChange("contactNumber", e.target.value)}
                 placeholder="Enter contact number"
                 disabled={!isEditMode}
+                className={errors.contactNumber ? "border-red-500" : ""}
               />
+              {errors.contactNumber && (
+                <p className="text-red-500 text-sm mt-1">{errors.contactNumber}</p>
+              )}
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">
@@ -237,10 +437,14 @@ export function AdminUpdateUserProfile({
               </label>
               <Textarea // Multiline Support
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                onChange={(e) => handleInputChange("address", e.target.value)}
                 placeholder="Enter address"
                 disabled={!isEditMode}
+                className={errors.address ? "border-red-500" : ""}
               />
+              {errors.address && (
+                <p className="text-red-500 text-sm mt-1">{errors.address}</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -259,8 +463,8 @@ export function AdminUpdateUserProfile({
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">Role:</label>
-              <Select value={role} onValueChange={setRole} disabled={!isEditMode}>
-                <SelectTrigger>
+              <Select value={role} onValueChange={(value) => handleInputChange("role", value)} disabled={!isEditMode}>
+                <SelectTrigger className={errors.role ? "border-red-500" : ""}>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -269,13 +473,16 @@ export function AdminUpdateUserProfile({
                   <SelectItem value="Admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.role && (
+                <p className="text-red-500 text-sm mt-1">{errors.role}</p>
+              )}
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">
                 Status:
               </label>
-              <Select value={status} onValueChange={setStatus} disabled={!isEditMode}>
-                <SelectTrigger>
+              <Select value={status} onValueChange={(value) => handleInputChange("status", value)} disabled={!isEditMode}>
+                <SelectTrigger className={errors.status ? "border-red-500" : ""}>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -284,6 +491,9 @@ export function AdminUpdateUserProfile({
                   <SelectItem value="Suspended">Suspended</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.status && (
+                <p className="text-red-500 text-sm mt-1">{errors.status}</p>
+              )}
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">
@@ -302,11 +512,19 @@ export function AdminUpdateUserProfile({
                 Attendance (%):
               </label>
               <Input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
                 value={attendance}
-                onChange={(e) => setAttendance(e.target.value)}
-                placeholder="Attendance"
+                onChange={(e) => handleInputChange("attendance", e.target.value)}
+                placeholder="Attendance percentage (0-100)"
                 disabled={!isEditMode}
+                className={errors.attendance ? "border-red-500" : ""}
               />
+              {errors.attendance && (
+                <p className="text-red-500 text-sm mt-1">{errors.attendance}</p>
+              )}
             </div>
           </CardContent>
         </Card>

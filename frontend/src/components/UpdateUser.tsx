@@ -24,6 +24,69 @@ import { getUserDetails, updateUser, getCampusCourses } from "../services/api";
 import { UpdateUserPayload, UserDetails, Course } from "../types/adminInnards";
 import { useAuth } from "../cont/AuthContext";
 
+// Email validation function
+const validateEmail = (email: string): { isValid: boolean; error: string } => {
+  if (!email.trim()) {
+    return { isValid: false, error: "Email is required" };
+  }
+  
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return { isValid: false, error: "Please enter a valid email address" };
+  }
+  
+  return { isValid: true, error: "" };
+};
+
+// Name validation function
+const validateName = (name: string): { isValid: boolean; error: string } => {
+  if (!name.trim()) {
+    return { isValid: false, error: "Name is required" };
+  }
+  
+  if (name.trim().length < 2) {
+    return { isValid: false, error: "Name must be at least 2 characters long" };
+  }
+  
+  if (name.trim().length > 50) {
+    return { isValid: false, error: "Name must be less than 50 characters" };
+  }
+  
+  return { isValid: true, error: "" };
+};
+
+// Password validation function (for updates, password is optional)
+const validatePassword = (password: string): { isValid: boolean; error: string } => {
+  if (!password) {
+    return { isValid: true, error: "" }; // Password is optional for updates
+  }
+  
+  if (password.length < 6) {
+    return { isValid: false, error: "Password must be at least 6 characters long" };
+  }
+  
+  if (password.length > 100) {
+    return { isValid: false, error: "Password must be less than 100 characters" };
+  }
+  
+  return { isValid: true, error: "" };
+};
+
+// Role-specific field validation
+const validateRoleSpecificField = (value: string, role: string): { isValid: boolean; error: string } => {
+  if (!value.trim()) {
+    const fieldName = role === 'student' ? 'Student Number' :
+                     role === 'lecturer' ? 'Specialisation' : 'Role/Job Title';
+    return { isValid: false, error: `${fieldName} is required` };
+  }
+  
+  if (value.trim().length > 100) {
+    return { isValid: false, error: "Field must be less than 100 characters" };
+  }
+  
+  return { isValid: true, error: "" };
+};
+
 interface UpdateUserProps {
   onLogout: () => void;
   onBack: () => void;
@@ -50,6 +113,51 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
   const [newPassword, setNewPassword] = useState(""); // Default to empty
   const [userIdInput, setUserIdInput] = useState("");
   const [courses, setCourses] = useState<Course[]>([]);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  // Handle input changes with real-time validation
+  const handleInputChange = (field: string, value: string) => {
+    // Update the appropriate state
+    switch (field) {
+      case 'name':
+        setName(value);
+        const nameValidation = validateName(value);
+        setErrors(prev => ({ ...prev, name: nameValidation.error }));
+        break;
+      case 'email':
+        setEmail(value);
+        const emailValidation = validateEmail(value);
+        setErrors(prev => ({ ...prev, email: emailValidation.error }));
+        break;
+      case 'newPassword':
+        setNewPassword(value);
+        const passwordValidation = validatePassword(value);
+        setErrors(prev => ({ ...prev, newPassword: passwordValidation.error }));
+        
+        // Also validate confirm password if it exists
+        if (confirmPassword) {
+          const confirmMatch = value === confirmPassword;
+          setErrors(prev => ({ ...prev, confirmPassword: confirmMatch ? "" : "Passwords do not match" }));
+        }
+        break;
+      case 'confirmPassword':
+        setConfirmPassword(value);
+        const confirmMatch = value === newPassword;
+        setErrors(prev => ({ ...prev, confirmPassword: confirmMatch ? "" : "Passwords do not match" }));
+        break;
+      case 'userIdInput':
+        setUserIdInput(value);
+        const roleFieldValidation = validateRoleSpecificField(value, role.toLowerCase());
+        setErrors(prev => ({ ...prev, userIdInput: roleFieldValidation.error }));
+        break;
+      case 'selectedCourseID':
+        setSelectedCourseID(value);
+        setErrors(prev => ({ ...prev, selectedCourseID: "" }));
+        break;
+      default:
+        break;
+    }
+  };
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -84,9 +192,50 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
-    // Validation
-    if (newPassword && newPassword !== confirmPassword) {
-      alert("Passwords do not match");
+    // Validate all fields
+    const validationErrors: { [key: string]: string } = {};
+
+    // Name validation
+    const nameValidation = validateName(name);
+    if (!nameValidation.isValid) {
+      validationErrors.name = nameValidation.error;
+    }
+
+    // Email validation
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      validationErrors.email = emailValidation.error;
+    }
+
+    // Password validation (only if password is provided)
+    if (newPassword) {
+      const passwordValidation = validatePassword(newPassword);
+      if (!passwordValidation.isValid) {
+        validationErrors.newPassword = passwordValidation.error;
+      }
+
+      // Confirm password validation
+      if (newPassword !== confirmPassword) {
+        validationErrors.confirmPassword = "Passwords do not match";
+      }
+    }
+
+    // Role-specific field validation
+    const roleFieldValidation = validateRoleSpecificField(userIdInput, role.toLowerCase());
+    if (!roleFieldValidation.isValid) {
+      validationErrors.userIdInput = roleFieldValidation.error;
+    }
+
+    // Student course validation
+    if (role.toLowerCase() === "student" && !selectedCourseID) {
+      validationErrors.selectedCourseID = "Please select a course for the student";
+    }
+
+    // If there are validation errors, show them and don't submit
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      const firstError = Object.values(validationErrors)[0];
+      alert(`Validation Error: ${firstError}`);
       return;
     }
 
@@ -150,18 +299,30 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
               {/* User ID Input */}
               <div className="space-y-2">
                 <Label>Full Name:</Label>
-                <Input value={name} disabled={true} onChange={(e) => setName(e.target.value)} />
+                <Input 
+                  value={name} 
+                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  className={errors.name ? "border-red-500" : ""}
+                  placeholder="Enter full name"
+                />
+                {errors.name && (
+                  <p className="text-red-500 text-sm">{errors.name}</p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="email">User E-mail:</Label>
                 <Input
                   id="email"
-                  type="text"
+                  type="email"
                   placeholder="Enter E-mail"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  className={errors.email ? "border-red-500" : ""}
                 />
+                {errors.email && (
+                  <p className="text-red-500 text-sm">{errors.email}</p>
+                )}
               </div>
               {role.toLowerCase() === 'student' && (
                 <div className="space-y-4">
@@ -169,14 +330,18 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
                     <Label>Student Number:</Label>
                     <Input 
                       value={userIdInput} 
-                      onChange={(e) => setUserIdInput(e.target.value)} 
+                      onChange={(e) => handleInputChange("userIdInput", e.target.value)} 
                       placeholder="Enter Student ID"
+                      className={errors.userIdInput ? "border-red-500" : ""}
                     />
+                    {errors.userIdInput && (
+                      <p className="text-red-500 text-sm">{errors.userIdInput}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="course-select">Course:</Label>
-                    <Select value={selectedCourseID} onValueChange={(value: string) => setSelectedCourseID(value)}>
-                      <SelectTrigger id="course-select">
+                    <Select value={selectedCourseID} onValueChange={(value: string) => handleInputChange("selectedCourseID", value)}>
+                      <SelectTrigger id="course-select" className={errors.selectedCourseID ? "border-red-500" : ""}>
                         <SelectValue placeholder="Select a Course" />
                       </SelectTrigger>
                       <SelectContent>
@@ -187,6 +352,9 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
                         ))}
                       </SelectContent>
                     </Select>
+                    {errors.selectedCourseID && (
+                      <p className="text-red-500 text-sm">{errors.selectedCourseID}</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -197,8 +365,12 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
                   <Input
                     placeholder="e.g. Data Science, Ethics"
                     value={userIdInput}
-                    onChange={(e) => setUserIdInput(e.target.value)}
+                    onChange={(e) => handleInputChange("userIdInput", e.target.value)}
+                    className={errors.userIdInput ? "border-red-500" : ""}
                   />
+                  {errors.userIdInput && (
+                    <p className="text-red-500 text-sm">{errors.userIdInput}</p>
+                  )}
                 </div>
               )}
 
@@ -208,8 +380,12 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
                   <Input
                     placeholder="e.g. Faculty Manager"
                     value={userIdInput}
-                    onChange={(e) => setUserIdInput(e.target.value)}
+                    onChange={(e) => handleInputChange("userIdInput", e.target.value)}
+                    className={errors.userIdInput ? "border-red-500" : ""}
                   />
+                  {errors.userIdInput && (
+                    <p className="text-red-500 text-sm">{errors.userIdInput}</p>
+                  )}
                 </div>
               )}
               {/* Password Input */}
@@ -220,8 +396,12 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
                   type="password"
                   placeholder="Enter new password (leave blank to keep current)"
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={(e) => handleInputChange("newPassword", e.target.value)}
+                  className={errors.newPassword ? "border-red-500" : ""}
                 />
+                {errors.newPassword && (
+                  <p className="text-red-500 text-sm">{errors.newPassword}</p>
+                )}
               </div>
 
               {/* Confirm Password Input */}
@@ -232,8 +412,12 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
                   type="password"
                   placeholder="Re-enter new password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                  className={errors.confirmPassword ? "border-red-500" : ""}
                 />
+                {errors.confirmPassword && (
+                  <p className="text-red-500 text-sm">{errors.confirmPassword}</p>
+                )}
               </div>
 
               {/* Action Buttons */}
