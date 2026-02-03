@@ -366,7 +366,7 @@ export function RegistrationPage() {
       alert('Please enter a valid card number');
       return false;
     }
-    if (!paymentData.expiryDate || paymentData.expiryDate.length !== 5) {
+    if (!paymentData.expiryDate || paymentData.expiryDate.length !== 4) {
       alert('Please enter a valid expiry date (MM/YY)');
       return false;
     }
@@ -465,6 +465,7 @@ export function RegistrationPage() {
           <form
             onSubmit={handleRegister}
             className="flex flex-col gap-12" // Added gap-12 to space out the major sections
+            autoComplete="on"
             style={{
               backgroundColor: 'black',
               border: '2px solid white',
@@ -686,13 +687,25 @@ export function RegistrationPage() {
                         id="cardNumber"
                         name="cardNumber"
                         type="text"
+                        autoComplete="cc-number"
                         value={formatCardNumber(paymentData.cardNumber)}
                         onChange={(e) => {
-                          const formatted = formatCardNumber(e.target.value);
-                          handlePaymentChange({
-                            ...e,
-                            target: { ...e.target, value: formatted }
+                          const rawValue = e.target.value.replace(/\s/g, '');
+                          setPaymentData({
+                            ...paymentData,
+                            cardNumber: rawValue
                           });
+                          
+                          // Detect card type
+                          if (rawValue.startsWith('4')) {
+                            setCardType('visa');
+                          } else if (rawValue.startsWith('5') || rawValue.startsWith('2')) {
+                            setCardType('mastercard');
+                          } else if (rawValue.startsWith('3')) {
+                            setCardType('amex');
+                          } else {
+                            setCardType('');
+                          }
                         }}
                         placeholder="1234 5678 9012 3456"
                         maxLength={19}
@@ -718,12 +731,13 @@ export function RegistrationPage() {
                           id="expiryDate"
                           name="expiryDate"
                           type="text"
+                          autoComplete="cc-exp"
                           value={formatExpiryDate(paymentData.expiryDate)}
                           onChange={(e) => {
-                            const formatted = formatExpiryDate(e.target.value);
-                            handlePaymentChange({
-                              ...e,
-                              target: { ...e.target, value: formatted }
+                            const rawValue = e.target.value.replace(/[^0-9]/g, '');
+                            setPaymentData({
+                              ...paymentData,
+                              expiryDate: rawValue
                             });
                           }}
                           placeholder="MM/YY"
@@ -746,6 +760,7 @@ export function RegistrationPage() {
                           id="cvv"
                           name="cvv"
                           type={showCvv ? "text" : "password"}
+                          autoComplete="cc-csc"
                           value={paymentData.cvv}
                           onChange={handlePaymentChange}
                           placeholder="123"
@@ -775,6 +790,7 @@ export function RegistrationPage() {
                       id="cardholderName"
                       name="cardholderName"
                       type="text"
+                      autoComplete="cc-name"
                       value={paymentData.cardholderName}
                       onChange={handlePaymentChange}
                       placeholder="John Doe"
