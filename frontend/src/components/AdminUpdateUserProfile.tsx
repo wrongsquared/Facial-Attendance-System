@@ -28,15 +28,15 @@ const validateName = (name: string): { isValid: boolean; error: string } => {
   if (!name.trim()) {
     return { isValid: false, error: "Name is required" };
   }
-  
+
   if (name.trim().length < 2) {
     return { isValid: false, error: "Name must be at least 2 characters long" };
   }
-  
+
   if (name.trim().length > 50) {
     return { isValid: false, error: "Name must be less than 50 characters" };
   }
-  
+
   return { isValid: true, error: "" };
 };
 
@@ -45,12 +45,12 @@ const validateEmail = (email: string): { isValid: boolean; error: string } => {
   if (!email.trim()) {
     return { isValid: false, error: "Email is required" };
   }
-  
+
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     return { isValid: false, error: "Please enter a valid email address" };
   }
-  
+
   return { isValid: true, error: "" };
 };
 
@@ -59,13 +59,13 @@ const validatePhone = (phone: string): { isValid: boolean; error: string } => {
   if (!phone.trim()) {
     return { isValid: false, error: "Contact number is required" };
   }
-  
+
   // Basic phone validation (allows digits, spaces, hyphens, parentheses, plus)
   const phoneRegex = /^[\+]?[(]?[0-9\s\-\(\)]{8,15}$/;
   if (!phoneRegex.test(phone.replace(/\s/g, ''))) {
     return { isValid: false, error: "Please enter a valid contact number" };
   }
-  
+
   return { isValid: true, error: "" };
 };
 
@@ -74,15 +74,15 @@ const validateAddress = (address: string): { isValid: boolean; error: string } =
   if (!address.trim()) {
     return { isValid: false, error: "Address is required" };
   }
-  
+
   if (address.trim().length < 5) {
     return { isValid: false, error: "Address must be at least 5 characters long" };
   }
-  
+
   if (address.trim().length > 200) {
     return { isValid: false, error: "Address must be less than 200 characters" };
   }
-  
+
   return { isValid: true, error: "" };
 };
 
@@ -91,16 +91,16 @@ const validateAttendance = (attendance: string): { isValid: boolean; error: stri
   if (!attendance.trim()) {
     return { isValid: false, error: "Attendance percentage is required" };
   }
-  
+
   const attendanceNum = parseFloat(attendance);
   if (isNaN(attendanceNum)) {
     return { isValid: false, error: "Attendance must be a valid number" };
   }
-  
+
   if (attendanceNum < 0 || attendanceNum > 100) {
     return { isValid: false, error: "Attendance must be between 0 and 100" };
   }
-  
+
   return { isValid: true, error: "" };
 };
 
@@ -157,7 +157,7 @@ export function AdminUpdateUserProfile({
   const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0); 
+  const [refreshKey, setRefreshKey] = useState(0);
   // --- Form State (Initialized empty to avoid 'uncontrolled' warnings) ---
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -167,7 +167,7 @@ export function AdminUpdateUserProfile({
   const [status, setStatus] = useState("");
   const [creationDate, setCreationDate] = useState("");
   const [associatedModules, setAssociatedModules] = useState("");
-  const [studnum,setstudnum] = useState("");
+  const [studnum, setstudnum] = useState("");
   const hardName = name;
   // Role specific fields
   const [studentNum, setStudentNum] = useState("");
@@ -243,7 +243,7 @@ export function AdminUpdateUserProfile({
       try {
         setLoading(true);
         const data = await getUserAccDetails(userData.uuid, token);
-        
+
         // Map backend fields to frontend state
         setName(data.name || "");
         setEmail(data.email || "");
@@ -251,13 +251,13 @@ export function AdminUpdateUserProfile({
         setStatus(data.active ? "Active" : "Inactive");
         setstudnum(data.studentNum || "");
         // Fields from your DB 'users' table
-        setContactNumber(data.phone || ""); 
+        setContactNumber(data.phone || "");
         setAddress(data.fulladdress || "");
-        
+
         // Fields from 'student' table (if applicable)
         if (data.role.toLowerCase() === "student") {
-            setStudentNum(data.studentNum || "");
-            setAttendance(data.attendanceMinimum?.toString() || "");
+          setStudentNum(data.studentNum || "");
+          setAttendance(data.attendanceMinimum?.toString() || "");
         }
         setCreationDate(formatDate(data.creationDate) ?? "");
         setAssociatedModules(data.associatedModules || "N/A");
@@ -345,13 +345,13 @@ export function AdminUpdateUserProfile({
 
       showToast("User Profile Updated Successfully!");
       setIsEditMode(false);
-      setRefreshKey(prev => prev + 1); 
+      setRefreshKey(prev => prev + 1);
 
-  } catch (err: any) {
-    showToast("Update failed: " + err.message);
-  } finally {
-    setLoading(false);
-  }
+    } catch (err: any) {
+      showToast("Update failed: " + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
   const handleCancel = () => {
     setIsEditMode(false);

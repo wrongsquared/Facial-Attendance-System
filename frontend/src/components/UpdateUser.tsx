@@ -29,12 +29,12 @@ const validateEmail = (email: string): { isValid: boolean; error: string } => {
   if (!email.trim()) {
     return { isValid: false, error: "Email is required" };
   }
-  
+
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     return { isValid: false, error: "Please enter a valid email address" };
   }
-  
+
   return { isValid: true, error: "" };
 };
 
@@ -43,15 +43,15 @@ const validateName = (name: string): { isValid: boolean; error: string } => {
   if (!name.trim()) {
     return { isValid: false, error: "Name is required" };
   }
-  
+
   if (name.trim().length < 2) {
     return { isValid: false, error: "Name must be at least 2 characters long" };
   }
-  
+
   if (name.trim().length > 50) {
     return { isValid: false, error: "Name must be less than 50 characters" };
   }
-  
+
   return { isValid: true, error: "" };
 };
 
@@ -60,15 +60,15 @@ const validatePassword = (password: string): { isValid: boolean; error: string }
   if (!password) {
     return { isValid: true, error: "" }; // Password is optional for updates
   }
-  
+
   if (password.length < 6) {
     return { isValid: false, error: "Password must be at least 6 characters long" };
   }
-  
+
   if (password.length > 100) {
     return { isValid: false, error: "Password must be less than 100 characters" };
   }
-  
+
   return { isValid: true, error: "" };
 };
 
@@ -76,14 +76,14 @@ const validatePassword = (password: string): { isValid: boolean; error: string }
 const validateRoleSpecificField = (value: string, role: string): { isValid: boolean; error: string } => {
   if (!value.trim()) {
     const fieldName = role === 'student' ? 'Student Number' :
-                     role === 'lecturer' ? 'Specialisation' : 'Role/Job Title';
+      role === 'lecturer' ? 'Specialisation' : 'Role/Job Title';
     return { isValid: false, error: `${fieldName} is required` };
   }
-  
+
   if (value.trim().length > 100) {
     return { isValid: false, error: "Field must be less than 100 characters" };
   }
-  
+
   return { isValid: true, error: "" };
 };
 
@@ -133,7 +133,7 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
         setNewPassword(value);
         const passwordValidation = validatePassword(value);
         setErrors(prev => ({ ...prev, newPassword: passwordValidation.error }));
-        
+
         // Also validate confirm password if it exists
         if (confirmPassword) {
           const confirmMatch = value === confirmPassword;
@@ -172,7 +172,7 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
           const user = await getUserDetails(targetUUID, token);
           setName(user.name || "");
           setEmail(user.email || "");
-          setRole(user.role || ""); 
+          setRole(user.role || "");
 
           if (user.role.toLowerCase() === "student") {
             setUserIdInput(user.studentNum || "");
@@ -191,7 +191,7 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    
+
     // Validate all fields
     const validationErrors: { [key: string]: string } = {};
 
@@ -255,7 +255,7 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
     const roleKey = role.toLowerCase();
     if (roleKey === "student") {
       payload.studentNum = userIdInput;
-      payload.courseID =  selectedCourseID ? Number(selectedCourseID) : undefined;
+      payload.courseID = selectedCourseID ? Number(selectedCourseID) : undefined;
     } else if (roleKey === "lecturer") {
       payload.specialistIn = userIdInput;
     } else if (roleKey === "admin") {
@@ -275,8 +275,8 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
   };
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile}/>
-      
+      <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile} />
+
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
         {/* Back Button */}
@@ -295,142 +295,142 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-6">
-              {/* User ID Input */}
-              <div className="space-y-2">
-                <Label>Full Name:</Label>
-                <Input 
-                  value={name} 
-                  onChange={(e) => handleInputChange("name", e.target.value)}
-                  className={errors.name ? "border-red-500" : ""}
-                  placeholder="Enter full name"
-                />
-                {errors.name && (
-                  <p className="text-red-500 text-sm">{errors.name}</p>
-                )}
-              </div>
+              <div className="space-y-6">
+                {/* User ID Input */}
+                <div className="space-y-2">
+                  <Label>Full Name:</Label>
+                  <Input
+                    value={name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    className={errors.name ? "border-red-500" : ""}
+                    placeholder="Enter full name"
+                  />
+                  {errors.name && (
+                    <p className="text-red-500 text-sm">{errors.name}</p>
+                  )}
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">User E-mail:</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter E-mail"
-                  value={email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  className={errors.email ? "border-red-500" : ""}
-                />
-                {errors.email && (
-                  <p className="text-red-500 text-sm">{errors.email}</p>
+                <div className="space-y-2">
+                  <Label htmlFor="email">User E-mail:</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter E-mail"
+                    value={email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    className={errors.email ? "border-red-500" : ""}
+                  />
+                  {errors.email && (
+                    <p className="text-red-500 text-sm">{errors.email}</p>
+                  )}
+                </div>
+                {role.toLowerCase() === 'student' && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Student Number:</Label>
+                      <Input
+                        value={userIdInput}
+                        onChange={(e) => handleInputChange("userIdInput", e.target.value)}
+                        placeholder="Enter Student ID"
+                        className={errors.userIdInput ? "border-red-500" : ""}
+                      />
+                      {errors.userIdInput && (
+                        <p className="text-red-500 text-sm">{errors.userIdInput}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="course-select">Course:</Label>
+                      <Select value={selectedCourseID} onValueChange={(value: string) => handleInputChange("selectedCourseID", value)}>
+                        <SelectTrigger id="course-select" className={errors.selectedCourseID ? "border-red-500" : ""}>
+                          <SelectValue placeholder="Select a Course" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {courses.map((course) => (
+                            <SelectItem key={course.courseID} value={course.courseID.toString()}>
+                              {course.courseCode}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.selectedCourseID && (
+                        <p className="text-red-500 text-sm">{errors.selectedCourseID}</p>
+                      )}
+                    </div>
+                  </div>
                 )}
-              </div>
-              {role.toLowerCase() === 'student' && (
-                <div className="space-y-4">
+
+                {role.toLowerCase() === 'lecturer' && (
                   <div className="space-y-2">
-                    <Label>Student Number:</Label>
-                    <Input 
-                      value={userIdInput} 
-                      onChange={(e) => handleInputChange("userIdInput", e.target.value)} 
-                      placeholder="Enter Student ID"
+                    <Label>Lecturer Specialisation:</Label>
+                    <Input
+                      placeholder="e.g. Data Science, Ethics"
+                      value={userIdInput}
+                      onChange={(e) => handleInputChange("userIdInput", e.target.value)}
                       className={errors.userIdInput ? "border-red-500" : ""}
                     />
                     {errors.userIdInput && (
                       <p className="text-red-500 text-sm">{errors.userIdInput}</p>
                     )}
                   </div>
+                )}
+
+                {role.toLowerCase() === 'admin' && (
                   <div className="space-y-2">
-                    <Label htmlFor="course-select">Course:</Label>
-                    <Select value={selectedCourseID} onValueChange={(value: string) => handleInputChange("selectedCourseID", value)}>
-                      <SelectTrigger id="course-select" className={errors.selectedCourseID ? "border-red-500" : ""}>
-                        <SelectValue placeholder="Select a Course" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {courses.map((course) => (
-                          <SelectItem key={course.courseID} value={course.courseID.toString()}>
-                            {course.courseCode}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.selectedCourseID && (
-                      <p className="text-red-500 text-sm">{errors.selectedCourseID}</p>
+                    <Label>Admin Job Role:</Label>
+                    <Input
+                      placeholder="e.g. Faculty Manager"
+                      value={userIdInput}
+                      onChange={(e) => handleInputChange("userIdInput", e.target.value)}
+                      className={errors.userIdInput ? "border-red-500" : ""}
+                    />
+                    {errors.userIdInput && (
+                      <p className="text-red-500 text-sm">{errors.userIdInput}</p>
                     )}
                   </div>
-                </div>
-              )}
-
-              {role.toLowerCase() === 'lecturer' && (
+                )}
+                {/* Password Input */}
                 <div className="space-y-2">
-                  <Label>Lecturer Specialisation:</Label>
+                  <Label htmlFor="password">Password:</Label>
                   <Input
-                    placeholder="e.g. Data Science, Ethics"
-                    value={userIdInput}
-                    onChange={(e) => handleInputChange("userIdInput", e.target.value)}
-                    className={errors.userIdInput ? "border-red-500" : ""}
+                    id="password"
+                    type="password"
+                    placeholder="Enter new password (leave blank to keep current)"
+                    value={newPassword}
+                    onChange={(e) => handleInputChange("newPassword", e.target.value)}
+                    className={errors.newPassword ? "border-red-500" : ""}
                   />
-                  {errors.userIdInput && (
-                    <p className="text-red-500 text-sm">{errors.userIdInput}</p>
+                  {errors.newPassword && (
+                    <p className="text-red-500 text-sm">{errors.newPassword}</p>
                   )}
                 </div>
-              )}
 
-              {role.toLowerCase() === 'admin' && (
+                {/* Confirm Password Input */}
                 <div className="space-y-2">
-                  <Label>Admin Job Role:</Label>
+                  <Label htmlFor="confirmPassword">Confirm Password:</Label>
                   <Input
-                    placeholder="e.g. Faculty Manager"
-                    value={userIdInput}
-                    onChange={(e) => handleInputChange("userIdInput", e.target.value)}
-                    className={errors.userIdInput ? "border-red-500" : ""}
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Re-enter new password"
+                    value={confirmPassword}
+                    onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                    className={errors.confirmPassword ? "border-red-500" : ""}
                   />
-                  {errors.userIdInput && (
-                    <p className="text-red-500 text-sm">{errors.userIdInput}</p>
+                  {errors.confirmPassword && (
+                    <p className="text-red-500 text-sm">{errors.confirmPassword}</p>
                   )}
                 </div>
-              )}
-              {/* Password Input */}
-              <div className="space-y-2">
-                <Label htmlFor="password">Password:</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter new password (leave blank to keep current)"
-                  value={newPassword}
-                  onChange={(e) => handleInputChange("newPassword", e.target.value)}
-                  className={errors.newPassword ? "border-red-500" : ""}
-                />
-                {errors.newPassword && (
-                  <p className="text-red-500 text-sm">{errors.newPassword}</p>
-                )}
-              </div>
 
-              {/* Confirm Password Input */}
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password:</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="Re-enter new password"
-                  value={confirmPassword}
-                  onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                  className={errors.confirmPassword ? "border-red-500" : ""}
-                />
-                {errors.confirmPassword && (
-                  <p className="text-red-500 text-sm">{errors.confirmPassword}</p>
-                )}
+                {/* Action Buttons */}
+                <div className="flex justify-center gap-4 pt-4">
+                  <Button variant="outline" onClick={onBack}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={loading} className="bg-blue-600 text-white hover:bg-blue-700">
+                    {loading ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
               </div>
-
-              {/* Action Buttons */}
-              <div className="flex justify-center gap-4 pt-4">
-                <Button variant="outline" onClick={onBack}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={loading} className="bg-blue-600 text-white hover:bg-blue-700">
-                  {loading ? "Saving..." : "Save Changes"}
-                </Button>
-              </div>
-            </div>
-          </form>
+            </form>
           </CardContent>
         </Card>
       </main>

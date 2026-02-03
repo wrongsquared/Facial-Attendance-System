@@ -288,7 +288,7 @@ export function CreateUser({ onLogout, onBack, onCreateSuccess, onNavigateToProf
                 {/* Create As Dropdown */}
                 <div className="space-y-2">
                   <Label htmlFor="userType">Create As:</Label>
-                  <Select value={role} onValueChange={(value) => handleInputChange("role", value)}>
+                  <Select value={role} onValueChange={(value: string) => handleInputChange("role", value)}>
                     <SelectTrigger id="userType" className={errors.role ? "border-red-500" : ""}>
                       <SelectValue placeholder="Select user type" />
                     </SelectTrigger>
