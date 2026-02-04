@@ -89,8 +89,8 @@ export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigate
 
         {/* Page Title */}
         <div className="mb-8">
-          <h2 className="text-3xl mb-2">Progress Tracker</h2>
-          <p className="text-gray-600">
+          <h2 className="text-3xl mb-2 text-center">Progress Tracker</h2>
+          <p className="text-gray-600 text-center">
             Track your attendance progress across all modules
           </p>
         </div>
