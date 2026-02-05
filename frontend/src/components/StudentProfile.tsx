@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-import { Button } from "./ui/button"; 
+import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import {
@@ -36,7 +36,7 @@ interface StudentProfileProps {
   onLogout: () => void;
   onBack: () => void;
   onNavigateToProfile: () => void;
-  onOpenNotifications:() => void;
+  onOpenNotifications: () => void;
 }
 
 export function StudentProfile({
@@ -49,14 +49,14 @@ export function StudentProfile({
 
   // Biometric enrollment state - true if enrolled, false if not
   const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(true);
-  
+
   // Biometric dialog state
   const [showBiometricDialog, setShowBiometricDialog] = useState(false);
   const [showUpdateBiometricDialog, setShowUpdateBiometricDialog] = useState(false);
   const [showDeleteBiometricDialog, setShowDeleteBiometricDialog] = useState(false);
   const [showEnrollDialog, setShowEnrollDialog] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  
+
   // Camera state
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [photoCaptured, setPhotoCaptured] = useState(false);
@@ -64,7 +64,7 @@ export function StudentProfile({
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Mock face images - in a real app, these would be fetched from the backend
   const faceImages = [
     { id: 1, label: "Front View" },
@@ -73,6 +73,10 @@ export function StudentProfile({
   ];
 
   const [saving, setSaving] = useState(false);
+
+  // Validation error state
+  const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
+
   // Form State
   const [formData, setFormData] = useState<StudentProfileData>({
     name: "",
@@ -84,8 +88,49 @@ export function StudentProfile({
     emergencyContactRelationship: "",
     emergencyContactNumber: ""
   });
+
+  // Validation function
+  const validateForm = (): boolean => {
+    const errors: { [key: string]: string } = {};
+
+    // Personal Information validation
+    if (!formData.contactNumber.trim()) {
+      errors.contactNumber = "Contact number is required";
+    } else if (!/^[\d\s\+\-\(\)]+$/.test(formData.contactNumber)) {
+      errors.contactNumber = "Please enter a valid contact number";
+    }
+
+    if (!formData.address.trim()) {
+      errors.address = "Address is required";
+    }
+
+    // Emergency Contact validation
+    if (!formData.emergencyContactName.trim()) {
+      errors.emergencyContactName = "Emergency contact name is required";
+    }
+
+    if (!formData.emergencyContactRelationship.trim()) {
+      errors.emergencyContactRelationship = "Relationship is required";
+    }
+
+    if (!formData.emergencyContactNumber.trim()) {
+      errors.emergencyContactNumber = "Emergency contact number is required";
+    } else if (!/^[\d\s\+\-\(\)]+$/.test(formData.emergencyContactNumber)) {
+      errors.emergencyContactNumber = "Please enter a valid contact number";
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSave = async () => {
     if (!token || !user) return;
+
+    // Validate form before saving
+    if (!validateForm()) {
+      return;
+    }
+
     setSaving(true); // Disable button while saving
 
     // Prepare Data (Only send what is editable)
@@ -99,8 +144,8 @@ export function StudentProfile({
       emergencyContactNumber: formData.emergencyContactNumber || ""
     };
     try {
-        await updateStudentProfile(token, payload);
-        alert("Profile updated successfully!");
+      await updateStudentProfile(token, payload);
+      alert("Profile updated successfully!");
     } catch (err) {
       console.error(err);
       alert("Failed to save changes. Please try again.");
@@ -142,6 +187,14 @@ export function StudentProfile({
       ...prev,
       [id]: value,
     }));
+
+    // Clear validation error when user starts typing
+    if (validationErrors[id]) {
+      setValidationErrors((prev) => ({
+        ...prev,
+        [id]: ""
+      }));
+    }
   };
 
 
@@ -151,6 +204,7 @@ export function StudentProfile({
   // Personal Information
   const handleCancel = () => {
     setIsEditMode(false);
+    setValidationErrors({});
   };
 
   const handleUpdateProfile = () => {
@@ -158,26 +212,26 @@ export function StudentProfile({
   };
 
   const handlePreviousImage = () => {
-    setCurrentImageIndex((prev) => 
+    setCurrentImageIndex((prev) =>
       prev === 0 ? faceImages.length - 1 : prev - 1
     );
   };
-  
+
   const handleNextImage = () => {
-    setCurrentImageIndex((prev) => 
+    setCurrentImageIndex((prev) =>
       prev === faceImages.length - 1 ? 0 : prev + 1
     );
   };
-  
+
   const startCamera = () => {
     setCameraError(null);
-    
+
     // Check if getUserMedia is supported
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setCameraError('Camera not supported in this browser. Please use file upload instead.');
       return;
     }
-    
+
     navigator.mediaDevices.getUserMedia({ video: true })
       .then((stream) => {
         const video = videoRef.current;
@@ -199,7 +253,7 @@ export function StudentProfile({
         }
       });
   };
-  
+
   const stopCamera = () => {
     const stream = streamRef.current;
     if (stream) {
@@ -209,7 +263,7 @@ export function StudentProfile({
       setIsCameraActive(false);
     }
   };
-  
+
   const capturePhoto = () => {
     const video = videoRef.current;
     if (video) {
@@ -226,7 +280,7 @@ export function StudentProfile({
       }
     }
   };
-  
+
   // Cleanup camera when dialogs close
   useEffect(() => {
     if (!showUpdateBiometricDialog && !showEnrollDialog) {
@@ -238,7 +292,7 @@ export function StudentProfile({
   if (loading) return <div className="p-10 text-center">Loading profile...</div>;
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Navbar title="Student Profile" onNavigateToProfile={onNavigateToProfile} onOpenNotifications={onOpenNotifications}/>
+      <Navbar title="Student Profile" onNavigateToProfile={onNavigateToProfile} onOpenNotifications={onOpenNotifications} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -280,7 +334,7 @@ export function StudentProfile({
                     {isBiometricEnrolled ? 'Enrolled' : 'Not Enrolled'}
                   </span>
                 </div>
-                
+
                 {isBiometricEnrolled ? (
                   <>
                     <p className="text-sm text-gray-600 mb-2">
@@ -290,19 +344,19 @@ export function StudentProfile({
                       Your biometric data is currently being used for automated attendance
                     </p>
                     <div className="flex gap-3">
-                      <Button 
+                      <Button
                         variant="outline"
                         onClick={() => setShowBiometricDialog(true)}
                       >
                         View
                       </Button>
-                      <Button 
+                      <Button
                         variant="outline"
                         onClick={() => setShowUpdateBiometricDialog(true)}
                       >
                         Update
                       </Button>
-                      <Button 
+                      <Button
                         variant="outline"
                         className="text-red-600 border-red-600 hover:bg-red-50"
                         onClick={() => setShowDeleteBiometricDialog(true)}
@@ -316,7 +370,7 @@ export function StudentProfile({
                     <p className="text-sm text-gray-600 mb-4">
                       Enroll your face profile to enable touchless attendance tracking on campus.
                     </p>
-                    <Button 
+                    <Button
                       className="bg-blue-600 text-white hover:bg-blue-700"
                       onClick={() => setShowEnrollDialog(true)}
                     >
@@ -325,7 +379,7 @@ export function StudentProfile({
                   </>
                 )}
               </div>
-              
+
               <div className="flex items-start gap-3 mt-4 p-3 bg-blue-50 rounded-lg">
                 <Lock className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
                 <p className="text-sm text-gray-700">
@@ -380,28 +434,34 @@ export function StudentProfile({
 
               <div className="space-y-2">
                 <Label htmlFor="contactNumber">
-                  Contact Number:
+                  Contact Number: <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="contactNumber"
                   type="tel"
                   value={formData.contactNumber}
                   onChange={handleChange}
-                  className="h-12"
-                  disabled = {!isEditMode}
+                  className={`h-12 ${validationErrors.contactNumber ? 'border-red-500' : ''}`}
+                  disabled={!isEditMode}
                 />
+                {validationErrors.contactNumber && (
+                  <p className="text-sm text-red-500">{validationErrors.contactNumber}</p>
+                )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="address">Address:</Label>
+                <Label htmlFor="address">Address: <span className="text-red-500">*</span></Label>
                 <Input
                   id="address"
                   type="text"
                   value={formData.address}
                   onChange={handleChange}
-                  className="h-12"
+                  className={`h-12 ${validationErrors.address ? 'border-red-500' : ''}`}
                   disabled={!isEditMode}
                 />
+                {validationErrors.address && (
+                  <p className="text-sm text-red-500">{validationErrors.address}</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -417,44 +477,53 @@ export function StudentProfile({
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="emergencyContactName">
-                  Contact Name:
+                  Contact Name: <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="emergencyContactName"
                   type="text"
                   onChange={handleChange}
                   value={formData.emergencyContactName}
-                  className="h-12"
+                  className={`h-12 ${validationErrors.emergencyContactName ? 'border-red-500' : ''}`}
                   disabled={!isEditMode}
                 />
+                {validationErrors.emergencyContactName && (
+                  <p className="text-sm text-red-500">{validationErrors.emergencyContactName}</p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="emergencyContactRelationship">
-                  Relationship:
+                  Relationship: <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="emergencyContactRelationship"
                   type="text"
                   onChange={handleChange}
                   value={formData.emergencyContactRelationship}
-                  className="h-12"
+                  className={`h-12 ${validationErrors.emergencyContactRelationship ? 'border-red-500' : ''}`}
                   disabled={!isEditMode}
                 />
+                {validationErrors.emergencyContactRelationship && (
+                  <p className="text-sm text-red-500">{validationErrors.emergencyContactRelationship}</p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="emergencyContactNumber">
-                  Contact Number:
+                  Contact Number: <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="emergencyContactNumber"
                   type="tel"
                   onChange={handleChange}
                   value={formData.emergencyContactNumber}
-                  className="h-12"
+                  className={`h-12 ${validationErrors.emergencyContactNumber ? 'border-red-500' : ''}`}
                   disabled={!isEditMode}
                 />
+                {validationErrors.emergencyContactNumber && (
+                  <p className="text-sm text-red-500">{validationErrors.emergencyContactNumber}</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -503,7 +572,7 @@ export function StudentProfile({
               View your enrolled biometric face data and verification images
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-6">
             {/* User Info */}
             <div className="grid grid-cols-2 gap-4">
@@ -516,7 +585,7 @@ export function StudentProfile({
                 <p className="font-semibold">28/10/2025 10:30 AM</p>
               </div>
             </div>
-            
+
             {/* Face Image Box */}
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8">
               <div className="flex items-center justify-center gap-4">
@@ -529,7 +598,7 @@ export function StudentProfile({
                 >
                   <ChevronLeft className="h-6 w-6" />
                 </Button>
-                
+
                 {/* Student Face Placeholder */}
                 <div className="flex flex-col items-center gap-4">
                   <div className="w-64 h-64 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -542,7 +611,7 @@ export function StudentProfile({
                     Image {currentImageIndex + 1} of {faceImages.length}
                   </p>
                 </div>
-                
+
                 {/* Right Arrow */}
                 <Button
                   variant="ghost"
@@ -557,7 +626,7 @@ export function StudentProfile({
           </div>
         </DialogContent>
       </Dialog>
-      
+
       {/* Update Biometric Profile Dialog */}
       <Dialog open={showUpdateBiometricDialog} onOpenChange={setShowUpdateBiometricDialog}>
         <DialogContent className="sm:max-w-2xl">
@@ -567,7 +636,7 @@ export function StudentProfile({
               Capture a new photo to update your biometric profile
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-6">
             {/* User Info */}
             <div className="grid grid-cols-2 gap-4">
@@ -580,7 +649,7 @@ export function StudentProfile({
                 <p className="font-semibold">28/10/2025 10:30 AM</p>
               </div>
             </div>
-            
+
             {/* Camera Preview Box */}
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-12">
               <div className="flex flex-col items-center justify-center gap-4">
@@ -642,16 +711,16 @@ export function StudentProfile({
                 )}
               </div>
             </div>
-            
+
             {/* Action Buttons */}
             <div className="flex justify-center gap-4 pt-4">
-              <Button 
+              <Button
                 variant="outline"
                 onClick={() => setShowUpdateBiometricDialog(false)}
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 className="bg-blue-600 text-white hover:bg-blue-700"
                 onClick={() => {
                   alert('Biometric profile updated successfully!');
@@ -664,7 +733,7 @@ export function StudentProfile({
           </div>
         </DialogContent>
       </Dialog>
-      
+
       {/* Delete Biometric Profile Dialog */}
       <Dialog open={showDeleteBiometricDialog} onOpenChange={setShowDeleteBiometricDialog}>
         <DialogContent className="sm:max-w-md">
@@ -674,7 +743,7 @@ export function StudentProfile({
               Confirm deletion of your biometric data
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="py-4">
             <p className="text-center text-gray-700">
               This will remove the stored biometric data for:
@@ -683,16 +752,16 @@ export function StudentProfile({
               User: {formData.name} (User ID: {formData.studentNum})
             </p>
           </div>
-          
+
           {/* Action Buttons */}
           <div className="flex justify-center gap-4 pt-4">
-            <Button 
+            <Button
               variant="outline"
               onClick={() => setShowDeleteBiometricDialog(false)}
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               className="bg-red-600 text-white hover:bg-red-700"
               onClick={() => {
                 setIsBiometricEnrolled(false);
@@ -705,7 +774,7 @@ export function StudentProfile({
           </div>
         </DialogContent>
       </Dialog>
-      
+
       {/* Enroll Biometric Profile Dialog */}
       <Dialog open={showEnrollDialog} onOpenChange={setShowEnrollDialog}>
         <DialogContent className="sm:max-w-2xl">
@@ -715,7 +784,7 @@ export function StudentProfile({
               Capture a new photo to enroll your biometric profile
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-6">
             {/* User Info */}
             <div className="grid grid-cols-2 gap-4">
@@ -728,7 +797,7 @@ export function StudentProfile({
                 <p className="font-semibold">28/10/2025 10:30 AM</p>
               </div>
             </div>
-            
+
             {/* Camera Preview Box */}
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-12">
               <div className="flex flex-col items-center justify-center gap-4">
@@ -790,16 +859,16 @@ export function StudentProfile({
                 )}
               </div>
             </div>
-            
+
             {/* Action Buttons */}
             <div className="flex justify-center gap-4 pt-4">
-              <Button 
+              <Button
                 variant="outline"
                 onClick={() => setShowEnrollDialog(false)}
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 className="bg-blue-600 text-white hover:bg-blue-700"
                 onClick={() => {
                   setIsBiometricEnrolled(true);
