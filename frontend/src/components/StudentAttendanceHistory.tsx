@@ -46,13 +46,13 @@ interface Props {
   onNavigateToProfile: () => void;
   onBack: () => void;
   onLogout: () => void; // Kept for prop compatibility, though Navbar handles it
-  onOpenNotifications:() => void;
+  onOpenNotifications: () => void;
 }
 const ITEMS_PER_PAGE = 10;
 // Mock data for attendance history
 
 
-export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNotifications}: Props) {
+export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNotifications }: Props) {
   const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [historyData, setHistoryData] = useState<AttendanceLog[]>([]);
@@ -62,7 +62,7 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
 
-    useEffect(() => {
+  useEffect(() => {
     const fetchData = async () => {
       if (!token) return;
       try {
@@ -76,20 +76,20 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
     };
     fetchData();
   }, [token]);
-    // 1. Get Unique Modules for Dropdown
+  // 1. Get Unique Modules for Dropdown
   const uniqueModules = Array.from(new Set(historyData.map(item => item.module_code)));
 
   // 2. Filter Logic
   const filteredRecords = historyData.filter((record) => {
     // A. Search
     const matchesSearch = record.module_code.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     // B. Module Dropdown
     const matchesModule = selectedModule === "all" || record.module_code === selectedModule;
-    
+
     // C. Status Dropdown
     const matchesStatus = selectedStatus === "all" || record.status === selectedStatus;
-    
+
     // D. Date Picker
     let matchesDate = true;
     if (selectedDate) {
@@ -121,10 +121,10 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Present": return "bg-green-100 text-green-800 hover:bg-green-100";
-      case "Absent": return "bg-red-100 text-red-800 hover:bg-red-100";
-      case "Late": return "bg-yellow-100 text-yellow-800 hover:bg-yellow-100";
-      default: return "bg-gray-100 text-gray-800";
+      case "Present": return "bg-green-600 text-white";
+      case "Absent": return "bg-red-600 text-white";
+      case "Late": return "bg-yellow-600 text-white";
+      default: return "bg-gray-600 text-white";
     }
   };
 
@@ -132,7 +132,7 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Navbar title="Student Portal" onNavigateToProfile={onNavigateToProfile} onOpenNotifications={onOpenNotifications}/>
+      <Navbar title="Student Portal" onNavigateToProfile={onNavigateToProfile} onOpenNotifications={onOpenNotifications} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -233,19 +233,19 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
                 </TableHeader>
                 <TableBody>
                   {currentRecords.length > 0 ? (
-                    currentRecords.map((record) => { 
+                    currentRecords.map((record) => {
                       const dateObj = new Date(record.start_time);
                       return (
-                      <TableRow key={record.lessonID}>
-                        <TableCell>{record.module_code}</TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(record.status)}>
-                            {record.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{dateObj.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</TableCell>
-                        <TableCell>{dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</TableCell>
-                      </TableRow>);
+                        <TableRow key={record.lessonID}>
+                          <TableCell>{record.module_code}</TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(record.status)}>
+                              {record.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{dateObj.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</TableCell>
+                          <TableCell>{dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</TableCell>
+                        </TableRow>);
                     })
                   ) : (
                     <TableRow>
@@ -272,7 +272,7 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                
+
                 <div className="flex items-center gap-1">
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                     <Button

@@ -421,11 +421,11 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex justify-center gap-4 pt-4">
-                  <Button variant="outline" onClick={onBack}>
+                <div className="flex justify-center gap-4 pt-4 w-full">
+                  <Button variant="outline" onClick={onBack} className="flex-1">
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={loading} className="bg-blue-600 text-white hover:bg-blue-700">
+                  <Button type="submit" disabled={loading} className="bg-blue-600 text-white hover:bg-blue-700 flex-1">
                     {loading ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>

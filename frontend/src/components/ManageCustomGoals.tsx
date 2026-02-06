@@ -105,11 +105,11 @@ export function ManageCustomGoals({
   const getStatusBadgeColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "active":
-        return "bg-green-600 text-white hover:bg-green-700";
+        return "bg-green-100 text-green-700 hover:bg-green-100";
       case "inactive":
-        return "bg-gray-600 text-white hover:bg-gray-700";
+        return "bg-gray-100 text-gray-700 hover:bg-gray-100";
       default:
-        return "bg-gray-600 text-white hover:bg-gray-700";
+        return "bg-gray-100 text-gray-700 hover:bg-gray-100";
     }
   };
 
