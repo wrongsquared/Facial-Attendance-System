@@ -27,3 +27,4 @@ venv1/
 
 /build
 .env
+/dist

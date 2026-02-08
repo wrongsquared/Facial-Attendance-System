@@ -4,7 +4,7 @@ import { LoginCredentials, AuthResponse, ProfileUpdateData } from "../types/auth
 import { AttendanceLogFilters, AttendanceLogResponse } from "../types/lecturerinnards";
 
 
-const API_URL = process.env.API_URL; // The FASTAPI URL
+const API_URL = import.meta.env.VITE_API_URL; // The FASTAPI URL
 
 // The Login Function
 export const loginUser = async (creds: LoginCredentials): Promise<AuthResponse> => {
