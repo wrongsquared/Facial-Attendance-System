@@ -43,8 +43,8 @@ from routers import (adminDashboardRouter,
 app = FastAPI()
 
 origins = [
-    "http://localhost:3000",  # React-Create-App Local Dev
-    "https://friendly-muffin-e42418.netlify.app" # Deployment
+    "https://friendly-muffin-e42418.netlify.app", # Deployment
+    "http://localhost:3000"  # React-Create-App Local Dev
 ]
 
 app.add_middleware(
