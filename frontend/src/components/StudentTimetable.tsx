@@ -285,7 +285,6 @@ export function StudentTimetable({ onBack, onNavigateToProfile, onOpenNotificati
 
                       return lessonDateStr === columnDateStr;
                     });
-                    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
                     const dayAbbr = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
 
                     return (

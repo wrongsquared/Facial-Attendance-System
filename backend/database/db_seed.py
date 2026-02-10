@@ -3,7 +3,7 @@ import os
 import uuid
 import random
 
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, text
 from faker import Faker
 from sqlalchemy.orm import Session
 from db_config import SessionLocal, DATABASE_URL
@@ -530,14 +530,25 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client, defphotopath: 
         return None
 
 def modulesSeed(dbSessionLocalInstance: Session, spbase: Client):
-    #No Primary Keys
-    print(f"Seeding Modules: \n")
-    modNames = ["Big Data Management", "Web Development", "Advanced Programming"]
-    modCodes = ["CSIT100", "ISIT100", "CSIT420"]
 
-    for i in range(len(modNames)):
-        dbSessionLocalInstance.add(Module(moduleName =modNames[i], 
-                                            moduleCode = modCodes[i]))
+    sem_start = datetime(2026, 1, 5) # Monday, Jan 5
+    sem_end = datetime(2026, 3, 30)   # End of March
+    
+    modules_to_create = [
+        {"name": "Big Data Management", "code": "CSIT100"},
+        {"name": "Web Development", "code": "ISIT100"},
+        {"name": "Advanced Programming", "code": "CSIT420"}
+    ]
+
+    for mod in modules_to_create:
+        dbSessionLocalInstance.add(Module(
+            moduleName = mod["name"], 
+            moduleCode = mod["code"],
+            startDate = sem_start, # Added
+            endDate = sem_end      # Added
+        ))
+    
+    dbSessionLocalInstance.commit()
     return None
 
 def lecModSeed(dbSessionLocalInstance: Session, spbase: Client): 
@@ -656,65 +667,43 @@ def lessonsSeed(dbSessionLocalInstance: Session, spbase: Client):
 def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client): 
     print(f"Seeding EntLeave (Camera Detections): \n")
     
+    # Pre-fetch lessons once to avoid DB overhead in the loop
     lessons = dbSessionLocalInstance.query(Lesson).all()
-    
-
-    enrollment_map = defaultdict(set)
-    enrollments = dbSessionLocalInstance.query(StudentModules).all()
-    for enroll in enrollments:
-        enrollment_map[enroll.modulesID].add(enroll.studentID)
-
-    lec_mods = dbSessionLocalInstance.query(LecMod).all()
-    lesson_module_map = {}
-    for lm in lec_mods:
-        for lesson in lm.lessons: # Assuming relationship exists
-            lesson_module_map[lesson.lessonID] = lm.moduleID
-
     detections = []
 
     for lesson in lessons:
-        module_id = lesson_module_map.get(lesson.lessonID)
-        if not module_id: continue
+        if lesson.tutorialGroupID is None:
+            eligible_students = (
+                dbSessionLocalInstance.query(StudentModules.studentID)
+                .filter(StudentModules.modulesID == lesson.lecMod.moduleID)
+                .all()
+            )
+        else:
 
-        valid_students = enrollment_map.get(module_id, set())
+            eligible_students = (
+                dbSessionLocalInstance.query(StudentModules.studentID)
+                .join(StudentTutorialGroup, 
+                      StudentModules.studentModulesID == StudentTutorialGroup.studentModulesID)
+                .filter(StudentTutorialGroup.tutorialGroupID == lesson.tutorialGroupID)
+                .all()
+            )
 
-        for student_id in valid_students:
-            # Simulate Attendance Logic
-            if random.random() < 0.10:
-                continue
+        for (student_id,) in eligible_students:
+            if random.random() < 0.10: 
+                continue 
 
-            # Simulate Punctuality
-            is_late = random.random() < 0.20
+            arrival_offset = random.randint(-5, 10)
+            arrival_time = lesson.startDateTime + timedelta(minutes=arrival_offset)
             
-            start_offset = 0
-            if is_late:
-                start_offset = random.randint(16, 40)
-            else:
-                # Arrive 0-10 mins after start
-                start_offset = random.randint(0, 10)
-
-            # Generate Snapshots
-            num_detections = random.randint(3, 8)
-            
-            current_time = lesson.startDateTime + timedelta(minutes=start_offset)
-            
-            for _ in range(num_detections):
-
-                if current_time > lesson.endDateTime:
-                    break
-
-                detections.append(EntLeave(
-                    lessonID=lesson.lessonID,
-                    studentID=student_id,
-                    detectionTime=current_time 
-                ))
-
-
-                current_time += timedelta(minutes=random.randint(15, 30))
+            detections.append(EntLeave(
+                lessonID=lesson.lessonID,
+                studentID=student_id,
+                detectionTime=arrival_time
+            ))
 
     if detections:
-        print(f"Adding {len(detections)} camera detections...")
-        dbSessionLocalInstance.add_all(detections)
+        print(f"   + Marking {len(detections)} logical attendance events...")
+        dbSessionLocalInstance.bulk_save_objects(detections)
         dbSessionLocalInstance.commit()
     
     return None
@@ -722,52 +711,66 @@ def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client):
 def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
     print(f"Seeding attdCheck: \n")
     
-    #Get Lesson Start Times for 'Late' calculation
-    lessons = dbSessionLocalInstance.query(Lesson).all()
-    lesson_time_map = {l.lessonID: l.startDateTime for l in lessons}
+    # Get a map of LessonID -> Set of StudentIDs
+    # This identifies exactly who belongs in which lesson in one go.
+    lesson_map = defaultdict(set)
+    
+    lectures = dbSessionLocalInstance.execute(text("""
+        SELECT l."lessonID", sm."studentID"
+        FROM lessons l
+        JOIN lecmods lm ON l."lecModID" = lm."lecModID"
+        JOIN studentmodules sm ON lm."moduleID" = sm."modulesID"
+        WHERE l."tutorialGroupID" IS NULL
+    """)).all()
+    
+    tutorials = dbSessionLocalInstance.execute(text("""
+        SELECT l."lessonID", sm."studentID"
+        FROM lessons l
+        JOIN studenttutorialgroups stg ON l."tutorialGroupID" = stg."tutorialGroupID"
+        JOIN studentmodules sm ON stg."studentModulesID" = sm."studentModulesID"
+        WHERE l."tutorialGroupID" IS NOT NULL
+    """)).all()
 
-    # Aggregate Raw Detections
-    results = (
+    for row in (lectures + tutorials):
+        lesson_map[row[0]].add(row[1])
+
+    lessons = dbSessionLocalInstance.query(Lesson.lessonID, Lesson.startDateTime).all()
+    time_map = {l.lessonID: l.startDateTime for l in lessons}
+
+    raw_detections = (
         dbSessionLocalInstance.query(
             EntLeave.studentID,
             EntLeave.lessonID,
             func.min(EntLeave.detectionTime).label("first_seen"),
-            func.max(EntLeave.detectionTime).label("last_seen"),
-            func.count(EntLeave.entLeaveID).label("count")
+            func.max(EntLeave.detectionTime).label("last_seen")
         )
         .group_by(EntLeave.studentID, EntLeave.lessonID)
         .all()
     )
 
     new_checks = []
+    
+    for student_id, lesson_id, first_seen, last_seen in raw_detections:
+        if student_id in lesson_map.get(lesson_id, set()):
+            start_time = time_map.get(lesson_id)
+            
+            status = "Present"
+            if start_time and first_seen > start_time + timedelta(minutes=15):
+                status = "Late"
 
-    for student_id, lesson_id, first_seen, last_seen, count in results:
-        
-        start_time = lesson_time_map.get(lesson_id)
-        if not start_time: continue
-
-        # Determine Status
-        # Grace period of 15 minutes
-        status = "Present"
-        late_threshold = start_time + timedelta(minutes=15)
-        
-        if first_seen > late_threshold:
-            status = "Late"
-
-        # Create Record
-        new_checks.append(AttdCheck(
-            lessonID=lesson_id,
-            studentID=student_id,
-            status=status,
-            firstDetection=first_seen, # New Column
-            lastDetection=last_seen,   # New Column
-            remarks=f"Camera Capture ({count} detections)"
-        ))
+            new_checks.append(AttdCheck(
+                lessonID=lesson_id,
+                studentID=student_id,
+                status=status,
+                firstDetection=first_seen,
+                lastDetection=last_seen,
+                remarks="Verified AI Capture"
+            ))
 
     if new_checks:
-        print(f"Adding {len(new_checks)} verified attendance summaries.")
-        dbSessionLocalInstance.add_all(new_checks)
+        dbSessionLocalInstance.bulk_save_objects(new_checks)
         dbSessionLocalInstance.commit()
+        print(f"   + Successfully processed {len(new_checks)} records.")
     
     return None
 

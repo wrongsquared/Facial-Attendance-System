@@ -157,9 +157,6 @@ export function LecturerDashboard({
             </CardHeader>
             <CardContent>
               <div className="text-6xl font-bold">{totalModules}</div>
-              <p className="text-xs text-gray-600 mt-1">
-                Active modules
-              </p>
             </CardContent>
           </Card>
 
