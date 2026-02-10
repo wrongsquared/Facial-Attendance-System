@@ -36,8 +36,7 @@ def get_users_for_management(
     current_admin = db.query(Admin).filter(Admin.adminID == user_id).first()
 
     if not current_admin:
-        # If the user isn't in the 'admins' table, they shouldn't be here 
-        # (unless it's a Platform Manager, but you implied this is for Campus Admins)
+
         raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
     my_campus_id = current_admin.campusID
 
@@ -60,9 +59,6 @@ def get_users_for_management(
     )
     #Excludes Super Users Platform Manager
     query = query.filter(UserProfile.profileTypeName != 'Pmanager')
-    # Logic: Show the user IF they are a Student at MyCampus 
-    #        OR a Lecturer at MyCampus 
-    #        OR an Admin at MyCampus
     query = query.filter(
         or_(
             StudentTable.campusID == my_campus_id,
@@ -120,17 +116,16 @@ def get_students_for_custom_goals_management(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    # Verify the user is an admin and get their campus
+
     current_admin = db.query(Admin).filter(Admin.adminID == user_id).first()
     if not current_admin:
         raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
     my_campus_id = current_admin.campusID
     
-    # Query Student table directly for custom goals management - only students from this campus
     query = (
         db.query(Student, UserProfile.profileTypeName)
         .join(UserProfile, Student.profileTypeID == UserProfile.profileTypeID)
-        .filter(Student.campusID == my_campus_id)  # Filter by admin's campus
+        .filter(Student.campusID == my_campus_id) 
     )
     
     if status_filter and status_filter != "All Status":

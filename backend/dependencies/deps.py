@@ -101,10 +101,10 @@ def check_single_student_risk(db: Session, student_id: str):
         
         if pct < student.attendanceMinimum:
             existing = db.query(StudentNotifications).filter(
-                StudentNotifications.studentID == student_id,
-                StudentNotifications.isRead == False,
-                StudentNotifications.title.contains(module.moduleCode)
+            StudentNotifications.studentID == student_id,
+            StudentNotifications.title.contains(module.moduleCode)
             ).first()
+
 
             if not existing:
                 missed = total_past - attended

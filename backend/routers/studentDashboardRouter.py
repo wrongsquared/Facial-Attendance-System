@@ -48,7 +48,7 @@ def get_todays_lessons(
 
     output_list = []
     for lesson, mod_code, mod_name in results:
-        loc_string = f"Building {lesson.building}, Room {lesson.room}"
+        loc_string = f"Blk {lesson.building}, {lesson.room}"
 
         output_list.append(TodaysLessons(
             lessonID=lesson.lessonID,
@@ -178,11 +178,9 @@ def get_recent_attendance_history(
         .join(LecMod, Module.moduleID == LecMod.moduleID)
         .join(Lesson, LecMod.lecModID == Lesson.lecModID)
         
-        # --- THE FIX: Join to find the student's specific group ---
         .outerjoin(StudentTutorialGroup, StudentModules.studentModulesID == StudentTutorialGroup.studentModulesID)
         
-        # --- Join to Attendance ---
-        # We use and_ to ensure we only look at attendance for THIS student
+
         .outerjoin(AttdCheck, and_(
             AttdCheck.lessonID == Lesson.lessonID, 
             AttdCheck.studentID == user_id
@@ -190,8 +188,7 @@ def get_recent_attendance_history(
 
         .filter(
             StudentModules.studentID == user_id,
-            Lesson.endDateTime < now, # Only PAST lessons
-            # --- THE FILTER FIX: Lectures OR the student's specific Group ---
+            Lesson.endDateTime < now, 
             or_(
                 Lesson.tutorialGroupID == None, 
                 Lesson.tutorialGroupID == StudentTutorialGroup.tutorialGroupID
@@ -256,7 +253,7 @@ def get_weekly_timetable(
 
     output = []
     for lesson, mod_code, mod_name, attd_id in results:
-        loc_string = f"Building {lesson.building}, Room {lesson.room}"
+        loc_string = f"Blk {lesson.building}, {lesson.room}"
 
         output.append({
             "lessonID": lesson.lessonID,

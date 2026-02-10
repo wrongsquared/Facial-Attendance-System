@@ -265,6 +265,20 @@ def get_student_notifications(
     return raw_notifications
 
 
+@router.patch("/notifications/{notification_id}/read")
+def mark_notification_as_read(notification_id: int, db: Session = Depends(get_db)):
+    notif = db.query(StudentNotifications).filter(
+        StudentNotifications.notificationID == notification_id
+    ).first()
+    
+    if not notif:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    
+    notif.isRead = True
+    db.commit()
+    
+    return {"message": "Notification marked as read"}
+
 @router.put("/student/profile/update", response_model=viewUserProfile)
 def update_user_profile(
     updates: UserProfileUpdate, # The data sent from the frontend

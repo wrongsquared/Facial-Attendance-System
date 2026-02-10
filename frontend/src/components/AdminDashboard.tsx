@@ -105,9 +105,7 @@ export function AdminDashboard({
             </CardHeader>
             <CardContent>
               <div className="text-6xl font-bold">{stats?.overall_attendance_rate ?? 0}%</div>
-              <p className="text-xs text-green-600 mt-1">
-                {stats?.trend_attendance ?? "No data"}
-              </p>
+
             </CardContent>
           </Card>
 
@@ -119,9 +117,6 @@ export function AdminDashboard({
             </CardHeader>
             <CardContent>
               <div className="text-6xl font-bold">{stats?.total_active_users ?? 0}</div>
-              <p className="text-xs text-green-600 mt-1">
-                {stats?.trend_users ?? "No data"}
-              </p>
             </CardContent>
           </Card>
 
