@@ -1,35 +1,10 @@
 from fastapi.security import HTTPBearer,OAuth2PasswordBearer, HTTPAuthorizationCredentials
 from fastapi import Depends, HTTPException, status ,Security
 from client import supabase
-from sqlalchemy import func
-from database.db import Lesson, LecMod, Module, StudentModules, AttdCheck, StudentNotifications, Student
+from sqlalchemy import func, or_
+from database.db import Lesson, LecMod, Module, StudentModules, AttdCheck, StudentNotifications, Student, StudentTutorialGroup
 from sqlalchemy.orm import Session
 from datetime import datetime
-
-# This tells Swagger UI to show a "Authorize" button using the /login route
-# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
-# oauth2_scheme = HTTPBearer()
-# def get_current_user_id(token: str = Depends(oauth2_scheme)):
-#     """
-#     1. Takes the Token from the Request Header.
-#     2. Asks Supabase: "Is this token valid?"
-#     3. Returns the User UUID.
-#     """
-#     try:
-#         # Get user details from Supabase using the token
-#         user_response = supabase.auth.get_user(token)
-        
-#         if not user_response.user:
-#             raise HTTPException(status_code=401, detail="Invalid token")
-            
-#         return user_response.user.id
-        
-#     except Exception:
-#         raise HTTPException(
-#             status_code=401, 
-#             detail="Could not validate credentials",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
 
 security = HTTPBearer()
 
@@ -77,78 +52,75 @@ def get_signed_url(path: str | None) -> str | None:
     
 
 def check_single_student_risk(db: Session, student_id: str):
-    print(f"[DEBUG] Checking notifications for student: {student_id}")
     student = db.query(Student).filter(Student.studentID == student_id).first()
     if not student: 
-        print(f"[DEBUG] Student not found: {student_id}")
         return
 
-    print(f"[DEBUG] Student found: {student.name}, attendance minimum: {student.attendanceMinimum}")
+    enrollments = db.query(StudentModules, Module).join(Module).filter(
+        StudentModules.studentID == student_id
+    ).all()
 
-    # Get all modules this student is enrolled in
-    enrollments = db.query(Module).join(StudentModules).filter(StudentModules.studentID == student_id).all()
-    print(f"[DEBUG] Student enrolled in {len(enrollments)} modules")
+    now = datetime.now()
 
-    for module in enrollments:
-        print(f"[DEBUG] Checking module: {module.moduleCode}")
-        # Stats for THIS specific module
+    for sm, module in enrollments:
+        group_link = db.query(StudentTutorialGroup).filter(
+            StudentTutorialGroup.studentModulesID == sm.studentModulesID
+        ).first()
+        
+        assigned_group_id = group_link.tutorialGroupID if group_link else None
+
+
         total_past = (
             db.query(func.count(Lesson.lessonID))
-            .join(LecMod).filter(LecMod.moduleID == module.moduleID)
-            .filter(Lesson.endDateTime < datetime.now())
+            .join(LecMod)
+            .filter(LecMod.moduleID == module.moduleID)
+            .filter(Lesson.endDateTime < now)
+            .filter(or_(
+                Lesson.tutorialGroupID == None,
+                Lesson.tutorialGroupID == assigned_group_id  
+            ))
             .scalar()
         ) or 0
 
         if total_past == 0: 
-            print(f"[DEBUG] No past lessons for {module.moduleCode}")
-            continue # Skip if no classes yet
+            continue 
 
         attended = (
             db.query(func.count(AttdCheck.AttdCheckID))
             .join(Lesson).join(LecMod)
             .filter(LecMod.moduleID == module.moduleID)
             .filter(AttdCheck.studentID == student_id)
+            .filter(or_(
+                Lesson.tutorialGroupID == None,
+                Lesson.tutorialGroupID == assigned_group_id
+            ))
             .scalar()
         ) or 0
 
         pct = (attended / total_past) * 100
-        print(f"[DEBUG] {module.moduleCode}: {attended}/{total_past} = {pct:.1f}%")
         
-        # Check Threshold
         if pct < student.attendanceMinimum:
-            print(f"[DEBUG] {module.moduleCode} below threshold ({pct:.1f}% < {student.attendanceMinimum}%)")
-            
             existing = db.query(StudentNotifications).filter(
                 StudentNotifications.studentID == student_id,
                 StudentNotifications.isRead == False,
-                StudentNotifications.title.contains(module.moduleCode) # Simple duplicate check
+                StudentNotifications.title.contains(module.moduleCode)
             ).first()
 
             if not existing:
-                print(f"[DEBUG] Creating new notification for {module.moduleCode}")
-                # CREATE RICH StudentNotifications
                 missed = total_past - attended
-                
                 alert = StudentNotifications(
                     studentID=student_id,
                     title=f"Attendance Warning: {module.moduleCode}",
-                    message=f"Attendance in {module.moduleCode} is {pct:.1f}%.",
+                    message=f"Your attendance in {module.moduleCode} has dropped to {pct:.1f}%.",
                     type="alert",
                     meta_data={
                         "module_code": module.moduleCode,
-                        "module_name": module.moduleName,
                         "current_pct": round(pct, 1),
                         "threshold": student.attendanceMinimum,
-                        "missed_count": missed,
-                        "total_past": total_past,
-                        "date": datetime.now().strftime("%d %b %Y")
+                        "total_expected": total_past,
+                        "total_attended": attended
                     }
                 )
                 db.add(alert)
-            else:
-                print(f"[DEBUG] Notification already exists for {module.moduleCode}")
-        else:
-            print(f"[DEBUG] {module.moduleCode} attendance OK ({pct:.1f}% >= {student.attendanceMinimum}%)")
 
     db.commit()
-    print(f"[DEBUG] Notification check completed for student {student_id}")
