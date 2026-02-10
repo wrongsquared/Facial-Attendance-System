@@ -44,7 +44,7 @@ app = FastAPI()
 
 origins = [
     "http://localhost:3000",  # React-Create-App Local Dev
-    "https://friendly-muffin-e42418.netlify.app" # Deployment
+    "https://friendly-muffin-e42418.netlify.app" # Change this to whichever frontend URL that your frontend is deployed on.
 ]
 
 app.add_middleware(

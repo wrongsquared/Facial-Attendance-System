@@ -34,4 +34,4 @@ if __name__ == "__main__":
         spbse: Client = create_client(os.getenv("SPBASE_URL"), os.getenv("SPBASE_SKEY"))
         clear_db(db_session, spbse)
     except:
-         print("Awas! masalah DB anda lah!")
+         print("Clearing of Database Failed")
