@@ -4,7 +4,6 @@ from datetime import date
 from uuid import UUID
 class AdminDashboardStats(BaseModel):
     overall_attendance_rate: float
-    monthly_absences: int
     total_active_users: int
 
 class CourseAttentionItem(BaseModel):

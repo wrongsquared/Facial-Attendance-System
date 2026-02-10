@@ -100,24 +100,8 @@ def get_admin_dashboard_stats(
         .scalar()
     ) or 0
 
-    #Actual Presents (for this campus only)
-    actual_month = (
-        db.query(func.count(AttdCheck.AttdCheckID))
-        .join(Lesson, AttdCheck.lessonID == Lesson.lessonID)
-        .join(Student, AttdCheck.studentID == Student.studentID)
-        .filter(
-            extract('month', Lesson.startDateTime) == current_month,
-            extract('year', Lesson.startDateTime) == current_year,
-            Student.campusID == my_campus_id  # Filter by campus
-        )
-        .scalar()
-    ) or 0
-
-    monthly_absences = max(0, possible_month - actual_month)# Placeholder logic
-
     return {
         "overall_attendance_rate": attendance_rate,
-        "monthly_absences": monthly_absences,
         "total_active_users": total_users,
     }
 

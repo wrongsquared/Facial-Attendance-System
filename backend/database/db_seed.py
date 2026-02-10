@@ -665,10 +665,13 @@ def lessonsSeed(dbSessionLocalInstance: Session, spbase: Client):
     dbSessionLocalInstance.commit()
 
 def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client): 
-    print(f"Seeding EntLeave (Camera Detections): \n")
+    print(f"Seeding Detections \n")
     
-    # Pre-fetch lessons once to avoid DB overhead in the loop
-    lessons = dbSessionLocalInstance.query(Lesson).all()
+    now = datetime.now()
+    lessons = dbSessionLocalInstance.query(Lesson).filter(
+        Lesson.startDateTime <= now
+    ).all()
+    
     detections = []
 
     for lesson in lessons:
@@ -679,7 +682,6 @@ def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client):
                 .all()
             )
         else:
-
             eligible_students = (
                 dbSessionLocalInstance.query(StudentModules.studentID)
                 .join(StudentTutorialGroup, 
@@ -689,6 +691,7 @@ def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client):
             )
 
         for (student_id,) in eligible_students:
+            # Skip 10% for realistic absence
             if random.random() < 0.10: 
                 continue 
 
@@ -702,7 +705,7 @@ def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client):
             ))
 
     if detections:
-        print(f"   + Marking {len(detections)} logical attendance events...")
+        print(f"   + Marking {len(detections)} past logical attendance events...")
         dbSessionLocalInstance.bulk_save_objects(detections)
         dbSessionLocalInstance.commit()
     
@@ -710,9 +713,7 @@ def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client):
 
 def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
     print(f"Seeding attdCheck: \n")
-    
-    # Get a map of LessonID -> Set of StudentIDs
-    # This identifies exactly who belongs in which lesson in one go.
+
     lesson_map = defaultdict(set)
     
     lectures = dbSessionLocalInstance.execute(text("""
