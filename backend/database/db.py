@@ -217,6 +217,8 @@ class Lesson(Base): # Lessons by Lecturers, belongs to Modules
     room: Mapped[str | None] = mapped_column(String(50), nullable=True) 
 
     lessontype: Mapped[str] = mapped_column(String(10))
+    tutorialGroupID: Mapped[Optional[int]] = mapped_column(ForeignKey("tutorialgroups.tutorialGroupsID"), nullable=True)
+    tutorialGroup: Mapped[Optional[TutorialsGroup]] = relationship(back_populates="lessons")
     startDateTime: Mapped[datetime.datetime]
     endDateTime: Mapped[datetime.datetime] 
 
@@ -231,6 +233,7 @@ class LecMod(Base): #Lecture-Modules Connection
 
     moduleID: Mapped[int] = mapped_column(ForeignKey("modules.moduleID"))
     modules: Mapped[Module] = relationship(back_populates="lecMod")
+    tutorial_groups: Mapped[list["TutorialsGroup"]] = relationship(back_populates="lecMod")
 
 class StudentModules(Base): #Student Modules
     __tablename__ = "studentmodules"
@@ -241,7 +244,7 @@ class StudentModules(Base): #Student Modules
 
     modulesID: Mapped[int] = mapped_column(ForeignKey("modules.moduleID"))
     modules: Mapped[Module] = relationship(back_populates="studentModules")
-
+    tutorial_assignments: Mapped[list["StudentTutorialGroup"]] = relationship(back_populates="enrollment", cascade="all, delete-orphan")
 class Courses(Base): #Student Courses
     __tablename__ = "courses"
     courseID: Mapped[int] = mapped_column(primary_key= True)
@@ -306,3 +309,19 @@ class StudentNotifications(Base):
     generatedAt: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
     meta_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
+class TutorialsGroup(Base):
+    __tablename__ =  "tutorialgroups"
+    tutorialGroupsID: Mapped[int] = mapped_column(primary_key=True)
+    lecModID: Mapped[int] = mapped_column(ForeignKey("lecmods.lecModID"))
+    lecMod: Mapped["LecMod"] = relationship(back_populates="tutorial_groups")
+    student_assignments: Mapped[list["StudentTutorialGroup"]] = relationship(back_populates="group", cascade="all, delete-orphan")
+    lessons: Mapped[list[Lesson]]= relationship(back_populates="tutorialGroup")
+
+class StudentTutorialGroup(Base):
+    __tablename__ = "studenttutorialgroups"
+
+    sTutorialGroupsID: Mapped[int]= mapped_column(primary_key=True)
+    studentModulesID: Mapped[UUID] = mapped_column(ForeignKey("studentmodules.studentModulesID"))
+    enrollment: Mapped[StudentModules] = relationship(back_populates="tutorial_assignments")
+    tutorialGroupID: Mapped[int] = mapped_column(ForeignKey("tutorialgroups.tutorialGroupsID"))
+    group: Mapped[TutorialsGroup] = relationship(back_populates="student_assignments")

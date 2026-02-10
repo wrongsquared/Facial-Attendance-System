@@ -17,6 +17,26 @@ def clear_db(db: Session, spbse: Client):
         if table not in ["alembic_version"]:
             db.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE;"))
     # this code clears the Supabase auth tables, y to clear auth.user
+    yn_storage = input(f"\nClear all files in Supabase 'avatar' bucket? (Y/y to confirm): ")
+    if yn_storage.lower() == "y":
+        try:
+            # List all files in the bucket
+            files = spbse.storage.from_("avatars").list()
+            
+            if files:
+                # Extract file names (excluding the .emptyFolderPlaceholder if it exists)
+                file_names = [f['name'] for f in files if f['name'] != '.emptyFolderPlaceholder']
+                
+                if file_names:
+                    spbse.storage.from_("avatar").remove(file_names)
+                    print(f"  - Deleted {len(file_names)} files from 'avatars' bucket.")
+                else:
+                    print("  - Bucket was already empty.")
+            else:
+                print("  - No files found in bucket.")
+        except Exception as e:
+            print(f"  - Warning: Could not clear storage: {e}")
+
     yn = input(f"Clear Supabase Auth.user Tables? Input (Y or y) to confirm \n")
     if yn.lower() == "y":
         try:

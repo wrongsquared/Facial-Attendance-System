@@ -8,7 +8,11 @@ from faker import Faker
 from sqlalchemy.orm import Session
 from db_config import SessionLocal, DATABASE_URL
 from db_clear import clear_db
-from db import University, PlatformMgr, Campus, User, Courses, UserProfile, Admin, Lecturer, Student, EntLeave, AttdCheck, Module, Lesson, LecMod, StudentModules, Courses
+from db import (University, PlatformMgr, Campus, User, 
+                Courses, UserProfile, Admin, Lecturer, 
+                Student, EntLeave, AttdCheck, Module, 
+                Lesson, LecMod, StudentModules, Courses,
+                TutorialsGroup, StudentTutorialGroup)
 from datetime import timedelta, datetime
 from collections import defaultdict
 from dotenv import load_dotenv
@@ -16,6 +20,30 @@ from supabase import create_client, Client
 import traceback
 load_dotenv()
 
+def upload_default_assets(supabase: Client) -> str:
+    """
+    Uploads the default profile picture once to a shared folder.
+    Returns the storage path to be used by all seeded users.
+    """
+    local_path = "./genericimage/gaiusgenericus.png"
+    storage_path = "defaults/gaius_genericus.png"
+    bucket_name = "avatars"
+
+    try:
+        with open(local_path, 'rb') as f:
+            file_data = f.read()
+
+        supabase.storage.from_(bucket_name).upload(
+            path=storage_path,
+            file=file_data,
+            file_options={"content-type": "image/jpeg", "upsert": "true"}
+        )
+        print(f"   [+] Shared default photo uploaded to: {storage_path}")
+        return storage_path
+    except Exception as e:
+        print(f"   [!] Note: Default photo already exists or: {e}")
+        return storage_path 
+    
 def upload_photo(user_uuid: str, local_file_path: str, supabase: Client) -> str:
     """
     Reads a local file and uploads it to Supabase Storage 
@@ -32,8 +60,6 @@ def upload_photo(user_uuid: str, local_file_path: str, supabase: Client) -> str:
         with open(local_file_path, 'rb') as f:
             file_data = f.read()
 
-        # Upload to Supabase (upsert=True overwrites if exists)
-        # content-type is important for browser rendering!
         response = supabase.storage.from_(bucket_name).upload(
             path=storage_path,
             file=file_data,
@@ -115,7 +141,6 @@ def seedCoursesOSS(dbSessionLocalInstance: Session, spbase: Client):
 def userProfileSeeder(dbSessionLocalInstance: Session, spbase: Client): 
     print(f"Seeding User Profiles for all campuses...\n")
     
-    # 1. Fetch all campuses currently in the DB
     campuses = dbSessionLocalInstance.query(Campus).all()
     
     if not campuses:
@@ -128,24 +153,21 @@ def userProfileSeeder(dbSessionLocalInstance: Session, spbase: Client):
         print(f"Processing roles for Campus: {campus.campusName} (ID: {campus.campusID})")
         
         for role_name in profileTypeList:
-            # 2. Check if this specific role already exists FOR THIS specific campus
+            # Check if this specific role already exists
             exists = dbSessionLocalInstance.query(UserProfile).filter_by(
                 profileTypeName=role_name, 
-                campusID=campus.campusID # <--- Check the link
+                campusID=campus.campusID 
             ).first()
             
             if not exists:
-                # 3. Create the profile linked to the current campus in the loop
                 new_profile = UserProfile(
                     profileTypeName=role_name,
-                    campusID=campus.campusID # <--- Assign the ID
+                    campusID=campus.campusID
                 )
                 dbSessionLocalInstance.add(new_profile)
-                print(f" - Created role '{role_name}' for {campus.campusName}")
             else:
                 print(f" - Role '{role_name}' already exists for {campus.campusName}, skipping.")
 
-    # 4. Commit all changes after processing all campuses
     try:
         dbSessionLocalInstance.commit()
         print("\nUser Profile seeding completed successfully.")
@@ -155,7 +177,7 @@ def userProfileSeeder(dbSessionLocalInstance: Session, spbase: Client):
 
     return None
 
-def platSeed(dbSessionLocalInstance: Session, spbase: Client):
+def platSeed(dbSessionLocalInstance: Session, spbase: Client, defphotopath: str):
     print(f"Seeding Platform Managers: \n")
     fake = Faker()
 
@@ -208,14 +230,6 @@ def platSeed(dbSessionLocalInstance: Session, spbase: Client):
             print(f"  - Error creating Supabase Auth user for {email}: {e}")
             continue
 
-        # Handle Photo Upload
-        # once per user
-        try:
-            photo_path = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png", spbase)
-        except Exception as e:
-            print(f"  - Photo upload failed for {email}: {e}")
-            photo_path = None
-
         # Create the PlatformMgr record linked to THIS University (u)
         new_manager = PlatformMgr(
             userID=user_uuid,
@@ -225,7 +239,7 @@ def platSeed(dbSessionLocalInstance: Session, spbase: Client):
             name=name,
             creationDate = datetime.today(),
             contactNumber = random.randint(81111111, 99999999),
-            photo=photo_path,
+            photo=defphotopath,
             address=fake.address(),
             universityID=u.universityID, # Explicitly link to the current university in the loop
             emergencyContactName = fake.name(),
@@ -246,7 +260,7 @@ def platSeed(dbSessionLocalInstance: Session, spbase: Client):
 
     return None
 
-def studentSeed(dbSessionLocalInstance: Session, spbase: Client): 
+def studentSeed(dbSessionLocalInstance: Session, spbase: Client, defphotopath: str): 
     print(f"Seeding Students: \n")
     studentProfile = dbSessionLocalInstance.query(UserProfile).filter_by(profileTypeName='Student').first()
     specialNames = []
@@ -279,7 +293,6 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
     basepass = "Valid123"
     user_uuid = createAccountgetuuid(baseemail, basepass, True)
     address = fake.address()
-    gaiusgenericusPath = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png",spbase)
     all_campus = dbSessionLocalInstance.query(Campus).all()
     dbSessionLocalInstance.add(Student(userID = uuid.UUID(str(user_uuid)),
                                        profileType = studentProfile,
@@ -289,7 +302,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
                                        creationDate = datetime.today(),
                                        attendanceMinimum = 75.0,
                                        course = rCourse,
-                                        photo=gaiusgenericusPath,
+                                        photo=defphotopath,
                                         address= address,
                                         contactNumber = random.randint(81111111, 99999999),
                                         campusID=random.choice(all_campus).campusID,
@@ -317,7 +330,6 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
             print(f" Skipping {name} ({email}): Auth creation failed (User might exist or error).")
             continue # Skip to next loop
         address = fake.address()
-        gaiusgenericusPath = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png",spbase)
         dbSessionLocalInstance.add(Student(
                                         userID = uuid.UUID(str(user_uuid)),
                                         profileType = studentProfile,
@@ -328,7 +340,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
                                         attendanceMinimum = 75.0,
                                         course = rCourse,
                                         contactNumber = random.randint(81111111, 99999999),
-                                        photo=gaiusgenericusPath,
+                                        photo=defphotopath,
                                         address= address ,
                                         campusID=random.choice(all_campus).campusID,
                                         emergencyContactName = fake.name(),
@@ -340,7 +352,7 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client):
 
     return None
 
-def adminSeed(dbSessionLocalInstance: Session, spbase: Client): 
+def adminSeed(dbSessionLocalInstance: Session, spbase: Client, defphotopath: str): 
     print(f"Seeding Admins: \n")
     
     # Setup Dependencies
@@ -408,8 +420,6 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client):
         if not existing_profile:
             try:
 
-                photo_path = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png", spbase)
-                
                 new_admin = Admin(
                     userID=uuid.UUID(str(user_uuid)),
                     profileType=AdminProfile, 
@@ -417,7 +427,7 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client):
                     role="System Administrator",
                     email=email,
                     creationDate=datetime.today(),
-                    photo=photo_path,
+                    photo=defphotopath,
                     address=fake.address(),
                     campusID=random.choice(all_campus).campusID,
                     contactNumber=str(random.randint(81111111, 99999999)),
@@ -426,7 +436,6 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client):
                     emergencyContactNumber=str(random.randint(81111111, 99999999))
                 )
                 dbSessionLocalInstance.add(new_admin)
-                print(f"Added Admin: {name}")
             except Exception as e:
                 print(f" DB Error adding {name}: {e}")
         else:
@@ -435,7 +444,7 @@ def adminSeed(dbSessionLocalInstance: Session, spbase: Client):
     dbSessionLocalInstance.commit()
     return None
 
-def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client): 
+def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client, defphotopath: str): 
         print(f"Seeding Lecturers: \n")
 
         # Setup Dependencies
@@ -510,7 +519,6 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client):
 
             if not existing_profile:
                 try:
-                    photo_path = upload_photo(user_uuid, "./genericimage/gaiusgenericus.png", spbase)
 
                     # Create DB Record
                     new_lecturer = Lecturer(
@@ -520,7 +528,7 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client):
                         specialistIn=specialist,
                         email=email, 
                         creationDate=datetime.today(),
-                        photo=photo_path,
+                        photo=defphotopath,
                         address=fake.address(),
                         campusID=random.choice(all_campi).campusID,
                         contactNumber=str(random.randint(81111111, 99999999)),
@@ -529,7 +537,6 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client):
                         emergencyContactNumber=str(random.randint(81111111, 99999999))    
                     )
                     dbSessionLocalInstance.add(new_lecturer)
-                    print(f"Added Lecturer: {name}")
                 except Exception as e:
                     print(f" DB Error adding {name}: {e}")
             else:
@@ -630,25 +637,24 @@ def studentModulesSeed(dbSessionLocalInstance: Session, spbase: Client):
 
 def lessonsSeed(dbSessionLocalInstance: Session, spbase: Client): 
     #No Primary Keys
-    lecModobjs = dbSessionLocalInstance.query(LecMod).all()
+    tutorial_groups = dbSessionLocalInstance.query(TutorialsGroup).all()
     fake = Faker()
     print(f"Seeding Lessons: \n")
     lessontypes = ["Practical", "Lecture"]
 
-    for lecmod in lecModobjs:
+    for group in tutorial_groups:
         for lessontype in lessontypes:
-            for _ in range(5):
+            for _ in range(2):
                 start_dt = fake.date_time_this_year()
                 #Assume every lesson is 3 hours
                 duration = timedelta(hours=3)
                 end_dt  = start_dt + duration
-                building = random.randint(1,5)
-                room = random.randint(100, 600)
 
                 dbSessionLocalInstance.add(Lesson(lessontype = lessontype,
-                                                  lecMod = lecmod,
-                                                  building = building,
-                                                  room = room,
+                                                  lecMod = group.lecMod,
+                                                  tutorialGroupID = group.tutorialGroupsID,
+                                                  building = random.randint(1,5),
+                                                  room = random.randint(100, 600),
                                                   startDateTime = start_dt,
                                                   endDateTime = end_dt))
     dbSessionLocalInstance.commit()
@@ -776,8 +782,8 @@ def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
     
     return None
 
-def seedLazyStudent(db: Session, spbase: Client):
-    print("\n--- Seeding 'Lazy Larry' (The At-Risk Student) ---")
+def seedLazyStudent(db: Session, spbase: Client, defphotopath: str):
+    print("\nSeeding Lazy Student")
     fake = Faker()
     
     email = "lazy@uow.edu.au"
@@ -800,13 +806,12 @@ def seedLazyStudent(db: Session, spbase: Client):
             spbase.auth.admin.update_user_by_id(lazy_uuid, {"password": password})
 
     if not lazy_uuid:
-        print("Critical Error: Could not get UUID for Lazy Larry.")
         return
 
-    #  Check if Larry exists in Local DB (Prevent Duplicates)
+    # Check Duplicate
     existing_student = db.query(Student).filter(Student.studentID == lazy_uuid).first()
     if existing_student:
-        print("   - Lazy Larry already exists in DB. Skipping creation.")
+        print("   - lazy student already exists in DB. Skipping creation.")
         return lazy_uuid
 
     #  Get Dependencies
@@ -820,37 +825,33 @@ def seedLazyStudent(db: Session, spbase: Client):
         return
 
     # Create/Get the specific Test Module
-    test_module = db.query(Module).filter_by(moduleCode="TEST101").first()
-    if not test_module:
-        test_module = Module(
-            moduleCode="TEST101",
-            moduleName="Skipping Class 101"
-        )
-        db.add(test_module)
-        db.flush()
+    target_module = db.query(Module).filter_by(moduleCode="CSIT420").first()
+    if not target_module:
+        print("Error: Module CSIT420 not found. Seed modulesSeed first.")
+        return
         
         # Link Lecturer to this new module
-        lec_mod = LecMod(lecturers=lecturer, modules=test_module)
-        db.add(lec_mod)
-        db.flush()
-    else:
-        # Use existing link
-        lec_mod = db.query(LecMod).filter_by(moduleID=test_module.moduleID).first()
+    lec_mod = db.query(LecMod).filter_by(moduleID=target_module.moduleID).first()
 
+    
+    test_group = db.query(TutorialsGroup).filter_by(lecModID=lec_mod.lecModID).first()
+    if not test_group:
+        test_group = TutorialsGroup(lecModID=lec_mod.lecModID)
+        db.add(test_group)
+        db.flush()
     # Upload the photo to supabase bucket
-    gaiusgenericusPath = upload_photo(lazy_uuid, "./genericimage/gaiusgenericus.png", spbase)
 
     # Create Student Profile
     lazy_student = Student(
         userID=uuid.UUID(str(lazy_uuid)),
         profileType=student_profile,
-        name="Lazy Larry",
+        name="Albert Zweistein",
         email=email,
         studentNum="000000",
         attendanceMinimum=80.0, 
         courseID=random_course.courseID,
         campusID=random_campus.campusID,
-        photo=gaiusgenericusPath,
+        photo=defphotopath,
         creationDate= datetime.today(),
         # New required fields
         address=fake.address(),
@@ -861,8 +862,15 @@ def seedLazyStudent(db: Session, spbase: Client):
     )
     db.add(lazy_student)
     #Student-Module Link
-    enrollment = StudentModules(student=lazy_student, modules=test_module)
+    enrollment = StudentModules(student=lazy_student, modules=target_module)
     db.add(enrollment)
+    db.flush() 
+
+    assignment = StudentTutorialGroup(
+    studentModulesID=enrollment.studentModulesID,
+    tutorialGroupID=test_group.tutorialGroupsID # Linking Albert to the group
+    )
+    db.add(assignment)
     # Fake Lessons
     past_lessons = []
     for i in range(1, 11):
@@ -884,53 +892,100 @@ def seedLazyStudent(db: Session, spbase: Client):
 
     # Mark Attendance for ONLY 1 Lesson (10% Rate)
     attended_lesson = past_lessons[0]
+    dt_in = attended_lesson.startDateTime + timedelta(minutes=5)
     
-    # Times for the attendance
-    detection_time_in = attended_lesson.startDateTime + timedelta(minutes=5) # 5 mins late
-    detection_time_out = attended_lesson.endDateTime - timedelta(minutes=5)  # Left 5 mins early
-
-    # Add Raw Detection (EntLeave)
-    entry_leave = EntLeave(
-        lesson=attended_lesson,
-        student=lazy_student,
-        detectionTime=detection_time_in
-    )
-    db.add(entry_leave)
-
-    attendance = AttdCheck(
-        lesson=attended_lesson,
-        student=lazy_student,
-        status="Present", # or "Late" if you want to test that logic
-        firstDetection=detection_time_in,
-        lastDetection=detection_time_out,
+    db.add(EntLeave(lesson=attended_lesson, student=lazy_student, detectionTime=dt_in))
+    db.add(AttdCheck(
+        lesson=attended_lesson, student=lazy_student, status="Present",
+        firstDetection=dt_in, lastDetection=attended_lesson.endDateTime,
         remarks="Camera Capture"
-    )
-    db.add(attendance)
+    ))
 
     db.commit()
+    print(f"   + Albert Zweistein is now enrolled in {target_module.moduleName} (Group ID: {test_group.tutorialGroupsID})")
     return lazy_uuid
+
+def tutorialGroupsSeed(dbSessionLocalInstance: Session):
+    print(f"Seeding Tutorial Groups: \n")
+    
+
+    lec_mods = dbSessionLocalInstance.query(LecMod).all()
+    
+    if not lec_mods:
+        print(" [!] No LecMods found. Seed lecModSeed first.")
+        return
+
+    for lm in lec_mods:
+
+        for suffix in ["A", "B"]:
+            new_group = TutorialsGroup(
+                lecModID = lm.lecModID
+            )
+            dbSessionLocalInstance.add(new_group)
+    
+    dbSessionLocalInstance.commit()
+    print(f"   + Successfully created {len(lec_mods) * 2} Tutorial Groups.")
+    return None
+
+def studentTutorialAssignmentSeed(dbSessionLocalInstance: Session):
+    print(f"Assigning Students to Tutorial Groups: \n")
+    
+    enrollments = dbSessionLocalInstance.query(StudentModules).all()
+    
+    assignments_count = 0
+
+    for enrollment in enrollments:
+        available_groups = (
+            dbSessionLocalInstance.query(TutorialsGroup)
+            .join(LecMod)
+            .filter(LecMod.moduleID == enrollment.modulesID)
+            .all()
+        )
+
+        if not available_groups:
+            continue
+
+        selected_group = random.choice(available_groups)
+
+        new_assignment = StudentTutorialGroup(
+            studentModulesID = enrollment.studentModulesID,
+            tutorialGroupID = selected_group.tutorialGroupsID
+        )
+        dbSessionLocalInstance.add(new_assignment)
+        assignments_count += 1
+
+    dbSessionLocalInstance.commit()
+    return None
 if __name__ == "__main__":  
     db_session: Session = SessionLocal()
 
     try:
         spbse: Client = create_client(os.getenv("SPBASE_URL"), os.getenv("SPBASE_SKEY"))
         faker = Faker()
+
+        
         clear_db(db_session, spbse)
+        shared_photo = upload_default_assets(spbse)
         uniCampusSeed(db_session, spbse)
         seedCoursesOSS(db_session, spbse)
         userProfileSeeder(db_session, spbse)
         modulesSeed(db_session, spbse)
-        lecturerSeed(db_session, spbse)
-        adminSeed(db_session, spbse)
-        platSeed(db_session,spbse)
-        studentSeed(db_session, spbse)
+        # Users
+        lecturerSeed(db_session, spbse, shared_photo)
+        adminSeed(db_session, spbse, shared_photo)
+        platSeed(db_session,spbse, shared_photo)
+        studentSeed(db_session, spbse, shared_photo)
+
         lecModSeed(db_session, spbse)
+        tutorialGroupsSeed(db_session)
         studentModulesSeed(db_session, spbse)
+        studentTutorialAssignmentSeed(db_session)
         lessonsSeed(db_session, spbse)
         entLeaveSeed(db_session, spbse)
         attdCheckSeed(db_session, spbse)
-        print("\nPrinting Special User: Student that does not attend lessons\n")
-        seedLazyStudent(db_session,spbse)
+
+        print("\nSpecial Cases: Student that does not attend lessons\n")
+        seedLazyStudent(db_session,spbse, shared_photo)
 
         # Initialize defaults
         print("Finished seeding the database")
