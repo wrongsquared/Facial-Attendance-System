@@ -16,19 +16,15 @@ import {
 } from "lucide-react";
 import { Progress } from "./ui/progress";
 import { useAuth } from "../cont/AuthContext";
-import { lessonInfo, TodaysLessons, AttendanceRecord, WeeklyLesson, OverallLessonsStat, ModuleStat } from "../types/studentdash";
+import { TodaysLessons, AttendanceRecord, WeeklyLesson, OverallLessonsStat, ModuleStat } from "../types/studentdash";
 import {
-  getStudentProfile,
-  getStudentTimetable,
   getTodaysLessons,
   getOverallLessons,
   getStatsByModule,
   getRecentHistory,
   getWeeklyTimetable,
-  getNotifications
 } from "../services/api";
 import { Navbar } from "./Navbar";
-import { NotificationItem } from "../types/studentinnards";
 
 interface StudentDashboardProps {
   onLogout: () => void;
@@ -54,14 +50,10 @@ export function StudentDashboard({
     year: 'numeric'
   })
 
-  const [notificationAlerts, setNotificationAlerts] = useState<NotificationItem[]>([]);
 
-  const { token, user } = useAuth();
-
-  const [profile, setProfile] = useState<any>(null);
+  const { token } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [lessons, setLessons] = useState<lessonInfo[]>([])
-  const [todaysClasses, setTodaysClasses] = useState<TodaysLessons[]>([])
+  const [todaysClasses, setTodaysClasses] = useState<TodaysLessons[]>([]);
   const [oAS, setOverallAttendanceStats] = useState<OverallLessonsStat>({
     total_lessons: 0,
     attended_lessons: 0,
@@ -77,34 +69,25 @@ export function StudentDashboard({
 
       try {
         const [
-          lessonData,
-          profileData,
           todaysData,
           overallLessonsData,
           moduleStatsData,
           historyData,
           weeklyData,
-          notifData
         ] = await Promise.all([
-          getStudentTimetable(token),
-          getStudentProfile(token),
           getTodaysLessons(token),
           getOverallLessons(token),
           getStatsByModule(token),
           getRecentHistory(token),
           getWeeklyTimetable(token),
-          getNotifications(token)
         ]);
 
         //Set all states at once
-        setLessons(lessonData);
-        setProfile(profileData);
         setTodaysClasses(todaysData);
         setOverallAttendanceStats(overallLessonsData);
         setSubjectStats(moduleStatsData);
         setRecentHistory(historyData);
         setWeeklyLessons(weeklyData);
-        setNotificationAlerts(notifData);
 
       } catch (err) {
         console.error("Failed to load dashboard:", err);

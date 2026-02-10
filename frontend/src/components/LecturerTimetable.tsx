@@ -436,9 +436,7 @@ export function LecturerTimetable({
                         ) : (
                           <div className="flex-1 p-4 border rounded-lg bg-gray-50">
                             <p className="text-sm text-gray-600">
-                              {date.getDay() === 0
-                                ? "No school on Sunday"
-                                : "No Classes Scheduled"}
+                              No Classes Scheduled
                             </p>
                           </div>
                         )}

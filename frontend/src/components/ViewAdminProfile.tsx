@@ -14,6 +14,7 @@ import { Navbar } from "./Navbar";
 import { useAuth } from "../cont/AuthContext";
 import { AdminProfileData } from "../types/adminInnards";
 import { getAdminProfile, updateAdminProfile } from "../services/api";
+import { Textarea } from "./ui/textarea";
 
 interface ViewAdminProfileProps {
   onBack: () => void;
@@ -79,11 +80,16 @@ export function ViewAdminProfile({
     fetchProfile();
   }, [token]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle Input Changes
+  const handleChange = (
+  e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> // Update this line
+  ) => {
     const { id, value } = e.target;
-    setFormData((prev) => ({ ...prev, [id]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
   };
-
   const handleCancel = () => {
     setFormData(originalData); // Restore original data
     setIsEditMode(false);
@@ -184,8 +190,8 @@ export function ViewAdminProfile({
                 disabled={!isEditMode}
               />
 
-              <Field
-                label="Address"
+              <Label htmlFor="address">Address:</Label>
+              <Textarea
                 id="address"
                 value={formData.address}
                 onChange={handleChange}

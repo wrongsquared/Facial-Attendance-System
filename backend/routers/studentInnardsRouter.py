@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import and_, func, case, desc
-from datetime import datetime, timedelta
+from sqlalchemy import and_, func, case, desc, distinct, or_
+from datetime import datetime
 from database.db_config import get_db
 from dependencies.deps import get_current_user_id
 from schemas import( WeeklyLesson,
@@ -12,7 +12,7 @@ from schemas import( WeeklyLesson,
                      UserProfileUpdate,
                      viewUserProfile
                      )
-from database.db import  Lesson, Module,  StudentModules, LecMod, AttdCheck, Student, User, StudentNotifications
+from database.db import  Lesson, Module,  StudentModules, LecMod, AttdCheck, Student, User, StudentNotifications, StudentTutorialGroup
 from dependencies.deps import check_single_student_risk
 
 
@@ -23,70 +23,74 @@ def get_student_progress_quarterly(
     user_id: str = Depends(get_current_user_id), 
     db: Session = Depends(get_db)
 ):
-    # Determine Current Quarter Date Range
+    # 1. Determine Current Quarter Date Range (Existing Logic)
     now = datetime.now()
     year = now.year
     month = now.month
     
     if 1 <= month <= 3:
-        start_date = datetime(year, 1, 1)
-        end_date = datetime(year, 3, 31, 23, 59, 59)
+        start_date = datetime(year, 1, 1); end_date = datetime(year, 3, 31, 23, 59, 59)
         label = f"{year} Quarter (Jan - Mar)"
     elif 4 <= month <= 6:
-        start_date = datetime(year, 4, 1)
-        end_date = datetime(year, 6, 30, 23, 59, 59)
+        start_date = datetime(year, 4, 1); end_date = datetime(year, 6, 30, 23, 59, 59)
         label = f"{year} Quarter (Apr - Jun)"
     elif 7 <= month <= 9:
-        start_date = datetime(year, 7, 1)
-        end_date = datetime(year, 9, 30, 23, 59, 59)
+        start_date = datetime(year, 7, 1); end_date = datetime(year, 9, 30, 23, 59, 59)
         label = f"{year} Quarter (Jul - Sep)"
     else:
-        start_date = datetime(year, 10, 1)
-        end_date = datetime(year, 12, 31, 23, 59, 59)
+        start_date = datetime(year, 10, 1); end_date = datetime(year, 12, 31, 23, 59, 59)
         label = f"{year} Quarter (Oct - Dec)"
 
-    # Get Student's Personal Goal
-    student = db.query(Student).filter(Student.userID == user_id).first()
-    student_goal = int(student.attendanceMinimum) if student else 85
 
-    #  Query Stats by Module (Filtered by Date Range)
+    student = db.query(Student).filter(Student.studentID == user_id).first()
+    student_goal = int(student.attendanceMinimum) if (student and student.attendanceMinimum) else 85
+
     results = (
         db.query(
             Module.moduleCode,
             Module.moduleName,
-            func.count(Lesson.lessonID).label("total"),
-            func.count(AttdCheck.AttdCheckID).label("attended")
+ 
+            func.count(distinct(Lesson.lessonID)).label("total"),
+            func.count(distinct(AttdCheck.AttdCheckID)).label("attended")
         )
         .select_from(StudentModules)
         .join(Module, StudentModules.modulesID == Module.moduleID)
         .join(LecMod, Module.moduleID == LecMod.moduleID)
         .join(Lesson, LecMod.lecModID == Lesson.lecModID)
-        .outerjoin(AttdCheck, (AttdCheck.lessonID == Lesson.lessonID) & (AttdCheck.studentID == user_id))
         
-        # FILTERS
-        .filter(StudentModules.studentID == user_id)
-        .filter(Lesson.startDateTime >= start_date) # Start of Quarter
-        .filter(Lesson.startDateTime <= end_date)   # End of Quarter
-        .filter(Lesson.endDateTime < now)           # Only count Past lessons
+        .outerjoin(StudentTutorialGroup, StudentModules.studentModulesID == StudentTutorialGroup.studentModulesID)
         
+        .outerjoin(AttdCheck, and_(
+            AttdCheck.lessonID == Lesson.lessonID, 
+            AttdCheck.studentID == user_id
+        ))
+        
+        .filter(
+            StudentModules.studentID == user_id,
+            Lesson.startDateTime >= start_date,
+            Lesson.startDateTime <= end_date,
+            Lesson.endDateTime < now, 
+            or_(
+                Lesson.tutorialGroupID == None, 
+                Lesson.tutorialGroupID == StudentTutorialGroup.tutorialGroupID
+            )
+        )
         .group_by(Module.moduleCode, Module.moduleName)
         .all()
     )
 
-    # Process Results
     modules_data = []
     total_lessons_all = 0
     total_attended_all = 0
 
     for code, name, total, attended in results:
         percentage = 0
-        if total > 0:
-            percentage = round((attended / total) * 100)
+        if total and total > 0:
+            percentage = round(((attended or 0) / total) * 100)
         
-        total_lessons_all += total
-        total_attended_all += attended
+        total_lessons_all += (total or 0)
+        total_attended_all += (attended or 0)
 
-        # Determine Status
         status = "On Track" if percentage >= student_goal else "At Risk"
 
         modules_data.append({
@@ -97,7 +101,6 @@ def get_student_progress_quarterly(
             "status": status
         })
 
-    # Calculate Overall
     overall = 0
     if total_lessons_all > 0:
         overall = round((total_attended_all / total_lessons_all) * 100)
@@ -113,6 +116,8 @@ def get_full_attendance_history(
     user_id: str = Depends(get_current_user_id), 
     db: Session = Depends(get_db)
 ):
+    now = datetime.now()
+
     results = (
         db.query(
             Lesson,
@@ -123,33 +128,38 @@ def get_full_attendance_history(
         .join(Module, StudentModules.modulesID == Module.moduleID)
         .join(LecMod, Module.moduleID == LecMod.moduleID)
         .join(Lesson, LecMod.lecModID == Lesson.lecModID)
-        .outerjoin(AttdCheck, (AttdCheck.lessonID == Lesson.lessonID) & (AttdCheck.studentID == user_id))
         
-        .filter(StudentModules.studentID == user_id)
-        .filter(Lesson.endDateTime < datetime.now()) # Past lessons only
+        
+        .outerjoin(StudentTutorialGroup, StudentModules.studentModulesID == StudentTutorialGroup.studentModulesID)
+        
+        .outerjoin(AttdCheck, and_(
+            AttdCheck.lessonID == Lesson.lessonID, 
+            AttdCheck.studentID == user_id
+        ))
+        
+        .filter(
+            StudentModules.studentID == user_id,
+            Lesson.endDateTime < now, 
+            
+            or_(
+                Lesson.tutorialGroupID == None, 
+                Lesson.tutorialGroupID == StudentTutorialGroup.tutorialGroupID
+            )
+        )
         .order_by(desc(Lesson.startDateTime))
         .all()
     )
 
     output = []
     for lesson, mod_code, attd_record in results:
-        # Status Logic
-        status = "Absent"
-        if attd_record:
-            # If you have a 'status' column in AttdCheck, use it:
-            # status = attd_record.status 
-            # Otherwise default to Present:
-            status = "Present"
-            
-            # Logic for "Late" (e.g. if check-in was > 15 mins after start)
-            # if attd_record.timestamp > lesson.startDateTime + timedelta(minutes=15):
-            #    status = "Late"
+        status = attd_record.status if attd_record else "Absent"
 
         output.append({
             "lessonID": lesson.lessonID,
             "module_code": mod_code,
-            "status": status,
-            "start_time": lesson.startDateTime
+            "status": status, 
+            "start_time": lesson.startDateTime,
+            "lesson_type": lesson.lessontype 
         })
 
     return output
@@ -163,34 +173,57 @@ def get_timetable_by_range(
 ):
     """
     Fetches lessons falling strictly within the start and end datetime.
+    Correctly filters for Lectures vs assigned Tutorial Groups.
     """
+    now = datetime.now()
+
     results = (
         db.query(
             Lesson,
             Module.moduleCode,
             Module.moduleName,
-            AttdCheck.AttdCheckID
+            AttdCheck.AttdCheckID,
+            AttdCheck.status.label("attd_status") # Get the specific status (Present/Late)
         )
         .select_from(StudentModules)
         .join(Module, StudentModules.modulesID == Module.moduleID)
         .join(LecMod, Module.moduleID == LecMod.moduleID)
         .join(Lesson, LecMod.lecModID == Lesson.lecModID)
-        .outerjoin(AttdCheck, (AttdCheck.lessonID == Lesson.lessonID) & (AttdCheck.studentID == user_id))
         
-        .filter(StudentModules.studentID == user_id)
-        .filter(Lesson.startDateTime >= start_date)
-        .filter(Lesson.startDateTime <= end_date)
+        # --- THE FIX: Identify the specific group assignment ---
+        .outerjoin(StudentTutorialGroup, and_(
+            StudentModules.studentModulesID == StudentTutorialGroup.studentModulesID
+        ))
         
+        # --- Join to Attendance check ---
+        .outerjoin(AttdCheck, and_(
+            AttdCheck.lessonID == Lesson.lessonID, 
+            AttdCheck.studentID == user_id
+        ))
+        
+        .filter(
+            StudentModules.studentID == user_id,
+            Lesson.startDateTime >= start_date,
+            Lesson.startDateTime <= end_date,
+            # --- THE FILTER FIX: Lectures OR the specific Group ---
+            or_(
+                Lesson.tutorialGroupID == None, 
+                Lesson.tutorialGroupID == StudentTutorialGroup.tutorialGroupID
+            )
+        )
         .order_by(Lesson.startDateTime.asc())
         .all()
     )
 
     output = []
-    current_time = datetime.now()
-    for lesson, code, name, attd_id in results:
-        status = "upcoming"
-        if attd_id: status = "present"
-        elif lesson.endDateTime < current_time: status = "absent"
+    for lesson, code, name, attd_id, attd_status in results:
+        # Determine Status for the UI
+        display_status = "upcoming"
+        if attd_id: 
+            # If present, use the specific status from the DB (e.g., 'Late' or 'Present')
+            display_status = attd_status.lower() 
+        elif lesson.endDateTime < now: 
+            display_status = "absent"
 
         output.append({
             "lessonID": lesson.lessonID,
@@ -199,8 +232,8 @@ def get_timetable_by_range(
             "lesson_type": lesson.lessontype,
             "start_time": lesson.startDateTime,
             "end_time": lesson.endDateTime,
-            "location": lesson.lessontype, # Or venue column
-            "status": status
+            "location": f"Blk {lesson.building}, Rm {lesson.room}",
+            "status": display_status
         })
         
     return output
@@ -219,15 +252,11 @@ def get_student_profile_details(
     return student
 
 
-from datetime import timedelta
-import uuid
-
 @router.get("/student/notifications", response_model=list[NotificationItem])
 def get_student_notifications(
     user_id: str = Depends(get_current_user_id), # This is the UUID
     db: Session = Depends(get_db)
 ):
-    # First check for new notification alerts based on attendance
     check_single_student_risk(db, user_id)
     
     # Then get all notifications
@@ -246,7 +275,6 @@ def update_user_profile(
     Updates the user's personal information and emergency contact in a single transaction.
     """
     
-    # Find the User Record
     user_record = db.query(User).filter(User.userID == user_id).first()
     
     if not user_record:
@@ -265,5 +293,4 @@ def update_user_profile(
     db.commit()
     db.refresh(user_record)
     
-    # Return the full, updated profile
     return user_record

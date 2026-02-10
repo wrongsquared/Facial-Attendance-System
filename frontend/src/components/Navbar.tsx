@@ -45,7 +45,6 @@ export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: Navb
   };
   useEffect(() => {
     const fetchNotifs = async () => {
-      // Logic: Only fetch if logged in AND is a student
       if (token && user?.role_name?.toLowerCase() === 'student') {
         try {
           const data = await getNotifications(token);
@@ -70,20 +69,16 @@ export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: Navb
     }
   };
 
-  // Calculate Unread Count for the Red Badge
   const unreadCount = notifications.filter((n) => !n.isRead).length;
-  // Get Initials for the Avatar
   const getInitials = () => {
     if (!user?.role_name) return "U";
     return user.role_name.substring(0, 2).toUpperCase();
   };
   const getUserSubtitle = () => {
-    // Req to dodge the "Might be Null" issue
     if (!user) return "Guest";
-    //Student
+
     if (user.studentNum) return `Student ID: ${user.studentNum}`;
     if (user.specialistIn) return user.specialistIn;
-    // For Admins
     if (user.job) return user.job;
 
 

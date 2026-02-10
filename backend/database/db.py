@@ -218,7 +218,7 @@ class Lesson(Base): # Lessons by Lecturers, belongs to Modules
 
     lessontype: Mapped[str] = mapped_column(String(10))
     tutorialGroupID: Mapped[Optional[int]] = mapped_column(ForeignKey("tutorialgroups.tutorialGroupsID"), nullable=True)
-    tutorialGroup: Mapped[Optional[TutorialsGroup]] = relationship(back_populates="lessons")
+    tutorialGroup: Mapped[Optional["TutorialsGroup"]] = relationship(back_populates="lessons")
     startDateTime: Mapped[datetime.datetime]
     endDateTime: Mapped[datetime.datetime] 
 
@@ -255,7 +255,7 @@ class Courses(Base): #Student Courses
     campusID: Mapped[int] = mapped_column(ForeignKey("campus.campusID"))
     campus:  Mapped[Campus] = relationship(back_populates="courses")
 
-class studentAngles(Base): #Student-Angles for AI Training?
+class studentAngles(Base): 
     __tablename__ = "studentangles"
 
     studentID: Mapped[UUID] = mapped_column(ForeignKey("students.studentID"), primary_key= True)
@@ -268,28 +268,20 @@ class GeneratedReport(Base):
     
     reportID: Mapped[int] = mapped_column(primary_key=True)
     
-    # Link to the Lecturer (Foreign Key)
     lecturerID: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.userID")) 
-    # Note: Make sure this points to your 'users' table or 'lecturers' table depending on your setup.
-    # If your Lecturer ID is a UserID, point to "users.userID".
-    
-    # Report Details
-    title: Mapped[str] = mapped_column(String(100))      # e.g. "CSCI314 - Daily Report"
+    title: Mapped[str] = mapped_column(String(100)) 
     moduleCode: Mapped[str] = mapped_column(String(20))
-    reportType: Mapped[str] = mapped_column(String(50))  # "Daily" or "Monthly"
-    filterStatus: Mapped[str] = mapped_column(String(50)) # "All", "Present"
+    reportType: Mapped[str] = mapped_column(String(50)) 
+    filterStatus: Mapped[str] = mapped_column(String(50)) 
     
-    # Metadata
+
     generatedAt: Mapped[datetime.datetime] = mapped_column(server_default=func.now())
 
-    # File Location (Where we saved the Excel file)
+
     fileName: Mapped[str] = mapped_column(String(255))
     filePath: Mapped[str] = mapped_column(String(500))
     
 class InstitutionRegistration(BaseModel):
-    # institutionName: str
-    # institutionType: str
-    # address: str
     universityName: str
     email: EmailStr
     phoneNumber: str
@@ -321,7 +313,7 @@ class StudentTutorialGroup(Base):
     __tablename__ = "studenttutorialgroups"
 
     sTutorialGroupsID: Mapped[int]= mapped_column(primary_key=True)
-    studentModulesID: Mapped[UUID] = mapped_column(ForeignKey("studentmodules.studentModulesID"))
+    studentModulesID: Mapped[int] = mapped_column(ForeignKey("studentmodules.studentModulesID"))
     enrollment: Mapped[StudentModules] = relationship(back_populates="tutorial_assignments")
     tutorialGroupID: Mapped[int] = mapped_column(ForeignKey("tutorialgroups.tutorialGroupsID"))
     group: Mapped[TutorialsGroup] = relationship(back_populates="student_assignments")

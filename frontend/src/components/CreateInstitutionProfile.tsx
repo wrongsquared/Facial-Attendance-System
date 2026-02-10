@@ -14,7 +14,6 @@ import { useState } from "react";
 import { Navbar } from "./Navbar";
 import { useAuth } from "../cont/AuthContext";
 import { toast } from "sonner";
-import { on } from "events";
 
 interface CreateInstitutionProfileProps {
   onLogout: () => void;

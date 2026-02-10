@@ -21,7 +21,7 @@ import {
 } from "./ui/select";
 import { Navbar } from "./Navbar";
 import { getUserDetails, updateUser, getCampusCourses } from "../services/api";
-import { UpdateUserPayload, UserDetails, Course } from "../types/adminInnards";
+import { UpdateUserPayload,  Course } from "../types/adminInnards";
 import { useAuth } from "../cont/AuthContext";
 
 // Email validation function

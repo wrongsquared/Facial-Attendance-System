@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { getUserAccDetails, updateUser, updateUserProfile } from "../services/api";
+import { getUserAccDetails, updateUserProfile } from "../services/api";
 import { useAuth } from "../cont/AuthContext";
 import { Navbar } from "./Navbar";
 import { UpdateProfilePayload } from "../types/adminInnards";
@@ -146,10 +146,7 @@ interface AdminUpdateUserProfileProps {
 
 export function AdminUpdateUserProfile({
   onBack,
-  onNavigateToBiometricProfile,
   userData,
-  userProfileData,
-  onUpdateProfile,
   showToast,
   onNavigateToProfile
 }: AdminUpdateUserProfileProps) {
@@ -463,7 +460,7 @@ export function AdminUpdateUserProfile({
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">Role:</label>
-              <Select value={role} onValueChange={(value) => handleInputChange("role", value)} disabled={!isEditMode}>
+              <Select value={role} onValueChange={(value: string) => handleInputChange("role", value)} disabled={!isEditMode}>
                 <SelectTrigger className={errors.role ? "border-red-500" : ""}>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
@@ -481,7 +478,7 @@ export function AdminUpdateUserProfile({
               <label className="text-sm text-gray-600 mb-2 block">
                 Status:
               </label>
-              <Select value={status} onValueChange={(value) => handleInputChange("status", value)} disabled={!isEditMode}>
+              <Select value={status} onValueChange={(value: string) => handleInputChange("status", value)} disabled={!isEditMode}>
                 <SelectTrigger className={errors.status ? "border-red-500" : ""}>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>

@@ -6,12 +6,6 @@ class AdminDashboardStats(BaseModel):
     overall_attendance_rate: float
     monthly_absences: int
     total_active_users: int
-    total_records: int
-    # Optional trends (You can calculate these or hardcode "0" for MVP)
-    trend_attendance: str 
-    trend_absences: str
-    trend_users: str
-    trend_records: str
 
 class CourseAttentionItem(BaseModel):
     module_code: str
@@ -26,7 +20,7 @@ class UserManagementItem(BaseModel):
     email: str
     role: str    # "Student", "Lecturer"
     status: str  # "active", "pending"
-    joined_date: str # Formatted date string or datetime
+    joined_date: str 
 
     class Config:
         from_attributes = True
@@ -57,18 +51,18 @@ class AdminProfileUpdateRequest(BaseModel):
 
 class AttendanceUpdateRequest(BaseModel):
     user_id: str
-    date: str  # Format: "DD MMM YYYY" like "01 Dec 2025" 
+    date: str  
     new_status: Literal["Present", "Absent", "Late"]
     reason: Optional[str] = None
     admin_notes: Optional[str] = None
-    lesson_id: Optional[int] = None  # Specific lesson ID to update
+    lesson_id: Optional[int] = None 
 
 class UserManageSchema(BaseModel):
     uuid: UUID
     name: str
     email: str
     role: str
-    studentNum: Optional[str] = "-" # This will hold ID for students, Job for admins
+    studentNum: Optional[str] = "-" 
     status: str
 
     class Config:
@@ -80,7 +74,6 @@ class CreateUserSchema(BaseModel):
     password: str
     role: str # "student", "lecturer", "admin"
     courseID: Optional[int] = None 
-    # These are missing from the Form.
     studentNum: Optional[str] = None 
     specialistIn: Optional[str] = None # For lecturers
     jobTitle: Optional[str] = None     # For admins

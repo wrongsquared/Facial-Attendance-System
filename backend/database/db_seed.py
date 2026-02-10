@@ -3,7 +3,7 @@ import os
 import uuid
 import random
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from faker import Faker
 from sqlalchemy.orm import Session
 from db_config import SessionLocal, DATABASE_URL
@@ -21,10 +21,6 @@ import traceback
 load_dotenv()
 
 def upload_default_assets(supabase: Client) -> str:
-    """
-    Uploads the default profile picture once to a shared folder.
-    Returns the storage path to be used by all seeded users.
-    """
     local_path = "./genericimage/gaiusgenericus.png"
     storage_path = "defaults/gaius_genericus.png"
     bucket_name = "avatars"
@@ -38,10 +34,8 @@ def upload_default_assets(supabase: Client) -> str:
             file=file_data,
             file_options={"content-type": "image/jpeg", "upsert": "true"}
         )
-        print(f"   [+] Shared default photo uploaded to: {storage_path}")
         return storage_path
     except Exception as e:
-        print(f"   [!] Note: Default photo already exists or: {e}")
         return storage_path 
     
 def upload_photo(user_uuid: str, local_file_path: str, supabase: Client) -> str:
@@ -119,7 +113,7 @@ def seedCoursesOSS(dbSessionLocalInstance: Session, spbase: Client):
     campuses = dbSessionLocalInstance.query(Campus).all()
 
     courseCodeHeader = ['ISIT', 'CSIT', 'CSCI']
-    courseNames = ["Bsc in Ba in B in Technology","Bsc in Advanced Programming","Bsc in Big Data Application", "Bsc in Cybersecurity", "Bsc in Game Development", "Bachelor in Computer Science", "Bsc in Information Technology", "Bsc in Computer Science", "Bc in Science Computer","Bs in Computer Arts"]
+    courseNames = ["Bsc in Technology","Bsc in Advanced Programming","Bsc in Big Data Application", "Bsc in Cybersecurity", "Bsc in Game Development", "Bachelor in Computer Science", "Bsc in Information Technology", "Bsc in Computer Science", "Bc in Science Computer","Bs in Computer Arts"]
     i= 0
     loc = []
     while i < 10:
@@ -131,7 +125,7 @@ def seedCoursesOSS(dbSessionLocalInstance: Session, spbase: Client):
         if randomCourse in loc:
             continue
         else:
-            dbSessionLocalInstance.add(Courses(courseCode = randomCourse, campus = campus))
+            dbSessionLocalInstance.add(Courses(courseCode = randomCourse, campus = campus, courseName = courseNames[i]))
             loc.append(randomCourse)
             i+=1
 
@@ -150,7 +144,6 @@ def userProfileSeeder(dbSessionLocalInstance: Session, spbase: Client):
     profileTypeList = ['Pmanager', 'Admin', 'Student', 'Lecturer']
 
     for campus in campuses:
-        print(f"Processing roles for Campus: {campus.campusName} (ID: {campus.campusID})")
         
         for role_name in profileTypeList:
             # Check if this specific role already exists
@@ -181,14 +174,11 @@ def platSeed(dbSessionLocalInstance: Session, spbase: Client, defphotopath: str)
     print(f"Seeding Platform Managers: \n")
     fake = Faker()
 
-    # Get all Universities
     universities = dbSessionLocalInstance.query(University).all()
     if not universities:
         print("No universities found. Please seed universities first.")
         return None
 
-    # Ensure a GLOBAL PManager profile exists (campusID is None)
-    # This role is used system-wide for all Platform Managers
     pm_profile = dbSessionLocalInstance.query(UserProfile).filter_by(
         profileTypeName="PManager",
         campusID=None
@@ -198,27 +188,24 @@ def platSeed(dbSessionLocalInstance: Session, spbase: Client, defphotopath: str)
         print("Creating Global UserProfile: PManager...")
         pm_profile = UserProfile(
             profileTypeName="PManager",
-            campusID=None # not tied to a specific campus
+            campusID=None 
         )
         dbSessionLocalInstance.add(pm_profile)
-        # Commit immediately so we have the ID for the managers
         dbSessionLocalInstance.commit() 
         dbSessionLocalInstance.refresh(pm_profile)
 
-    # Iterate through each University to create one Manager
     for u in universities:
         safe_name = u.universityName.replace(" ", "").lower()
         email = f"manager@{safe_name}.edu"
         password = "password123"
         name = f"Manager of {u.universityName}"
 
-        # Check if this specific Manager (by email) already exists in our User table
         existing_user = dbSessionLocalInstance.query(User).filter_by(email=email).first()
         if existing_user:
             print(f"  - Manager for {u.universityName} already exists ({email}). Skipping.")
             continue
 
-        # Create User in Supabase Auth
+
         try:
             auth_response = spbase.auth.admin.create_user({
                 "email": email,
@@ -230,7 +217,6 @@ def platSeed(dbSessionLocalInstance: Session, spbase: Client, defphotopath: str)
             print(f"  - Error creating Supabase Auth user for {email}: {e}")
             continue
 
-        # Create the PlatformMgr record linked to THIS University (u)
         new_manager = PlatformMgr(
             userID=user_uuid,
             profileTypeID=pm_profile.profileTypeID, 
@@ -248,12 +234,10 @@ def platSeed(dbSessionLocalInstance: Session, spbase: Client, defphotopath: str)
         )
         
         dbSessionLocalInstance.add(new_manager)
-        print(f"  + Successfully created Manager for: {u.universityName}")
 
-    # Final commit for all created PlatformMgr records
+
     try:
         dbSessionLocalInstance.commit()
-        print("\nPlatform Manager seeding completed successfully.")
     except Exception as e:
         dbSessionLocalInstance.rollback()
         print(f"Error during final database commit: {e}")
@@ -269,7 +253,6 @@ def studentSeed(dbSessionLocalInstance: Session, spbase: Client, defphotopath: s
     numRandStudent = 100 #Number of Random Students to Generate
     fake = Faker()
     
-    #Random Students - 10
     i=0
     while i < numRandStudent:
         fakeName = fake.name()
@@ -582,10 +565,8 @@ def lecModSeed(dbSessionLocalInstance: Session, spbase: Client):
                 dbSessionLocalInstance.add(LecMod(lecturers=lecturer, modules=module))
                 existing_pairs.add((lecturer.lecturerID, module.moduleID))
 
-    #  Ensure EVERY Module has at least one Lecturer
+    #  Ensure Modules has at least one Lecturer
     for module in moduleobjs:
-        # Check if this module ID is already in our set of assigned pairs
-        # pair[1] is the moduleID
         is_assigned = any(pair[1] == module.moduleID for pair in existing_pairs)
 
         if not is_assigned:
@@ -603,78 +584,86 @@ def studentModulesSeed(dbSessionLocalInstance: Session, spbase: Client):
     studentobjs = dbSessionLocalInstance.query(Student).all()
     moduleobjs = dbSessionLocalInstance.query(Module).all()
 
-    # Track existing pairs to avoid duplicate entries (StudentID, ModuleID)
     existing_enrollments = set()
-    #Ensure EVERY Student has at least 1 module
 
     for student in studentobjs:
-        num_courses = random.randint(1, min(3, len(moduleobjs)))
+
+        num_courses = random.randint(1, min(2, len(moduleobjs)))
         
-        # Pick random modules
         picked_modules = random.sample(moduleobjs, num_courses)
 
         for module in picked_modules:
             dbSessionLocalInstance.add(StudentModules(student=student, modules=module))
             existing_enrollments.add((student.studentID, module.moduleID))
 
-
-    # Ensure EVERY Module has at least 1 Student
-    for module in moduleobjs:
-        # Check if this module ID is in our set
-        is_populated = any(pair[1] == module.moduleID for pair in existing_enrollments)
-
-        if not is_populated:
-            # If module is empty, force-add a random student
-            random_student = random.choice(studentobjs)
-            
-            # Check if pair exists (unlikely given logic, but safe)
-            if (random_student.studentID, module.moduleID) not in existing_enrollments:
-                dbSessionLocalInstance.add(StudentModules(student=random_student, modules=module))
-                existing_enrollments.add((random_student.studentID, module.moduleID))
-    
     dbSessionLocalInstance.commit()
     return None
 
 def lessonsSeed(dbSessionLocalInstance: Session, spbase: Client): 
-    #No Primary Keys
+    semester_start = datetime(2026, 1, 5)
+    weeks_in_semester = 12
+
+    rooms = [f"Room {i}" for i in range(101, 111)]
+    days = [0, 1, 2, 3, 4] 
+    hours = [8, 11, 14] 
+    
+    slot_pool = []
+    for b in range(1, 6):
+        for r in rooms:
+            for d in days:
+                for h in hours:
+                    slot_pool.append({"b": str(b), "r": r, "d": d, "h": h})
+    
+    random.shuffle(slot_pool)
+
+    module_lecture_times = {} 
+
+    lec_mods = dbSessionLocalInstance.query(LecMod).all()
+    processed_modules = set()
+    
+    for lm in lec_mods:
+        if lm.moduleID in processed_modules: continue
+        
+        slot = slot_pool.pop() 
+        module_lecture_times[lm.moduleID] = (slot['d'], slot['h']) # Store the time
+
+        for week in range(weeks_in_semester):
+            start_dt = (semester_start + timedelta(weeks=week, days=slot['d'])).replace(hour=slot['h'], minute=0)
+            dbSessionLocalInstance.add(Lesson(
+                lessontype="Lecture", lecModID=lm.lecModID, tutorialGroupID=None,
+                building=slot['b'], room=slot['r'],
+                startDateTime=start_dt, endDateTime=start_dt + timedelta(hours=3)
+            ))
+        processed_modules.add(lm.moduleID)
+
     tutorial_groups = dbSessionLocalInstance.query(TutorialsGroup).all()
-    fake = Faker()
-    print(f"Seeding Lessons: \n")
-    lessontypes = ["Practical", "Lecture"]
-
     for group in tutorial_groups:
-        for lessontype in lessontypes:
-            for _ in range(2):
-                start_dt = fake.date_time_this_year()
-                #Assume every lesson is 3 hours
-                duration = timedelta(hours=3)
-                end_dt  = start_dt + duration
+        lec_day, lec_hour = module_lecture_times.get(group.lecMod.moduleID, (None, None))
 
-                dbSessionLocalInstance.add(Lesson(lessontype = lessontype,
-                                                  lecMod = group.lecMod,
-                                                  tutorialGroupID = group.tutorialGroupsID,
-                                                  building = random.randint(1,5),
-                                                  room = random.randint(100, 600),
-                                                  startDateTime = start_dt,
-                                                  endDateTime = end_dt))
+        slot = next(s for s in slot_pool if not (s['d'] == lec_day and s['h'] == lec_hour))
+        slot_pool.remove(slot)
+        
+        for week in range(weeks_in_semester):
+            start_dt = (semester_start + timedelta(weeks=week, days=slot['d'])).replace(hour=slot['h'], minute=0)
+            dbSessionLocalInstance.add(Lesson(
+                lessontype="Practical", lecModID=group.lecModID, tutorialGroupID=group.tutorialGroupsID,
+                building=slot['b'], room=slot['r'],
+                startDateTime=start_dt, endDateTime=start_dt + timedelta(hours=3)
+            ))
+
     dbSessionLocalInstance.commit()
-    return None
 
 def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client): 
     print(f"Seeding EntLeave (Camera Detections): \n")
     
     lessons = dbSessionLocalInstance.query(Lesson).all()
     
-    #  Pre-fetch Valid Enrollments to avoid random data noise
-    # Map: ModuleID -> Set of StudentIDs
+
     enrollment_map = defaultdict(set)
     enrollments = dbSessionLocalInstance.query(StudentModules).all()
     for enroll in enrollments:
         enrollment_map[enroll.modulesID].add(enroll.studentID)
 
-    # Pre-fetch Lesson -> Module mapping
-    # We need to know which module a lesson belongs to
-    # Map: LessonID -> ModuleID
     lec_mods = dbSessionLocalInstance.query(LecMod).all()
     lesson_module_map = {}
     for lm in lec_mods:
@@ -731,7 +720,7 @@ def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client):
     return None
 
 def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
-    print(f"Seeding attdCheck (Processing Summaries): \n")
+    print(f"Seeding attdCheck: \n")
     
     #Get Lesson Start Times for 'Late' calculation
     lessons = dbSessionLocalInstance.query(Lesson).all()
@@ -815,31 +804,13 @@ def seedLazyStudent(db: Session, spbase: Client, defphotopath: str):
         return lazy_uuid
 
     #  Get Dependencies
+    target_module = db.query(Module).filter_by(moduleCode="CSIT420").first()
+    lec_mod = db.query(LecMod).filter_by(moduleID=target_module.moduleID).first()
+    albert_group = db.query(TutorialsGroup).filter_by(lecModID=lec_mod.lecModID).first()
+    
     student_profile = db.query(UserProfile).filter_by(profileTypeName='Student').first()
-    lecturer = db.query(Lecturer).first()
     random_course = db.query(Courses).first()
     random_campus = db.query(Campus).first()
-
-    if not lecturer or not random_course:
-        print("Error: Seed Lecturers, Courses, and Campuses first.")
-        return
-
-    # Create/Get the specific Test Module
-    target_module = db.query(Module).filter_by(moduleCode="CSIT420").first()
-    if not target_module:
-        print("Error: Module CSIT420 not found. Seed modulesSeed first.")
-        return
-        
-        # Link Lecturer to this new module
-    lec_mod = db.query(LecMod).filter_by(moduleID=target_module.moduleID).first()
-
-    
-    test_group = db.query(TutorialsGroup).filter_by(lecModID=lec_mod.lecModID).first()
-    if not test_group:
-        test_group = TutorialsGroup(lecModID=lec_mod.lecModID)
-        db.add(test_group)
-        db.flush()
-    # Upload the photo to supabase bucket
 
     # Create Student Profile
     lazy_student = Student(
@@ -861,6 +832,7 @@ def seedLazyStudent(db: Session, spbase: Client, defphotopath: str):
         emergencyContactNumber="0411111111"
     )
     db.add(lazy_student)
+    db.flush() 
     #Student-Module Link
     enrollment = StudentModules(student=lazy_student, modules=target_module)
     db.add(enrollment)
@@ -868,41 +840,41 @@ def seedLazyStudent(db: Session, spbase: Client, defphotopath: str):
 
     assignment = StudentTutorialGroup(
     studentModulesID=enrollment.studentModulesID,
-    tutorialGroupID=test_group.tutorialGroupsID # Linking Albert to the group
+    tutorialGroupID=albert_group.tutorialGroupsID
     )
     db.add(assignment)
-    # Fake Lessons
-    past_lessons = []
-    for i in range(1, 11):
-        start = datetime.now() - timedelta(days=i)
-        end = start + timedelta(hours=2)
-        
-        lesson = Lesson(
-            lecMod=lec_mod,
-            lessontype="Lecture",
-            startDateTime=start,
-            endDateTime=end,
-            building="B1",
-            room="101"
-        )
-        db.add(lesson)
-        past_lessons.append(lesson)
-    
-    db.flush() 
 
-    # Mark Attendance for ONLY 1 Lesson (10% Rate)
-    attended_lesson = past_lessons[0]
-    dt_in = attended_lesson.startDateTime + timedelta(minutes=5)
+    scheduled_lessons = (
+    db.query(Lesson)
+    .join(LecMod, Lesson.lecModID == LecMod.lecModID)
+    .join(StudentModules, LecMod.moduleID == StudentModules.modulesID)
+    .outerjoin(StudentTutorialGroup, StudentModules.studentModulesID == StudentTutorialGroup.studentModulesID)
+    .filter(
+        StudentModules.studentID == lazy_student.studentID,
+        or_(
+            Lesson.tutorialGroupID == None,
+            Lesson.tutorialGroupID == StudentTutorialGroup.tutorialGroupID
+        )
+    )
+    .all()
+)
+
+    attended_lessons = scheduled_lessons[:3] 
     
-    db.add(EntLeave(lesson=attended_lesson, student=lazy_student, detectionTime=dt_in))
-    db.add(AttdCheck(
-        lesson=attended_lesson, student=lazy_student, status="Present",
-        firstDetection=dt_in, lastDetection=attended_lesson.endDateTime,
-        remarks="Camera Capture"
-    ))
+    for lesson in attended_lessons:
+        check_in = lesson.startDateTime + timedelta(minutes=20)
+        
+        db.add(EntLeave(lessonID=lesson.lessonID, studentID=lazy_student.studentID, detectionTime=check_in))
+        db.add(AttdCheck(
+            lessonID=lesson.lessonID,
+            studentID=lazy_student.studentID,
+            status="Late",
+            firstDetection=check_in,
+            lastDetection=lesson.endDateTime,
+            remarks="Late arrival"
+        ))
 
     db.commit()
-    print(f"   + Albert Zweistein is now enrolled in {target_module.moduleName} (Group ID: {test_group.tutorialGroupsID})")
     return lazy_uuid
 
 def tutorialGroupsSeed(dbSessionLocalInstance: Session):
@@ -924,7 +896,6 @@ def tutorialGroupsSeed(dbSessionLocalInstance: Session):
             dbSessionLocalInstance.add(new_group)
     
     dbSessionLocalInstance.commit()
-    print(f"   + Successfully created {len(lec_mods) * 2} Tutorial Groups.")
     return None
 
 def studentTutorialAssignmentSeed(dbSessionLocalInstance: Session):
@@ -956,6 +927,8 @@ def studentTutorialAssignmentSeed(dbSessionLocalInstance: Session):
 
     dbSessionLocalInstance.commit()
     return None
+
+
 if __name__ == "__main__":  
     db_session: Session = SessionLocal()
 

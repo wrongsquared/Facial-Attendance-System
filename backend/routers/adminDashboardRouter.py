@@ -119,12 +119,6 @@ def get_admin_dashboard_stats(
         "overall_attendance_rate": attendance_rate,
         "monthly_absences": monthly_absences,
         "total_active_users": total_users,
-        "total_records": total_records,
-        # Leave trends empty for now..
-        "trend_attendance": "",
-        "trend_absences": "",
-        "trend_users": "",
-        "trend_records": ""
     }
 
 @router.get("/admin/courses/attention", response_model=list[CourseAttentionItem])

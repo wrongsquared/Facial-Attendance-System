@@ -12,8 +12,6 @@ import {
   TrendingUp,
   UserPlus,
   ClipboardCheck,
-  UserX,
-  Fingerprint,
   FileEdit,
   FileText,
 } from "lucide-react";
@@ -25,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Tabs, TabsContent } from "./ui/tabs";
 import { useAuth } from "../cont/AuthContext";
 import { useEffect, useState } from "react";
 import { AdminStats, CourseAttention, UserManagementItem } from "../types/admindash";
@@ -54,7 +52,6 @@ export function AdminDashboard({
   onNavigateToManageUsers,
   onNavigateToManageUserProfile,
   onNavigateToManageCustomGoals,
-  onNavigateToBiometricProfile,
   onNavigateToAttendanceRecords,
   onNavigateToProfile,
   onNavigateToReports,

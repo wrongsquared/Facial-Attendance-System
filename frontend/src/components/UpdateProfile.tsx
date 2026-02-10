@@ -17,6 +17,7 @@ import { LecturerProfileData } from "../types/lecturerinnards";
 import { getLecturerFullProfile, updateLecturerProfile } from "../services/api";
 import { Navbar } from "./Navbar";
 import { ProfileUpdateData } from "../types/auth";
+import { Textarea } from "./ui/textarea";
 
 interface UpdateProfileProps {
   onLogout: () => void;
@@ -59,11 +60,13 @@ export function UpdateProfile({
     setIsEditMode(false);
   };
   // Handle Input Changes
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (
+  e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { id, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [id]: value, // Updates the field matching the input's ID
+      [id]: value,
     }));
   };
   const handleUpdateProfile = () => {
@@ -221,9 +224,8 @@ export function UpdateProfile({
 
               <div className="space-y-2">
                 <Label htmlFor="address">Address:</Label>
-                <Input
+                <Textarea
                   id="address"
-                  type="text"
                   value={formData.address}
                   onChange={handleChange}
                   className="h-12"

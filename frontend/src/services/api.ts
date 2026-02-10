@@ -90,17 +90,9 @@ export const getStudentProfile = async (token: string) => {
   return await fetchProtected('/student/my-profile', token);
 }
 
-export const getStudentTimetable = async (token: string) => {
-  return await fetchProtected("/student/timetable", token);
-};
-
-
-
 export const getOverallLessons = async (token: string) => {
   return await fetchProtected("/student/overrall", token);
 };
-
-
 
 export const getTodaysLessons = async (token: string) => {
   return await fetchProtected("/student/todayslesson", token);

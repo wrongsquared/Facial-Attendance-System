@@ -31,6 +31,7 @@ import { useAuth } from "../cont/AuthContext";
 import { StudentProfileData } from "../types/studentinnards";
 import { getStudentFullProfile, updateStudentProfile } from "../services/api";
 import { ProfileUpdateData } from "../types/auth";
+import { Textarea } from "./ui/textarea";
 
 const API_URL = "http://localhost:8000";
 
@@ -132,25 +133,25 @@ export function StudentProfile({
   const validateForm = (): boolean => {
     const errors: { [key: string]: string } = {};
 
-    if (!formData.contactNumber.trim()) {
+    if (!formData.contactNumber?.trim()) {
       errors.contactNumber = "Contact number is required";
     } else if (!/^[\d\s\+\-\(\)]+$/.test(formData.contactNumber)) {
       errors.contactNumber = "Please enter a valid contact number";
     }
 
-    if (!formData.address.trim()) {
+    if (!formData.address?.trim()) {
       errors.address = "Address is required";
     }
 
-    if (!formData.emergencyContactName.trim()) {
+    if (!formData.emergencyContactName?.trim()) {
       errors.emergencyContactName = "Emergency contact name is required";
     }
 
-    if (!formData.emergencyContactRelationship.trim()) {
+    if (!formData.emergencyContactRelationship?.trim()) {
       errors.emergencyContactRelationship = "Relationship is required";
     }
 
-    if (!formData.emergencyContactNumber.trim()) {
+    if (!formData.emergencyContactNumber?.trim()) {
       errors.emergencyContactNumber = "Emergency contact number is required";
     } else if (!/^[\d\s\+\-\(\)]+$/.test(formData.emergencyContactNumber)) {
       errors.emergencyContactNumber = "Please enter a valid contact number";
@@ -206,12 +207,6 @@ export function StudentProfile({
           emergencyContactNumber: data.emergencyContactNumber || ""
         });
 
-        // ========= TODO: if your backend returns biometric fields, set them here =========
-        // Example if API returns:
-        // data.biometricLastUpdated (ISO string) and data.biometricImageUrl (string)
-        // setBiometricLastUpdated(data.biometricLastUpdated ?? null);
-        // setBiometricImageUrl(data.biometricImageUrl ?? null);
-
       } catch (err) {
         console.error("Failed to load profile", err);
       } finally {
@@ -222,13 +217,14 @@ export function StudentProfile({
   }, [token]);
 
   // Handle Input Changes
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> // Update this line
+  ) => {
     const { id, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [id]: value,
     }));
-
     if (validationErrors[id]) {
       setValidationErrors((prev) => ({
         ...prev,
@@ -687,9 +683,8 @@ export function StudentProfile({
                 <Label htmlFor="address">
                   Address: <span className="text-red-500">*</span>
                 </Label>
-                <Input
+                <Textarea
                   id="address"
-                  type="text"
                   value={formData.address}
                   onChange={handleChange}
                   className={`h-12 ${validationErrors.address ? 'border-red-500' : ''}`}

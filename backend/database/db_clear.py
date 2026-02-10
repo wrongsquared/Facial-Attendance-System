@@ -17,7 +17,7 @@ def clear_db(db: Session, spbse: Client):
         if table not in ["alembic_version"]:
             db.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE;"))
     # this code clears the Supabase auth tables, y to clear auth.user
-    yn_storage = input(f"\nClear all files in Supabase 'avatar' bucket? (Y/y to confirm): ")
+    yn_storage = input(f"\nClear all files in Supabase 'avatars' bucket? (Y/y to confirm): ")
     if yn_storage.lower() == "y":
         try:
             # List all files in the bucket
