@@ -48,8 +48,7 @@ interface Props {
   onLogout: () => void; // Kept for prop compatibility, though Navbar handles it
   onOpenNotifications: () => void;
 }
-const ITEMS_PER_PAGE = 10;
-// Mock data for attendance history
+const itemsPerPage = 20;
 
 
 export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNotifications }: Props) {
@@ -101,9 +100,10 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
     return matchesSearch && matchesModule && matchesStatus && matchesDate;
   });
 
-  const totalPages = Math.ceil(filteredRecords.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentRecords = filteredRecords.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentRecords = filteredRecords.slice(startIndex, endIndex);
 
   // Reset page when filters change
   useEffect(() => {
@@ -277,8 +277,8 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
             </div>
 
             {/* Pagination */}
-            {filteredRecords.length > 0 && (
-              <div className="flex items-center justify-center gap-2 mt-6">
+            {totalPages > 0 && (
+              <div className="flex items-center justify-center gap-4 py-4">
                 <Button
                   variant="outline"
                   size="icon"
@@ -288,19 +288,9 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
 
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(page)}
-                      className="w-10"
-                    >
-                      {page}
-                    </Button>
-                  ))}
-                </div>
+                <span className="text-sm text-gray-700">
+                  Page {currentPage} of {totalPages}
+                </span>
 
                 <Button
                   variant="outline"

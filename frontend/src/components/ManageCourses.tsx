@@ -50,7 +50,8 @@ export function ManageCourses({
   const [searchTerm, setSearchTerm] = useState("");
   const [courseFilter, setCourseFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+
+  const itemsPerPage = 30;
   const [courseToDelete, setCourseToDelete] = useState<CourseData | null>(null);
 
   const { token } = useAuth();
@@ -75,6 +76,11 @@ export function ManageCourses({
 
     fetchCourses();
   }, [token, refreshTrigger]);
+
+  // Reset to first page when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, courseFilter]);
 
   // Filter courses based on search and course filter
   const filteredCourses = courses.filter(course => {
@@ -296,7 +302,7 @@ export function ManageCourses({
             </div>
 
             {/* Pagination Controls */}
-            {totalPages > 1 && (
+            {totalPages > 0 && (
               <div className="flex items-center justify-center gap-4 py-4">
                 <Button
                   variant="outline"
