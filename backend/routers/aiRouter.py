@@ -1,7 +1,7 @@
 # aiRouter.py
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, text
+from sqlalchemy import and_, text, func
 from database.db_config import get_db
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any, Tuple
@@ -13,6 +13,8 @@ import io
 from PIL import Image
 import cv2
 import asyncio
+from database.db import studentAngles
+from sqlalchemy.dialects.postgresql import insert
 
 from supabase import create_client, Client
 
@@ -20,11 +22,8 @@ from supabase import create_client, Client
 # Supabase config
 # =========================================================
 SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("SPBASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = (
-    os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    or os.getenv("SUPABASE_SERVICE_KEY")
-    or os.getenv("SPBASE_SKEY")
-)
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SPBASE_SKEY")
+
 SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "student-faces")
 
 supabase: Optional[Client] = None
@@ -85,34 +84,32 @@ def upload_jpeg_to_supabase(storage_path: str, jpeg_bytes: bytes) -> None:
         file_options={"content-type": "image/jpeg", "upsert": "true"},
     )
 
-
-def _studentangles_upsert(db: Session, *, student_uuid: str, angle: str, image_path: str) -> bool:
+def _studentangles_create_record(db: Session, *, student_uuid: str, angle: str, image_path: str) -> bool:
     """
-    Upsert into public.studentangles.
-    Correct column names: "studentID", "photoAngle"
+    Cleans up old records for this specific angle and creates a new one.
+    Simple, reliable, and avoids 'ON CONFLICT' errors.
     """
     try:
-        db.execute(
-            text("""
-                INSERT INTO public.studentangles ("studentID", "photoAngle")
-                VALUES (:sid, :angle)
-                ON CONFLICT ("studentID", "photoAngle")
-                DO UPDATE SET
-                  "photoAngle" = EXCLUDED."photoAngle";
-            """),
-            {"sid": student_uuid, "angle": angle},
+        # Delete record if exists
+        db.query(studentAngles).filter(
+            studentAngles.studentID == student_uuid,
+            studentAngles.photoangle == angle
+        ).delete()
+
+        # Create new record
+        new_entry = studentAngles(
+            studentID=student_uuid,
+            photoangle=angle,
+            imagepath=image_path
         )
+        db.add(new_entry)
         db.commit()
         return True
     except Exception as e:
         db.rollback()
-        print("[AI ENROL] studentangles upsert failed:", repr(e))
+        print(f"[AI ENROL] Failed to save record for {angle}: {e}")
         return False
 
-
-# =========================================================
-# Models import (your existing)
-# =========================================================
 try:
     from database.db import Student, EntLeave, AttdCheck
 except Exception:
@@ -121,11 +118,9 @@ except Exception:
     AttdCheck = None
 
 
-router = APIRouter(prefix="/ai", tags=["AI"])
+router = APIRouter()
 
-# =========================================================
-# 1) ATTENDANCE SNAPSHOT (POST /ai/attendance)  ✅ RESTORED
-# =========================================================
+
 class Detection(BaseModel):
     student_num: str
     accuracy: float = Field(..., ge=0.0, le=1.0)
@@ -251,44 +246,20 @@ def _current_angle_label(instruction: str) -> str:
 
 
 @router.post("/enrolment/start")
-def enrolment_start(payload: Dict[str, Any], db: Session = Depends(get_db)):
-    student_name = str(payload.get("student_name", "")).strip()
-    student_num = str(payload.get("student_num", "")).strip()
-    student_label = str(payload.get("student_label", "")).strip()
-    student_id = str(payload.get("student_id", "")).strip()
-
-    # folder label
-    if student_name or student_num:
-        student_folder = f"{_safe_label(student_name)}_{_safe_label(student_num)}".strip("_")
-    else:
-        student_folder = _safe_label(student_label) if student_label else "unknown_user"
-
-    student_uuid = _resolve_student_uuid(db, student_id=student_id, student_num=student_num) or ""
-
+def enrolment_start(data: dict):
     enrolment_id = str(uuid.uuid4())
+    
     ENROL_SESSIONS[enrolment_id] = {
-        "student_folder": student_folder,
-        "student_name": student_name,
-        "student_num": student_num,
-        "student_id": student_id,
-        "student_uuid": student_uuid,
+        "student_uuid": data.get("student_id"), # Make sure this matches frontend key
+        "student_folder": data.get("student_label"),
         "count": 0,
         "phase_idx": 0,
         "phase_done": 0,
-        "last_save_ts": 0.0,
-        "first_storage_path": "",
-        "created_at": datetime.utcnow().isoformat(),
-        "lock": asyncio.Lock(),
+        "last_save_ts": 0,
+        "lock": asyncio.Lock()
     }
-
-    return {
-        "enrolment_id": enrolment_id,
-        "student_label": student_folder,
-        "student_id": student_uuid or student_id,
-        "student_num": student_num,
-        "capture_count": CAPTURE_COUNT,
-        "phase": _phase_payload(ENROL_SESSIONS[enrolment_id]),
-    }
+    print(f"DEBUG: Starting session {enrolment_id}")
+    return {"enrolment_id": enrolment_id, "capture_count": 200}
 
 
 @router.post("/enrolment/frame")
@@ -375,8 +346,8 @@ async def enrolment_frame(
 
         inserted = False
         student_uuid = (sess.get("student_uuid") or "").strip()
-        if student_uuid:
-            inserted = _studentangles_upsert(db, student_uuid=student_uuid, angle=angle_label, image_path=storage_path)
+        if sess["phase_done"] == 1: 
+            _studentangles_create_record(db, student_uuid=student_uuid, angle=angle_label, image_path=storage_path)
 
         if sess["phase_done"] >= need:
             sess["phase_idx"] += 1
@@ -397,18 +368,27 @@ async def enrolment_frame(
         }
 
 
-@router.post("/enrolment/finish")
-def enrolment_finish(enrolment_id: str):
-    sess = ENROL_SESSIONS.get(enrolment_id)
+@router.post("/enrolment/finish")  
+async def enrolment_finish(enrolment_id: str, db: Session = Depends(get_db)):
+    print(f"DEBUG: Finishing session {enrolment_id}. Current active sessions: {list(ENROL_SESSIONS.keys())}")
+    sess = ENROL_SESSIONS.pop(enrolment_id, None) 
     if not sess:
-        raise HTTPException(status_code=404, detail="Invalid enrolment_id")
+        raise HTTPException(status_code=404, detail="Enrolment session not found")
 
-    if sess["count"] < CAPTURE_COUNT:
-        raise HTTPException(status_code=400, detail=f"Not complete: {sess['count']}/{CAPTURE_COUNT}")
+    student_uuid = sess.get("student_uuid")
+    first_image = sess.get("first_storage_path")
 
-    ENROL_SESSIONS.pop(enrolment_id, None)
-    return {"ok": True, "message": "Enrolment capture complete", "captured": CAPTURE_COUNT}
+    if student_uuid and first_image:
+        student = db.get(Student, student_uuid)
+        if student:
+            student.photo = first_image
+            db.commit()
 
+    return {
+        "status": "success",
+        "last_updated": datetime.utcnow().isoformat(),
+        "profile_image_url": first_image # Or a signed URL
+    }
 
 @router.get("/storage/signed-url")
 def storage_signed_url(
@@ -454,117 +434,58 @@ def get_user_profile_photo(user_id: str, db: Session = Depends(get_db)):
     return {"url": url}
 
 
-# @router.get("/profile/status")
-# def get_biometric_status(student_num: str, db: Session = Depends(get_db)):
-#     """Check if student has biometric enrollment data"""
-#     try:
-#         # 1. Find the Student UUID
-#         student_uuid = _resolve_student_uuid(db, student_num=student_num)
-        
-#         if not student_uuid:
-#             return {"enrolled": True, "last_updated": None}
 
-#         # 2. Check if they have entries in 'studentangles' table
-#         # Use proper quoted column names for PostgreSQL case-sensitivity
-#         result = db.execute(
-#             text('SELECT COUNT(*) FROM public.studentangles WHERE "studentID" = :sid'),
-#             {"sid": student_uuid}
-#         ).fetchone()
-        
-#         count = result[0] if result else 0
-        
-#         if count > 0:
-#             return {"enrolled": True, "last_updated": None}
-        
-#         return {"enrolled": True, "last_updated": None}
-#     except Exception as e:
-#         print(f"[AI] get_biometric_status error: {repr(e)}")
-#         return {"enrolled": True, "last_updated": None}
+@router.get("/profile/status")
+async def get_biometric_status(student_num: str, db: Session = Depends(get_db)):
+    """
+    Checks if a student has any biometric data enrolled.
+    """
+    student = db.query(Student).filter(Student.studentNum == student_num).first()
+    
+    if not student:
+        return {"enrolled": False, "last_updated": None, "profile_image_url": None}
 
+    first_angle = db.query(studentAngles).filter(
+        studentAngles.studentID == student.studentID
+    ).first()
 
-@router.get("/biometric/{student_num}/images")
-def get_biometric_images(student_num: str, db: Session = Depends(get_db)):
-    """Get one representative image from each of the 5 biometric angles"""
-    try:
-        student_uuid = _resolve_student_uuid(db, student_num=student_num)
-        if not student_uuid:
-            raise HTTPException(status_code=404, detail="Student not found")
-
-        # Check if student has biometric records
-        existing_records = db.execute(
-            text('SELECT COUNT(*) FROM public.studentangles WHERE "studentID" = :student_id'),
-            {"student_id": student_uuid},
-        ).fetchone()
-
-        if not existing_records or existing_records[0] == 0:
-            raise HTTPException(status_code=404, detail="No biometric profile found")
-
-        # Get all distinct angles for this student
-        angles_result = db.execute(
-            text('SELECT DISTINCT "photoAngle" FROM public.studentangles WHERE "studentID" = :student_id ORDER BY "photoAngle"'),
-            {"student_id": student_uuid},
-        ).fetchall()
-
-        if not angles_result:
-            raise HTTPException(status_code=404, detail="No biometric images found")
-
-        sb = _require_supabase()
-        images = []
-        
-        # Expected angles in order
-        expected_angles = ["DOWN", "FRONT", "LEFT", "RIGHT", "UP"]
-        
-        for angle_row in angles_result:
-            angle = angle_row[0]
-            if angle in expected_angles:
-                # Get student info for folder name construction
-                student_data = db.execute(
-                    text('SELECT "firstName", "lastName" FROM public.students WHERE "studentID" = :student_id'),
-                    {"student_id": student_uuid},
-                ).fetchone()
-                
-                if student_data:
-                    # Construct the expected path pattern (same as used in enrollment)
-                    student_name = f"{student_data[0]}_{student_data[1]}" if student_data[0] and student_data[1] else "unknown"
-                    student_folder = f"{_safe_label(student_name)}_{_safe_label(student_num)}"
-                    
-                    # Try to get a representative image for this angle (e.g., img_0001.jpg)
-                    image_path = f"{student_folder}/{angle}/img_0001.jpg"
-                    
-                    try:
-                        # Generate signed URL for this image
-                        res = sb.storage.from_(SUPABASE_BUCKET).create_signed_url(image_path, 3600)
-                        url = res.get("signedURL") or res.get("signedUrl") or res.get("signed_url")
-                        
-                        if url:
-                            if url.startswith("/") and SUPABASE_URL:
-                                url = SUPABASE_URL.rstrip("/") + url
-                            
-                            images.append({
-                                "angle": angle,
-                                "url": url,
-                                "path": image_path
-                            })
-                    except Exception as e:
-                        print(f"[AI] Failed to get signed URL for {image_path}: {e}")
-                        # Continue to next angle instead of failing
-                        continue
-
-        if not images:
-            raise HTTPException(status_code=404, detail="No accessible biometric images found")
-
+    if not first_angle:
         return {
-            "student_id": student_uuid,
-            "student_num": student_num,
-            "total_angles": len(images),
-            "images": images
+            "enrolled": False, 
+            "last_updated": None, 
+            "profile_image_url": student.photo # Might have a generic avatar
         }
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[AI] get_biometric_images error: {repr(e)}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve biometric images")
+    return {
+        "enrolled": True,
+        "last_updated": first_angle.updatedat,
+        "profile_image_url": first_angle.imagepath # Return a sample image path
+    }
+
+@router.get("/biometric/{student_num}/images")
+async def get_biometric_images(student_num: str, db: Session = Depends(get_db)):
+    student = db.query(Student).filter(Student.studentNum == student_num).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    records = db.query(studentAngles).filter(studentAngles.studentID == student.studentID).all()
+    
+    if not records:
+        return {"images": []}
+
+    images_response = []
+    for rec in records:
+        try:
+            res = supabase.storage.from_("biometrics").create_signed_url(rec.imagepath, 60)
+            
+            images_response.append({
+                "angle": rec.photoangle,
+                "url": res['signedURL']
+            })
+        except Exception as e:
+            print(f"Error generating URL for {rec.photoangle}: {e}")
+
+    return {"images": images_response}
 
 
 @router.delete("/biometric/{student_num}")

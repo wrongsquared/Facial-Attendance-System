@@ -260,10 +260,12 @@ class studentAngles(Base):
     __tablename__ = "studentangles"
 
     studentID: Mapped[UUID] = mapped_column(ForeignKey("students.studentID"), primary_key= True)
+    photoangle: Mapped[str] = mapped_column("photoangle", String, primary_key=True)
     student: Mapped[Student] = relationship(back_populates="angles")
-    imagepath: Mapped[str] = mapped_column(String)
-    updatedat: Mapped[datetime.datetime] = mapped_column(server_default=func.now())
-    photoangle: Mapped[str] = mapped_column(String)
+    
+    imagepath: Mapped[str] = mapped_column("imagepath", String)
+    updatedat: Mapped[datetime.datetime] = mapped_column("updatedat", server_default=func.now(), onupdate=func.now())
+
 
 
 class GeneratedReport(Base):

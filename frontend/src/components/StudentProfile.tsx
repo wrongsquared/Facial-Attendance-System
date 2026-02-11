@@ -12,8 +12,7 @@ import { Label } from "./ui/label";
 import {
   ArrowLeft,
   Lock,
-  ChevronLeft,
-  ChevronRight,
+
   User,
   Camera,
   Upload,
@@ -75,35 +74,9 @@ export function StudentProfile({
   // Store images from all 5 angles for viewing - HARDCODED: Initialize with demo images
   
   // replace with your own face angle images in the bucket
-  const [biometricImages, setBiometricImages] = useState<Array<{ angle: string, url: string, path: string }>>([
-    {
-      angle: "DOWN",
-      url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/DOWN/img_0161.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL0RPV04vaW1nXzAxNjEuanBnIiwiaWF0IjoxNzcwNzc5OTk3LCJleHAiOjE4MDIzMTU5OTd9.0mTjyyq_jfZvtNcn7uZC727dxFkSZl6M-Nm9NLVmUnE",
-      path: "hardcoded/down.jpg"
-    },
-    {
-      angle: "FRONT",
-      url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/FRONT/img_0001.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL0ZST05UL2ltZ18wMDAxLmpwZyIsImlhdCI6MTc3MDc4MDAxOCwiZXhwIjoxODAyMzE2MDE4fQ.6Bj846XPrnSpWHrY1zwImvYX38jWM0JIxcwv7nV07wA",
-      path: "hardcoded/front.jpg"
-    },
-    {
-      angle: "LEFT",
-      url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/LEFT/img_0042.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL0xFRlQvaW1nXzAwNDIuanBnIiwiaWF0IjoxNzcwNzgwMDMyLCJleHAiOjE4MDIzMTYwMzJ9.jczYYzO9JwPh28z38Eal4eCAdR8C_eM83Ta4AqgKnkE",
-      path: "hardcoded/left.jpg"
-    },
-    {
-      angle: "RIGHT",
-      url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/RIGHT/img_0081.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL1JJR0hUL2ltZ18wMDgxLmpwZyIsImlhdCI6MTc3MDc4MDA0NiwiZXhwIjoxODAyMzE2MDQ2fQ.xMbBImK___rzELgSeJaa79V25C9oV4we5AoEajInZs4",
-      path: "hardcoded/right.jpg"
-    },
-    {
-      angle: "UP",
-      url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/UP/img_0121.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL1VQL2ltZ18wMTIxLmpwZyIsImlhdCI6MTc3MDc4MDA1OCwiZXhwIjoxODAyMzE2MDU4fQ.EjKa0z2VZb7cl4SZxKhAisoB_EmjsOAGbPU7lUb23zo",
-      path: "hardcoded/up.jpg"
-    }
-  ]);
+  const [biometricImages, setBiometricImages] = useState<Array<{ angle: string, url: string }>>([]);
   const [loadingBiometricImages, setLoadingBiometricImages] = useState(false);
-
+  const [loadingImages, setLoadingImages] = useState(true);
   // ========= Camera state =========
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
@@ -139,6 +112,7 @@ export function StudentProfile({
 
   // Form State
   const [formData, setFormData] = useState<StudentProfileData>({
+    studentID: "",
     name: "",
     email: "",
     studentNum: "",
@@ -149,16 +123,14 @@ export function StudentProfile({
     emergencyContactNumber: ""
   });
 
-  // ✅ MINIMAL CHANGE: Make label consistent + friendly: allison_lang_190036
   const studentLabel = useMemo(() => {
-    const safeName = (formData.name || "User")
+    const safeName = (formData.name || "user")
       .trim()
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "");
-    const id = (formData.studentNum || user?.id || "unknown").toString().trim();
-    return `${safeName}_${id}`.trim();
-  }, [formData.name, formData.studentNum, user?.id]);
+      .replace(/[^a-z0-9]+/g, "_");
+    const id = formData.studentNum || "000000";
+    return `${safeName}_${id}`;
+  }, [formData.name, formData.studentNum]);
 
   // Validation function
   const validateForm = (): boolean => {
@@ -227,8 +199,9 @@ export function StudentProfile({
       setLoading(true);
       try {
         const data = await getStudentFullProfile(token);
-
+        
         setFormData({
+          studentID: data.studentID|| "",
           name: data.name || "",
           email: data.email || "",
           studentNum: data.studentNum || "",
@@ -248,80 +221,35 @@ export function StudentProfile({
     fetchData();
   }, [token]);
 
-  // ========= fetch biometric status when component loads =========
   useEffect(() => {
-    const fetchBiometricStatus = async () => {
-      if (!user?.student_num || !token) return;
+  const fetchImages = async () => {
+    try {
+      setLoadingImages(true);
+      const response = await fetch(`${API_URL}/biometric/${formData.studentNum}/images`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
-      // HARDCODED: Always set as enrolled to ensure View button works
-      setIsBiometricEnrolled(true);
-      setBiometricLastUpdated(new Date().toISOString());
-
-      /* Original API call - commented out for hardcoding
-      try {
-        const response = await fetch(`${API_URL}/ai/profile/status?student_num=${user.student_num}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setIsBiometricEnrolled(data.enrolled || false);
-          setBiometricLastUpdated(data.last_updated);
-        } else {
-          console.error('Biometric status fetch failed:', response.status);
-        }
-      } catch (error) {
-        console.error('Failed to fetch biometric status:', error);
+      if (response.ok) {
+        const data = await response.json();
+        setBiometricImages(data.images);
       }
-      */
-    };
+    } catch (error) {
+      console.error('Failed to fetch biometric images:', error);
+    } finally {
+      setLoadingImages(false);
+    }
+  };
 
-    fetchBiometricStatus();
-  }, [user?.student_num, token]);
+  if (formData.studentNum) fetchImages();
+}, [formData.studentNum, token]);
 
   // ========= fetch all 5 biometric images for viewing =========
   const fetchBiometricImages = async () => {
-    if (!user?.student_num || !token) return;
+    if (!formData.studentNum || !token) return;
 
     setLoadingBiometricImages(true);
-
-    // HARDCODED: replace the url with hardcoded demo images of your face angles in the bucket 
-    const hardcodedImages = [
-      {
-        angle: "DOWN",
-        url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/DOWN/img_0161.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL0RPV04vaW1nXzAxNjEuanBnIiwiaWF0IjoxNzcwNzc5OTk3LCJleHAiOjE4MDIzMTU5OTd9.0mTjyyq_jfZvtNcn7uZC727dxFkSZl6M-Nm9NLVmUnE",
-        path: "hardcoded/down.jpg"
-      },
-      {
-        angle: "FRONT",
-        url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/FRONT/img_0001.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL0ZST05UL2ltZ18wMDAxLmpwZyIsImlhdCI6MTc3MDc4MDAxOCwiZXhwIjoxODAyMzE2MDE4fQ.6Bj846XPrnSpWHrY1zwImvYX38jWM0JIxcwv7nV07wA",
-        path: "hardcoded/front.jpg"
-      },
-      {
-        angle: "LEFT",
-        url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/LEFT/img_0042.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL0xFRlQvaW1nXzAwNDIuanBnIiwiaWF0IjoxNzcwNzgwMDMyLCJleHAiOjE4MDIzMTYwMzJ9.jczYYzO9JwPh28z38Eal4eCAdR8C_eM83Ta4AqgKnkE",
-        path: "hardcoded/left.jpg"
-      },
-      {
-        angle: "RIGHT",
-        url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/RIGHT/img_0081.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL1JJR0hUL2ltZ18wMDgxLmpwZyIsImlhdCI6MTc3MDc4MDA0NiwiZXhwIjoxODAyMzE2MDQ2fQ.xMbBImK___rzELgSeJaa79V25C9oV4we5AoEajInZs4",
-        path: "hardcoded/right.jpg"
-      },
-      {
-        angle: "UP",
-        url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/UP/img_0121.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL1VQL2ltZ18wMTIxLmpwZyIsImlhdCI6MTc3MDc4MDA1OCwiZXhwIjoxODAyMzE2MDU4fQ.EjKa0z2VZb7cl4SZxKhAisoB_EmjsOAGbPU7lUb23zo",
-        path: "hardcoded/up.jpg"
-      }
-    ];
-
-    setBiometricImages(hardcodedImages);
-    setLoadingBiometricImages(false);
-
-    /* Original API call - commented out for hardcoding
     try {
-      const response = await fetch(`${API_URL}/ai/biometric/${user.student_num}/images`, {
+      const response = await fetch(`${API_URL}/biometric/${formData.studentNum}/images`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -330,9 +258,6 @@ export function StudentProfile({
       if (response.ok) {
         const data = await response.json();
         setBiometricImages(data.images || []);
-      } else {
-        console.error('Failed to fetch biometric images:', response.status);
-        setBiometricImages([]);
       }
     } catch (error) {
       console.error('Failed to fetch biometric images:', error);
@@ -340,7 +265,7 @@ export function StudentProfile({
     } finally {
       setLoadingBiometricImages(false);
     }
-    */
+    
   };
 
   // Handle Input Changes
@@ -490,7 +415,7 @@ export function StudentProfile({
     setStatus("Starting enrolment...");
 
     try {
-      const res = await fetch(`${API_URL}/ai/enrolment/start`, {
+      const startres = await fetch(`${API_URL}/enrolment/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
 
@@ -498,13 +423,14 @@ export function StudentProfile({
           student_label: studentLabel,
           student_name: formData.name,
           student_num: formData.studentNum,
-          student_id: "",
+          student_id: formData.studentID, 
+          // Work around
         }),
       });
 
-      const data = await res.json().catch(() => null);
+      const data = await startres.json().catch(() => null);
 
-      if (!res.ok) {
+      if (!startres.ok) {
         setEnrolError(JSON.stringify(data ?? { error: "Failed to start enrolment" }));
         setStatus("Failed to start.");
         return;
@@ -555,14 +481,14 @@ export function StudentProfile({
     form.append("image", blob, "frame.jpg");
 
     try {
-      const res = await fetch(`${API_URL}/ai/enrolment/frame`, {
+      const frameres = await fetch(`${API_URL}/enrolment/frame`, {
         method: "POST",
         body: form,
       });
 
-      const data = await res.json().catch(() => null);
+      const data = await frameres.json().catch(() => null);
 
-      if (!res.ok) {
+      if (!frameres.ok) {
         setEnrolError(JSON.stringify(data ?? { error: "Backend rejected frame" }));
         setStatus("Backend rejected frame.");
         return;
@@ -599,14 +525,14 @@ export function StudentProfile({
     setStatus("Finalizing...");
 
     try {
-      const res = await fetch(
-        `${API_URL}/ai/enrolment/finish?enrolment_id=${encodeURIComponent(id)}`,
+      const finishres = await fetch(
+        `${API_URL}/enrolment/finish?enrolment_id=${encodeURIComponent(id)}`,
         { method: "POST" }
       );
 
-      const data = await res.json().catch(() => null);
+      const data = await finishres.json().catch(() => null);
 
-      if (!res.ok) {
+      if (!finishres.ok) {
         setEnrolError(JSON.stringify(data ?? { error: "Finish failed" }));
         setStatus("Finish failed.");
         return;
@@ -951,12 +877,14 @@ export function StudentProfile({
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl">Update Biometric Profile</DialogTitle>
-            <DialogDescription>
+            <DialogDescription asChild>
+            <div> {/* This is the SINGLE child React is looking for */}
               Capture 200 guided frames and upload them to the backend.
               <div className="mt-2 text-xs text-gray-500">
                 Enrolment label: <code>{studentLabel}</code>
               </div>
-            </DialogDescription>
+            </div>
+          </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
@@ -1007,7 +935,7 @@ export function StudentProfile({
                       playsInline
                       muted
                     />
-                    <canvas ref={(el) => (canvasRef.current = el)} className="hidden" />
+                    <canvas ref={canvasRef} className="hidden" />
 
                     <div className="text-sm text-gray-600">
                       <b>Status:</b> {status} &nbsp;|&nbsp; <b>Progress:</b> {count}/{required}
@@ -1026,7 +954,7 @@ export function StudentProfile({
                       <Button
                         className="bg-blue-600 text-white hover:bg-blue-700"
                         onClick={startEnrolmentAndCapture}
-                        disabled={running}
+                        disabled={!formData.studentID || running} 
                       >
                         Start 200 Capture
                       </Button>
@@ -1194,10 +1122,12 @@ export function StudentProfile({
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl">Enroll Biometric Profile</DialogTitle>
-            <DialogDescription>
-              Capture 200 guided frames to enroll your biometric profile.
-              <div className="mt-2 text-xs text-gray-500">
-                Enrolment label: <code>{studentLabel}</code>
+            <DialogDescription asChild>
+              <div> {/* This is the SINGLE child React is looking for */}
+                Capture 200 guided frames and upload them to the backend.
+                <div className="mt-2 text-xs text-gray-500">
+                  Enrolment label: <code>{studentLabel}</code>
+                </div>
               </div>
             </DialogDescription>
           </DialogHeader>
@@ -1250,7 +1180,7 @@ export function StudentProfile({
                       playsInline
                       muted
                     />
-                    <canvas ref={(el) => (canvasRef.current = el)} className="hidden" />
+                    <canvas ref={canvasRef} className="hidden" />
 
                     <div className="text-sm text-gray-600">
                       <b>Status:</b> {status} &nbsp;|&nbsp; <b>Progress:</b> {count}/{required}
@@ -1269,7 +1199,7 @@ export function StudentProfile({
                       <Button
                         className="bg-blue-600 text-white hover:bg-blue-700"
                         onClick={startEnrolmentAndCapture}
-                        disabled={running}
+                        disabled={!formData.studentID || running} 
                       >
                         Start 200 Capture
                       </Button>

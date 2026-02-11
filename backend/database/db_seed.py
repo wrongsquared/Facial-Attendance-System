@@ -442,7 +442,7 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client, defphotopath: 
     user_uuid = createAccountgetuuid(special_lec_email, "Valid123", True)
     
     if user_uuid:
-        existing = dbSessionLocalInstance.query(Lecturer).get(uuid.UUID(str(user_uuid)))
+        existing = dbSessionLocalInstance.get(Lecturer, uuid.UUID(str(user_uuid)))
         if not existing:
             dbSessionLocalInstance.add(Lecturer(
                 userID=uuid.UUID(str(user_uuid)),
@@ -681,7 +681,7 @@ def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client):
     return None
 
 def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
-    print(f"Seeding attdCheck: \n")
+    print(f"Seeding attdCheck:")
 
     lesson_map = defaultdict(set)
     
