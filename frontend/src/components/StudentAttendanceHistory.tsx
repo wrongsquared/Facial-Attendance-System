@@ -128,8 +128,6 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
     }
   };
 
-  if (loading) return <div className="p-10 text-center">Loading history...</div>;
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar title="Student Portal" onNavigateToProfile={onNavigateToProfile} onOpenNotifications={onOpenNotifications} />
@@ -232,7 +230,24 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentRecords.length > 0 ? (
+                    {loading ? (
+                    Array.from({ length: 10 }).map((_, i) => (
+                      <TableRow key={`skeleton-${i}`}>
+                        <TableCell>
+                          <div className="animate-hard-pulse bg-gray-200 rounded" style={{ height: '16px', width: '70px' }}  />
+                        </TableCell>
+                        <TableCell>
+                          <div className="animate-hard-pulse bg-gray-200 rounded-full" style={{ height: '24px', width: '80px' }} />
+                        </TableCell>
+                        <TableCell>
+                          <div className="animate-hard-pulse bg-gray-200 rounded" style={{ height: '16px', width: '100px' }} />
+                        </TableCell>
+                        <TableCell>
+                          <div className="animate-hard-pulse h-4 w-20 bg-gray-200 rounded" style={{ height: '16px', width: '80px' }}  />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ):currentRecords.length > 0 ? (
                     currentRecords.map((record) => {
                       const dateObj = new Date(record.start_time);
                       return (

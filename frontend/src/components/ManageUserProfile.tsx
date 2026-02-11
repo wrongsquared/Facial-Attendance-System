@@ -10,7 +10,6 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  Edit,
 } from "lucide-react";
 import {
   Select,
@@ -65,9 +64,7 @@ interface ManageUserProfileProps {
 export function ManageUserProfile({
   onLogout,
   onBack,
-  onNavigateToCreateCustomGoal,
   onNavigateToUpdateUserProfile,
-  userGoals,
   userProfiles,
   onNavigateToProfile
 }: ManageUserProfileProps) {

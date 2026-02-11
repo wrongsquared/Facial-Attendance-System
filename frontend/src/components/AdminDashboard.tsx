@@ -49,10 +49,12 @@ interface AdminDashboardProps {
 }
 
 export function AdminDashboard({
+  onLogout,
   onNavigateToManageUsers,
   onNavigateToManageUserProfile,
   onNavigateToManageCustomGoals,
   onNavigateToAttendanceRecords,
+  onNavigateToBiometricProfile,
   onNavigateToProfile,
   onNavigateToReports,
   onNavigateToManageModules,

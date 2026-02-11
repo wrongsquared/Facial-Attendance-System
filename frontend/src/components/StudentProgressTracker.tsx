@@ -45,14 +45,12 @@ export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigate
     fetchData();
   }, [token]);
 
-  if (loading) return <div className="p-10 text-center">Loading progress...</div>;
-  if (!data) return <div className="p-10 text-center">No data available.</div>;
 
-  const overallProgress = data.overall_percentage;
+  const overallProgress = data?.overall_percentage ?? 0;
   const overallProgressColor = overallProgress >= 85 ? "#22c55e" : "#ef4444"; 
 
   // Pagination
-  const allModules = data.modules;
+  const allModules = data?.modules || [];
   const totalPages = Math.ceil(allModules.length / MODS_PER_PAGE);
   const startIndex = (currentPage - 1) * MODS_PER_PAGE;
 
@@ -97,6 +95,12 @@ export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigate
 
         {/* Progress Card */}
         <Card className="max-w-4xl mx-auto">
+         {loading ? (
+            <div 
+              className="animate-hard-pulse w-full bg-gray-200" 
+              style={{ height: '600px' }} 
+            />
+          ) : (
           <CardContent className="pt-8">
             {/* Circular Progress Bar */}
             <div className="flex flex-col items-center mb-8">
@@ -138,7 +142,7 @@ export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigate
 
               {/* Quarter Display */}
               <p className="text-lg text-gray-700">
-                {data.quarter_label}
+                {data?.quarter_label}
               </p>
             </div>
 
@@ -220,6 +224,7 @@ export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigate
               </Button>
             </div>
           </CardContent>
+          )}
         </Card>
       </main>
     </div>

@@ -25,6 +25,7 @@ interface Course {
 }
 
 interface CreateModuleProps {
+  onLogout: () => void;
   onBack: () => void;
   onNavigateToProfile?: () => void;
   onSave?: (moduleData: any) => void;
@@ -57,6 +58,7 @@ const validateModuleID = (moduleID: string): { isValid: boolean; error: string }
 };
 
 export function CreateModule({
+  onLogout,
   onBack,
   onNavigateToProfile,
   onSave,

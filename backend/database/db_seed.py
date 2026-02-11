@@ -765,7 +765,7 @@ def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
                 status=status,
                 firstDetection=first_seen,
                 lastDetection=last_seen,
-                remarks="Verified AI Capture"
+                remarks="Camera Capture"
             ))
 
     if new_checks:

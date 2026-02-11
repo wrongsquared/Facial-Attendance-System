@@ -25,7 +25,6 @@ import {
   getWeeklyTimetable,
 } from "../services/api";
 import { Navbar } from "./Navbar";
-
 interface StudentDashboardProps {
   onLogout: () => void;
   onNavigateToAttendanceHistory: () => void;
@@ -91,14 +90,11 @@ export function StudentDashboard({
 
       } catch (err) {
         console.error("Failed to load dashboard:", err);
-        // Optional: setError(true) to show a "Retry" button
       } finally {
         //Stop loading only when EVERYTHING is finished (or failed)
         setLoading(false);
       }
     };
-
-    console.log("Overall lesson:", oAS);
 
     fetchDashboardData();
   }, [token]);
@@ -134,35 +130,51 @@ export function StudentDashboard({
 
 
       <main className="container mx-auto px-4 py-8 flex-1">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 min-h-[275px]">
 
-          <Card className="flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm">Overall Attendance</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col">
-              <div className="flex-1">
-                <div className="text-6xl font-bold">{oAS.percentage}%</div>
-                <p className="text-xs text-gray-600 mt-1">
-                  {oAS.attended_lessons} of {oAS.total_lessons} classes attended
-                </p>
-              </div>
-              <div className="mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={onNavigateToProgress}
-                >
-                  View Progress
-                </Button>
-              </div>
-            </CardContent>
+          <Card className="flex flex-col h-full overflow-hidden">
+            {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '275px' }} 
+              />
+            ) : (
+              <>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm">Overall Attendance</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col">
+                <div className="flex-1">
+                  <div className="text-6xl font-bold">{oAS.percentage}%</div>
+                  <p className="text-xs text-gray-600 mt-1">
+                    {oAS.attended_lessons} of {oAS.total_lessons} classes attended
+                  </p>
+                </div>
+                <div className="mt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={onNavigateToProgress}
+                  >
+                    View Progress
+                  </Button>
+                </div>
+              </CardContent>
+              </>
+          )}
           </Card>
 
           {/* Card 2: Timetable */}
-          <Card className="flex flex-col">
+          <Card className="flex flex-col h-full overflow-hidden">
+              {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '275px' }} 
+              />
+            ) : (
+              <>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm">Timetable</CardTitle>
               <Calendar className="h-4 w-4 text-blue-600" />
@@ -244,12 +256,21 @@ export function StudentDashboard({
                 </Button>
               </div>
             </CardContent>
+            </>
+            )}
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[350px]">
           {/* Upcoming Classes */}
-          <Card>
+          <Card className="flex flex-col h-full overflow-hidden">
+          {loading ? (
+              <div 
+                className="animate-hard-pulse rounded-xl" 
+                style={{ flex: 1, height:'100%' ,minHeight: '300px' }} 
+              />
+            ) : (
+              <>
             <CardHeader>
               <CardTitle>Upcoming Classes Today ({todaysdate})</CardTitle>
               <CardDescription>Your scheduled classes</CardDescription>
@@ -277,14 +298,23 @@ export function StudentDashboard({
                 )}
               </div>
             </CardContent>
+            </>
+            )}
           </Card>
 
           {/* Attendance by Subject */}
-          <Card>
+          <Card className="flex flex-col h-full overflow-hidden">
+            {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '275px' }} 
+              />
+            ) : (
+              <>
             <CardHeader>
-              <CardTitle>Attendance Taken by Subject</CardTitle>
+              <CardTitle>Attendance Taken by Module</CardTitle>
               <CardDescription>
-                Your attendance rate per subject
+                Your attendance rate per Module
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -309,10 +339,20 @@ export function StudentDashboard({
                 )}
               </div>
             </CardContent>
+          </>
+            )}
           </Card>
 
           {/* Recent Attendance History */}
           <Card className="lg:col-span-2">
+              {loading ? (
+              /* We make this one slightly taller (e.g., 300px) because history is a list */
+              <div 
+                className="animate-hard-pulse rounded-xl" 
+                style={{ height: '300px', width: '100%' }} 
+              />
+            ) : (
+              <>
             <CardHeader>
               <CardTitle>Recent Attendance History</CardTitle>
               <CardDescription>
@@ -367,6 +407,8 @@ export function StudentDashboard({
                 </Button>
               </div>
             </CardContent>
+            </>
+            )}
           </Card>
         </div>
       </main>

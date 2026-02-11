@@ -19,11 +19,15 @@ import { Textarea } from "./ui/textarea";
 interface ViewAdminProfileProps {
   onBack: () => void;
   onNavigateToProfile: () => void;
+  adminData: any;
+  onLogout?: () => void;
 }
 
 export function ViewAdminProfile({
   onBack,
   onNavigateToProfile,
+  adminData, 
+  onLogout
 }: ViewAdminProfileProps) {
   const { token } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -271,7 +275,6 @@ export function ViewAdminProfile({
   );
 }
 
-/* ---------- Reusable Field ---------- */
 function Field({
   label,
   id,

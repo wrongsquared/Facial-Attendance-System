@@ -18,6 +18,7 @@ import {
 import { ArrowLeft } from "lucide-react";
 import logoImage from "../assets/Logo.png";
 import { LoginCredentials } from "../types/auth";
+import { useNavigate } from "react-router-dom";
 
 interface LoginPageProps {
   onLogin: (creds: LoginCredentials, selectedRole: string) => void;
@@ -28,7 +29,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState("");
   const [userType, setUserType] = useState<"student" | "lecturer" | "admin" | "platformManager">("student");
   const [error, setError] = useState("");
-
+  const navigate = useNavigate();
   const handleLogin = () => {
     // Basic validation
     if (!email.trim()) {
@@ -57,9 +58,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   };
 
   const handleBackToHome = () => {
-    if ((window as any).navigateTo) {
-      (window as any).navigateTo("home");
-    }
+    navigate("/");
   };
 
   return (
