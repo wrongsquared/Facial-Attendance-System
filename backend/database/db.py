@@ -63,8 +63,6 @@ class Campus(Base):
     # Belongs to a University
     universityID: Mapped[int] = mapped_column(ForeignKey("university.universityID"))
     university: Mapped[University] = relationship(back_populates="campus")
-    # Has User Profiles
-    # profiles: Mapped[list["UserProfile"]] = relationship(back_populates="campus")
     student_profiles: Mapped[list["Student"]] = relationship(back_populates="campus")
     lecturer_profiles: Mapped[list["Lecturer"]] = relationship(back_populates="campus")
     admin_profiles: Mapped[list["Admin"]] = relationship(back_populates="campus")
@@ -72,6 +70,7 @@ class Campus(Base):
     courses: Mapped[list["Courses"]] = relationship(back_populates="campus")
     created_at = mapped_column(DateTime, default=datetime.datetime)
     profiles: Mapped[list["UserProfile"]]= relationship(back_populates="campus")
+    modules: Mapped[list["Module"]] = relationship(back_populates="campus", cascade="all, delete-orphan")
 
 class UserProfile(Base): #User Profiles, Student, Lecturer, Admins
     __tablename__ = "userprofiles"
@@ -197,6 +196,8 @@ class Module(Base): #Modules
     moduleID: Mapped[int] = mapped_column(primary_key=True)
     moduleName: Mapped[str] = mapped_column(String(25))
     moduleCode: Mapped[str] = mapped_column(String(8))
+    campusID: Mapped[int] = mapped_column(ForeignKey("campus.campusID"))
+    campus: Mapped["Campus"] = relationship(back_populates="modules")
     lecMod: Mapped[list[LecMod]] = relationship(back_populates="modules", cascade="all, delete-orphan")
     studentModules: Mapped[list[StudentModules]] = relationship(back_populates="modules", cascade="all, delete-orphan")
     startDate: Mapped[datetime.datetime|None]

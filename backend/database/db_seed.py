@@ -158,12 +158,9 @@ def userProfileSeeder(dbSessionLocalInstance: Session, spbase: Client):
                     campusID=campus.campusID
                 )
                 dbSessionLocalInstance.add(new_profile)
-            else:
-                print(f" - Role '{role_name}' already exists for {campus.campusName}, skipping.")
 
     try:
         dbSessionLocalInstance.commit()
-        print("\nUser Profile seeding completed successfully.")
     except Exception as e:
         dbSessionLocalInstance.rollback()
         print(f"An error occurred while seeding User Profiles: {e}")
@@ -530,7 +527,7 @@ def lecturerSeed(dbSessionLocalInstance: Session, spbase: Client, defphotopath: 
         return None
 
 def modulesSeed(dbSessionLocalInstance: Session, spbase: Client):
-
+    campuses = dbSessionLocalInstance.query(Campus).all()
     sem_start = datetime(2026, 1, 5) # Monday, Jan 5
     sem_end = datetime(2026, 3, 30)   # End of March
     
@@ -539,53 +536,38 @@ def modulesSeed(dbSessionLocalInstance: Session, spbase: Client):
         {"name": "Web Development", "code": "ISIT100"},
         {"name": "Advanced Programming", "code": "CSIT420"}
     ]
-
-    for mod in modules_to_create:
-        dbSessionLocalInstance.add(Module(
-            moduleName = mod["name"], 
-            moduleCode = mod["code"],
-            startDate = sem_start, # Added
-            endDate = sem_end      # Added
-        ))
+    for campus in campuses:
+        for mod in modules_to_create:
+            dbSessionLocalInstance.add(Module(
+                moduleName = mod["name"], 
+                moduleCode = mod["code"],
+                campusID = campus.campusID,
+                startDate = sem_start, 
+                endDate = sem_end      
+            ))
     
     dbSessionLocalInstance.commit()
     return None
 
 def lecModSeed(dbSessionLocalInstance: Session, spbase: Client): 
-    #No Primary Keys
     print(f"Seeding LecMods: \n")
-    lecturerobjs = dbSessionLocalInstance.query(Lecturer).all()
-    moduleobjs = dbSessionLocalInstance.query(Module).all()
+    campuses = dbSessionLocalInstance.query(Campus).all()
+    for campus in campuses:
 
-    # Use a set to track pairs (LecturerID, ModuleID) to prevent duplicates
-    existing_pairs = set()
+        campus_lecturers = dbSessionLocalInstance.query(Lecturer).filter_by(campusID=campus.campusID).all()
+        campus_modules = dbSessionLocalInstance.query(Module).filter_by(campusID=campus.campusID).all()
 
+        if not campus_lecturers or not campus_modules:
+            continue
 
-    # Ensure EVERY Lecturer teaches at least one module
-    for lecturer in lecturerobjs:
-        # Decide how many modules this lecturer teaches (e.g., 1 to 2)
-        num_modules_to_teach = random.randint(1, min(2, len(moduleobjs)))
-        
-        # Pick random modules
-        picked_modules = random.sample(moduleobjs, num_modules_to_teach)
-
-        for module in picked_modules:
-            # Create the relationship
-            # We check existing_pairs just in case, though logically unique here
-            if (lecturer.lecturerID, module.moduleID) not in existing_pairs:
-                dbSessionLocalInstance.add(LecMod(lecturers=lecturer, modules=module))
-                existing_pairs.add((lecturer.lecturerID, module.moduleID))
-
-    #  Ensure Modules has at least one Lecturer
-    for module in moduleobjs:
-        is_assigned = any(pair[1] == module.moduleID for pair in existing_pairs)
-
-        if not is_assigned:
-            # If module has no teacher, assign a random lecturer
-            random_lecturer = random.choice(lecturerobjs)
+        for module in campus_modules:
+            random_lec = random.choice(campus_lecturers)
             
-            dbSessionLocalInstance.add(LecMod(lecturers=random_lecturer, modules=module))
-            existing_pairs.add((random_lecturer.lecturerID, module.moduleID))
+            dbSessionLocalInstance.add(LecMod(
+                lecturerID=random_lec.lecturerID,
+                moduleID=module.moduleID
+            ))
+
     
     dbSessionLocalInstance.commit()
     return None
