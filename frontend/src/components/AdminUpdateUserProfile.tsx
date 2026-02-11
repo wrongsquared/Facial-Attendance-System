@@ -168,7 +168,6 @@ export function AdminUpdateUserProfile({
   const hardName = name;
   // Role specific fields
   const [studentNum, setStudentNum] = useState("");
-  const [attendance, setAttendance] = useState("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   // Handle input changes with real-time validation
@@ -201,13 +200,6 @@ export function AdminUpdateUserProfile({
         if (isEditMode) {
           const addressValidation = validateAddress(value);
           setErrors(prev => ({ ...prev, address: addressValidation.error }));
-        }
-        break;
-      case 'attendance':
-        setAttendance(value);
-        if (isEditMode) {
-          const attendanceValidation = validateAttendance(value);
-          setErrors(prev => ({ ...prev, attendance: attendanceValidation.error }));
         }
         break;
       case 'role':
@@ -251,11 +243,6 @@ export function AdminUpdateUserProfile({
         setContactNumber(data.phone || "");
         setAddress(data.fulladdress || "");
 
-        // Fields from 'student' table (if applicable)
-        if (data.role.toLowerCase() === "student") {
-          setStudentNum(data.studentNum || "");
-          setAttendance(data.attendanceMinimum?.toString() || "");
-        }
         setCreationDate(formatDate(data.creationDate) ?? "");
         setAssociatedModules(data.associatedModules || "N/A");
       } catch (err: any) {
@@ -305,14 +292,6 @@ export function AdminUpdateUserProfile({
       validationErrors.status = "Status is required";
     }
 
-    // Attendance validation (only for students)
-    if (role.toLowerCase() === "student") {
-      const attendanceValidation = validateAttendance(attendance);
-      if (!attendanceValidation.isValid) {
-        validationErrors.attendance = attendanceValidation.error;
-      }
-    }
-
     // If there are validation errors, show them and don't submit
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -331,12 +310,6 @@ export function AdminUpdateUserProfile({
         roleName: role,
         status: status,
       };
-
-      // Only include attendance if the user is a Student
-      if (role.toLowerCase() === "student") {
-        // Convert the string state to a number for the backend
-        payload.attendanceMinimum = Number(attendance);
-      }
 
       await updateUserProfile(userData.uuid, payload, token!);
 
@@ -503,25 +476,6 @@ export function AdminUpdateUserProfile({
                 Associated Modules:
               </label>
               <p className="font-medium">{associatedModules}</p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600 mb-2 block">
-                Attendance (%):
-              </label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                value={attendance}
-                onChange={(e) => handleInputChange("attendance", e.target.value)}
-                placeholder="Attendance percentage (0-100)"
-                disabled={!isEditMode}
-                className={errors.attendance ? "border-red-500" : ""}
-              />
-              {errors.attendance && (
-                <p className="text-red-500 text-sm mt-1">{errors.attendance}</p>
-              )}
             </div>
           </CardContent>
         </Card>

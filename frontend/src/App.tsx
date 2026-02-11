@@ -485,13 +485,11 @@ const handleUpdateUserGoal = async (userId: string, goal: number) => {
                                                         onLogout={handleLogout}
                                                         onBack={() => navigate('/admin/user-profiles')}
                                                         onNavigateToBiometricProfile={() => navigate('/admin/biometrics')}
-
                                                         userData={{
                                                           uuid: selectedBiometricUserData.userId,
                                                           name: selectedBiometricUserData.name,
                                                           role: selectedBiometricUserData.role
                                                         }}
-                                                      
                                                         userProfileData={userProfiles[selectedBiometricUserData.userId]}
                                                         onUpdateProfile={handleUpdateUserProfile}
                                                         showToast={showToast}
