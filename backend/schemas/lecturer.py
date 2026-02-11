@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Literal, List
+from typing import Literal, List, Optional, Union
 from datetime import date
 
 class timetableEntry(BaseModel):
@@ -54,9 +54,6 @@ class LecturerDashboardSummary(BaseModel):
     overall_attendance_rate: float # 0.0 to 100.0
     students_at_risk_count: int
 
-
-
-
 class ReportCriteria(BaseModel):
     """Defines the input parameters for generating an attendance report."""
     report_type: Literal['Daily', 'Monthly']
@@ -64,6 +61,7 @@ class ReportCriteria(BaseModel):
     date_to: date
     module_code: str 
     attendance_status: Literal['All', 'Present', 'Absent']
+    tutorial_group_id: Union[int, None] = None
 
 
 class AttendanceLogEntry(BaseModel):

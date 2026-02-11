@@ -3,6 +3,9 @@ from sqlalchemy.orm import Session, aliased
 from sqlalchemy import and_, func, case, desc, or_, extract, cast, Integer, exists
 from datetime import datetime,time, date, timedelta
 from database.db_config import get_db
+import csv
+import uuid as uuid_module
+import os
 from dependencies.deps import get_current_user_id
 from database.db import (
                          User, 
@@ -113,9 +116,10 @@ def generate_and_download_report(
     module_code = module_details.moduleCode
     module_name = module_details.moduleName
     
-    # 2. Identify the pool of relevant lessons (subquery for efficiency)
-    lesson_pool = db.query(Lesson.lessonID, Lesson.startDateTime)\
+    # 2. Identify the pool of relevant lessons (subquery for efficiency) with tutorial group info
+    lesson_pool_query = db.query(Lesson.lessonID, Lesson.startDateTime, Lesson.lessontype, TutorialsGroup.tutorialGroupsID.label('tutorial_group_id'))\
     .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
+    .outerjoin(TutorialsGroup, Lesson.tutorialGroupID == TutorialsGroup.tutorialGroupsID)\
     .filter(
         # The Lesson is already linked to a LecMod record.
         # We need to ensure that LecMod record satisfies BOTH conditions:
@@ -128,27 +132,48 @@ def generate_and_download_report(
         
         # Falls within the date range (using the fixed date comparison)
         func.date(Lesson.startDateTime).between(start_date, end_date)
-    ).subquery()
+    )
+    
+    # Filter by tutorial group if specified
+    if criteria.tutorial_group_id:
+        lesson_pool_query = lesson_pool_query.filter(TutorialsGroup.tutorialGroupsID == criteria.tutorial_group_id)
+    
+    lesson_pool = lesson_pool_query.subquery()
         
     if not db.query(lesson_pool).first():
         raise HTTPException(status_code=404, detail="No relevant lessons found for the selected module and dates.")
 
-    # Get all students enrolled in the selected module
-    enrolled_students = db.query(Student.studentID, Student.name)\
+    # Get all students enrolled in the selected module with tutorial group info
+    enrolled_students_query = db.query(
+        Student.studentID, 
+        Student.name,
+        TutorialsGroup.tutorialGroupsID.label('student_tutorial_group_id')
+    )\
         .join(StudentModules, Student.studentID == StudentModules.studentID)\
+        .outerjoin(StudentTutorialGroup, StudentModules.studentModulesID == StudentTutorialGroup.studentModulesID)\
+        .outerjoin(TutorialsGroup, StudentTutorialGroup.tutorialGroupID == TutorialsGroup.tutorialGroupsID)\
         .filter(
             # Use the Module ID for the student enrollment join
             StudentModules.modulesID == module_id
-        ).all()
+        )
+        
+    # Filter by tutorial group if specified
+    if criteria.tutorial_group_id:
+        enrolled_students_query = enrolled_students_query.filter(TutorialsGroup.tutorialGroupsID == criteria.tutorial_group_id)
+        
+    enrolled_students = enrolled_students_query.all()
         
 
     
     report_data = []
     
     # Compile the detailed report row (Student-Session Data)
-    for student_id, student_name in enrolled_students:
-        for lesson_id, lesson_start_time in db.query(lesson_pool).all():
-            
+    for student_id, student_name, student_tutorial_group_id in enrolled_students:
+        for lesson_id, lesson_start_time, lesson_type, lesson_tutorial_group_id in db.query(lesson_pool).all():
+            # Skip if student is not in the same tutorial group as the lesson
+            if student_tutorial_group_id and lesson_tutorial_group_id and student_tutorial_group_id != lesson_tutorial_group_id:
+                continue
+                
             # This is where the status check happens, and it's missing!
             attendance_record = db.query(AttdCheck).filter(
                 AttdCheck.studentID == student_id,
@@ -166,15 +191,24 @@ def generate_and_download_report(
                 # If the user requested 'Present' but the status is 'Absent', skip this row.
                 continue   
 
-        report_data.append({
-            "Module Code": module_code, 
-            "Module Name": module_name,
-            "Student ID": student_id,
-            "Student Name": student_name,
-            "Date": lesson_start_time.strftime("%Y-%m-%d"),
-            "Time": lesson_start_time.strftime("%H:%M"),
-            "Attendance Status": status_text,
-        })
+            # Get tutorial group name
+            tutorial_group_name = "N/A"
+            if lesson_tutorial_group_id:
+                tutorial_group = db.query(TutorialsGroup).filter(TutorialsGroup.tutorialGroupsID == lesson_tutorial_group_id).first()
+                if tutorial_group:
+                    tutorial_group_name = f"Group {lesson_tutorial_group_id}"
+
+            report_data.append({
+                "Module Code": module_code, 
+                "Module Name": module_name,
+                "Student ID": student_id,
+                "Student Name": student_name,
+                "Tutorial Group": tutorial_group_name,
+                "Lesson Type": lesson_type,
+                "Date": lesson_start_time.strftime("%Y-%m-%d"),
+                "Time": lesson_start_time.strftime("%H:%M"),
+                "Attendance Status": status_text,
+            })
             
     # Handle Download (CSV Generation)
 
@@ -245,26 +279,49 @@ def generate_report(
     module_code = module_details.moduleCode
     module_name = module_details.moduleName
     
-    # Get lesson pool
-    lesson_pool = db.query(Lesson.lessonID, Lesson.startDateTime)\
+    # Get lesson pool with tutorial group info
+    lesson_pool_query = db.query(Lesson.lessonID, Lesson.startDateTime, Lesson.lessontype, TutorialsGroup.tutorialGroupsID.label('tutorial_group_id'))\
     .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
+    .outerjoin(TutorialsGroup, Lesson.tutorialGroupID == TutorialsGroup.tutorialGroupsID)\
     .filter(
         LecMod.lecturerID == user_id, 
         LecMod.moduleID == module_id,
         func.date(Lesson.startDateTime).between(start_date, end_date)
-    ).subquery()
+    )
+    
+    # Filter by tutorial group if specified
+    if criteria.tutorial_group_id:
+        lesson_pool_query = lesson_pool_query.filter(TutorialsGroup.tutorialGroupsID == criteria.tutorial_group_id)
+    
+    lesson_pool = lesson_pool_query.subquery()
         
     if not db.query(lesson_pool).first():
         raise HTTPException(status_code=404, detail="No relevant lessons found for the selected module and dates.")
 
-    enrolled_students = db.query(Student.studentID, Student.name)\
+    enrolled_students_query = db.query(
+        Student.studentID, 
+        Student.name,
+        TutorialsGroup.tutorialGroupsID.label('student_tutorial_group_id')
+    )\
         .join(StudentModules, Student.studentID == StudentModules.studentID)\
-        .filter(StudentModules.modulesID == module_id).all()
+        .outerjoin(StudentTutorialGroup, StudentModules.studentModulesID == StudentTutorialGroup.studentModulesID)\
+        .outerjoin(TutorialsGroup, StudentTutorialGroup.tutorialGroupID == TutorialsGroup.tutorialGroupsID)\
+        .filter(StudentModules.modulesID == module_id)
+        
+    # Filter by tutorial group if specified
+    if criteria.tutorial_group_id:
+        enrolled_students_query = enrolled_students_query.filter(TutorialsGroup.tutorialGroupsID == criteria.tutorial_group_id)
+        
+    enrolled_students = enrolled_students_query.all()
     
     report_data = []
     
-    for student_id, student_name in enrolled_students:
-        for lesson_id, lesson_start_time in db.query(lesson_pool).all():
+    for student_id, student_name, student_tutorial_group_id in enrolled_students:
+        for lesson_id, lesson_start_time, lesson_type, lesson_tutorial_group_id in db.query(lesson_pool).all():
+            # Skip if student is not in the same tutorial group as the lesson
+            if student_tutorial_group_id and lesson_tutorial_group_id and student_tutorial_group_id != lesson_tutorial_group_id:
+                continue
+                
             attendance_record = db.query(AttdCheck).filter(
                 AttdCheck.studentID == student_id,
                 AttdCheck.lessonID == lesson_id
@@ -275,11 +332,20 @@ def generate_report(
             if criteria.attendance_status != "All" and status_text != criteria.attendance_status:
                 continue   
 
+            # Get tutorial group name
+            tutorial_group_name = "N/A"
+            if lesson_tutorial_group_id:
+                tutorial_group = db.query(TutorialsGroup).filter(TutorialsGroup.tutorialGroupsID == lesson_tutorial_group_id).first()
+                if tutorial_group:
+                    tutorial_group_name = f"Group {lesson_tutorial_group_id}"
+
             report_data.append({
                 "Module Code": module_code, 
                 "Module Name": module_name,
                 "Student ID": student_id,
                 "Student Name": student_name,
+                "Tutorial Group": tutorial_group_name,
+                "Lesson Type": lesson_type,
                 "Date": lesson_start_time.strftime("%Y-%m-%d"),
                 "Time": lesson_start_time.strftime("%H:%M"),
                 "Attendance Status": status_text,

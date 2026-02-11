@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session, aliased, joinedload
 from sqlalchemy import and_, func, case, desc, or_, extract, cast, Integer
 from datetime import datetime,time, date, timedelta
 from database.db_config import get_db
+import pandas as pd
+import uuid
+import os
 from dependencies.deps import get_current_user_id
 from database.db import (#This was really long so I had to bracket it
                          User, 
@@ -426,12 +429,18 @@ def generate_report(
     
     module_id = module_details.moduleID
 
-    lessons = db.query(Lesson).join(LecMod).filter(
+    # Build the lessons query with explicit joins
+    lessons_query = db.query(Lesson, TutorialsGroup.tutorialGroupsID.label('tutorial_group_id')).join(LecMod, Lesson.lecModID == LecMod.lecModID).outerjoin(TutorialsGroup, Lesson.tutorialGroupID == TutorialsGroup.tutorialGroupsID).filter(
         LecMod.lecturerID == user_id,
         LecMod.moduleID == module_id,
         func.date(Lesson.startDateTime).between(criteria.date_from, criteria.date_to)
-    ).order_by(Lesson.startDateTime).all()
+    )
     
+    # Add tutorial group filter if specified
+    if criteria.tutorial_group_id is not None:
+        lessons_query = lessons_query.filter(Lesson.tutorialGroupID == criteria.tutorial_group_id)
+    
+    lessons = lessons_query.order_by(Lesson.startDateTime).all()
     
     if not lessons:
         # Check if the lecturer teaches this module at all
@@ -447,7 +456,7 @@ def generate_report(
             )
         
         # Check if there are any lessons for this module (regardless of date)
-        any_lessons = db.query(Lesson).join(LecMod).filter(
+        any_lessons = db.query(Lesson).join(LecMod, Lesson.lecModID == LecMod.lecModID).filter(
             LecMod.lecturerID == user_id,
             LecMod.moduleID == module_id
         ).first()
@@ -463,10 +472,82 @@ def generate_report(
                 detail=f"No lessons found for module {criteria.module_code} between {criteria.date_from} and {criteria.date_to}. Try a different date range."
             )
 
-    # Fetch Students
-    students = db.query(Student).join(StudentModules).filter(
-        StudentModules.modulesID == module_id
-    ).all()
+    # Fetch Students who are actually supposed to attend the specific lessons being reported
+    # Instead of getting all students in the module, get only students who should attend these specific lessons
+    
+    if criteria.tutorial_group_id is not None:
+        # If tutorial group is specified, only get students enrolled in that specific tutorial group
+        students_query = db.query(Student).join(
+            StudentModules, Student.studentID == StudentModules.studentID
+        ).join(
+            StudentTutorialGroup, StudentModules.studentModulesID == StudentTutorialGroup.studentModulesID
+        ).filter(
+            StudentModules.modulesID == module_id,
+            StudentTutorialGroup.tutorialGroupID == criteria.tutorial_group_id
+        )
+    else:
+        # If no tutorial group specified, we need to get students who are enrolled in tutorial groups
+        # that have lessons in our date range, OR students in the module with no tutorial group assignments
+        
+        # Get tutorial group IDs that have lessons in our date range
+        lesson_tutorial_groups = db.query(Lesson.tutorialGroupID).join(
+            LecMod, Lesson.lecModID == LecMod.lecModID
+        ).filter(
+            LecMod.lecturerID == user_id,
+            LecMod.moduleID == module_id,
+            func.date(Lesson.startDateTime).between(criteria.date_from, criteria.date_to),
+            Lesson.tutorialGroupID.isnot(None)
+        ).distinct().all()
+        
+        lesson_tutorial_group_ids = [tg[0] for tg in lesson_tutorial_groups if tg[0] is not None]
+        
+        if lesson_tutorial_group_ids:
+            # Get students enrolled in any of the tutorial groups that have lessons
+            students_query = db.query(Student).join(
+                StudentModules, Student.studentID == StudentModules.studentID
+            ).join(
+                StudentTutorialGroup, StudentModules.studentModulesID == StudentTutorialGroup.studentModulesID
+            ).filter(
+                StudentModules.modulesID == module_id,
+                StudentTutorialGroup.tutorialGroupID.in_(lesson_tutorial_group_ids)
+            )
+        else:
+            # No tutorial groups in lessons, get all students enrolled in the module
+            # This handles cases where lessons don't have specific tutorial groups assigned
+            students_query = db.query(Student).join(
+                StudentModules, Student.studentID == StudentModules.studentID
+            ).filter(
+                StudentModules.modulesID == module_id
+            )
+    
+    students = students_query.distinct().all()
+    
+    # Enhanced validation with more specific error messages
+    if not students:
+        if criteria.tutorial_group_id is not None:
+            # Check if tutorial group exists for this module
+            tutorial_group_exists = db.query(TutorialsGroup).join(Lesson, TutorialsGroup.tutorialGroupsID == Lesson.tutorialGroupID).join(LecMod, Lesson.lecModID == LecMod.lecModID).filter(
+                LecMod.moduleID == module_id,
+                TutorialsGroup.tutorialGroupsID == criteria.tutorial_group_id
+            ).first()
+            
+            if not tutorial_group_exists:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Tutorial group {criteria.tutorial_group_id} has no lessons for module {criteria.module_code} in the specified date range"
+                )
+            else:
+                # Tutorial group has lessons but no students enrolled
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"No students enrolled in tutorial group {criteria.tutorial_group_id} for module {criteria.module_code}"
+                )
+        else:
+            # No tutorial group specified but still no students found
+            raise HTTPException(
+                status_code=404, 
+                detail=f"No students found who should attend the lessons for module {criteria.module_code} in the specified date range. This may indicate that no tutorial groups have both lessons and enrolled students."
+            )
 
     # Prepare Data (Pandas DataFrame)
     is_monthly = (criteria.report_type == "Monthly") or (criteria.date_from != criteria.date_to)
@@ -474,15 +555,21 @@ def generate_report(
     df = None
     
     if is_monthly:
+        # Monthly Report: Show all students enrolled in the module (filtered by tutorial group if specified)
+        # Each student row shows their attendance status for each lesson date
         data = []
         for stu in students:
             row = {"Student ID": stu.studentNum, "Name": stu.name}
             present_count = 0
             
-            for lesson in lessons:
+            for lesson_data in lessons:
+                # Always extract lesson from tuple since our query returns (Lesson, tutorial_group_id)
+                lesson = lesson_data[0]
                 col_date = lesson.startDateTime.strftime("%d-%b") # "12-Jan"
                 
-                # Check Attendance
+                # Check Attendance for this specific student and lesson
+                # Note: We only include students who are enrolled in the module
+                # If tutorial group is specified, only students in that tutorial group are included
                 att = db.query(AttdCheck).filter_by(studentID=stu.studentID, lessonID=lesson.lessonID).first()
                 ent = db.query(EntLeave).filter_by(studentID=stu.studentID, lessonID=lesson.lessonID).first()
                 
@@ -502,15 +589,30 @@ def generate_report(
         
         df = pd.DataFrame(data)
         # Reorder columns: ID, Name, [Dates], %
-        cols = ["Student ID", "Name"] + [l.startDateTime.strftime("%d-%b") for l in lessons] + ["Attendance %"]
+        lesson_dates = []
+        for lesson_data in lessons:
+            # Always extract lesson from tuple since our query returns (Lesson, tutorial_group_id)
+            lesson = lesson_data[0]
+            lesson_dates.append(lesson.startDateTime.strftime("%d-%b"))
+        cols = ["Student ID", "Name"] + lesson_dates + ["Attendance %"]
         # Filter cols that actually exist in data
         df = df[[c for c in cols if c in df.columns]]
 
     # --- LOGIC: DAILY (List) ---
     else:
+        # Daily Report: Show detailed attendance for a specific day
+        # Only includes students enrolled in the module (filtered by tutorial group if specified)
         data = []
-        target_lesson = lessons[0] # Only 1 day
+        target_lesson, target_tutorial_group_id = lessons[0] # Only 1 day
         
+        # Get tutorial group name
+        tutorial_group_name = "N/A"
+        if target_tutorial_group_id:
+            tutorial_group = db.query(TutorialsGroup).filter(TutorialsGroup.tutorialGroupsID == target_tutorial_group_id).first()
+            if tutorial_group:
+                tutorial_group_name = f"Group {target_tutorial_group_id}"
+        
+        # Process each student enrolled in the module
         for stu in students:
             ent = db.query(EntLeave).filter_by(studentID=stu.studentID, lessonID=target_lesson.lessonID).first()
             
@@ -535,6 +637,8 @@ def generate_report(
             data.append({
                 "Student ID": stu.studentNum,
                 "Name": stu.name,
+                "Tutorial Group": tutorial_group_name,
+                "Lesson Type": target_lesson.lessontype,
                 "Date": target_lesson.startDateTime.strftime("%Y-%m-%d"),
                 "Status": status,
                 "Time In": t_in,
