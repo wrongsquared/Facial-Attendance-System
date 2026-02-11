@@ -63,9 +63,8 @@ export function StudentDashboard({
   const [weeklyLessons, setWeeklyLessons] = useState<WeeklyLesson[]>([]);
 
   useEffect(() => {
+    if (!token) return;
     const fetchDashboardData = async () => {
-      if (!token) return;
-
       try {
         const [
           todaysData,
@@ -91,7 +90,6 @@ export function StudentDashboard({
       } catch (err) {
         console.error("Failed to load dashboard:", err);
       } finally {
-        //Stop loading only when EVERYTHING is finished (or failed)
         setLoading(false);
       }
     };
@@ -99,13 +97,11 @@ export function StudentDashboard({
     fetchDashboardData();
   }, [token]);
 
-  // --- HELPER: Group by Day ---
   const groupWeeklySchedule = () => {
     const grouped: Record<string, WeeklyLesson[]> = {
       MON: [], TUE: [], WED: [], THU: [], FRI: [], SAT: [], SUN: [],
     };
 
-    // The backend already filtered for "Next 7 Days", so just loop and group
     weeklyLessons.forEach((lesson) => {
       const date = new Date(lesson.start_time);
       const dayName = date

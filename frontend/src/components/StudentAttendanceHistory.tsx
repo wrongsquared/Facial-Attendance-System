@@ -221,6 +221,13 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
             {/* Attendance History Table */}
             <div className="border rounded-lg overflow-hidden">
               <Table>
+              {loading ? (
+              <div 
+                className="animate-hard-pulse rounded-xl" 
+                style={{ height: '300px', width: '100%' }} 
+              />
+            ) : (
+              <>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Module</TableHead>
@@ -230,24 +237,7 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {loading ? (
-                    Array.from({ length: 10 }).map((_, i) => (
-                      <TableRow key={`skeleton-${i}`}>
-                        <TableCell>
-                          <div className="animate-hard-pulse bg-gray-200 rounded" style={{ height: '16px', width: '70px' }}  />
-                        </TableCell>
-                        <TableCell>
-                          <div className="animate-hard-pulse bg-gray-200 rounded-full" style={{ height: '24px', width: '80px' }} />
-                        </TableCell>
-                        <TableCell>
-                          <div className="animate-hard-pulse bg-gray-200 rounded" style={{ height: '16px', width: '100px' }} />
-                        </TableCell>
-                        <TableCell>
-                          <div className="animate-hard-pulse h-4 w-20 bg-gray-200 rounded" style={{ height: '16px', width: '80px' }}  />
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ):currentRecords.length > 0 ? (
+                  {currentRecords.length > 0 ? (
                     currentRecords.map((record) => {
                       const dateObj = new Date(record.start_time);
                       return (
@@ -273,7 +263,9 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
                     </TableRow>
                   )}
                 </TableBody>
+                </>)}
               </Table>
+              
             </div>
 
             {/* Pagination */}

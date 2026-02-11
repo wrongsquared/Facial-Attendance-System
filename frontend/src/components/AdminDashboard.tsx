@@ -68,9 +68,8 @@ export function AdminDashboard({
   const [lowAttendanceCourses, setLowAttendanceCourses] = useState<CourseAttention[]>([]);
 
   useEffect(() => {
+    if (!token) return;
     const fetchDashboardData = async () => {
-      if (!token) return;
-
       try {
         const [dbdata, attentionData, recentUs] = await Promise.all([
           getAdminStats(token),

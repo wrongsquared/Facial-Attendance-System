@@ -71,7 +71,6 @@ def check_single_student_risk(db: Session, student_id: str):
         
         assigned_group_id = group_link.tutorialGroupID if group_link else None
 
-
         total_past = (
             db.query(func.count(Lesson.lessonID))
             .join(LecMod)

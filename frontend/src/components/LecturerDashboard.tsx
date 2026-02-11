@@ -83,9 +83,8 @@ export function LecturerDashboard({
   };
 
   useEffect(() => {
+    if (!token) return;
     const fetchDashboardData = async () => {
-      if (!token) return;
-
       try {
         const [
           ModulesCount,
@@ -111,9 +110,7 @@ export function LecturerDashboard({
       }
       catch (err) {
         console.error("Failed to load dashboard:", err);
-        // Optional: setError(true) to show a "Retry" button
       } finally {
-        //Stop loading only when EVERYTHING is finished (or failed)
         setLoading(false);
       }
     };

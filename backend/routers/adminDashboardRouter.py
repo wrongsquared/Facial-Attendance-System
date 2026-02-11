@@ -265,8 +265,7 @@ def get_all_modules_for_admin(
             # Get the lecturer assigned to this module
             lecmod = db.query(LecMod).filter(LecMod.moduleID == module.moduleID).first()
             lecturer_id = str(lecmod.lecturerID) if lecmod else None
-            
-            print(f"Module {module.moduleID}: lecmod found: {lecmod is not None}, lecturerID: {lecturer_id}")
+
             
             result.append({
                 "moduleID": str(module.moduleID),  # Ensure it's a string

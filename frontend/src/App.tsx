@@ -140,13 +140,13 @@ function AppContent() {
     currentGoal: number | null;
   } | null>(null);
     const [adminProfileData, setAdminProfileData] = useState({
-    name: "John Smith",
-    email: "john.smith@uow.edu.au",
-    contactNumber: "+61 2 4221 3456",
-    address: "123 Innovation Campus\nSquires Way\nNorth Wollongong NSW 2500\nAustralia",
-    emergencyContactName: "Jane Smith",
-    emergencyRelationship: "Spouse",
-    emergencyContactNumber: "+61 412 345 678",
+    name: "",
+    email: "",
+    contactNumber: "",
+    address: "",
+    emergencyContactName: "",
+    emergencyRelationship: "",
+    emergencyContactNumber: "",
   });
 
   const handleSaveAdminProfile = (profileData: any) => {
