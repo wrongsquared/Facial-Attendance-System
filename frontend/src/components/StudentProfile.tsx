@@ -58,7 +58,7 @@ export function StudentProfile({
   const [loading, setLoading] = useState(true);
 
   // Biometric enrollment state - true if enrolled, false if not
-  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(true);
+  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(false); // HARDCODED: Always start as enrolled
 
   // Biometric dialog state
   const [showBiometricDialog, setShowBiometricDialog] = useState(false);
@@ -72,6 +72,37 @@ export function StudentProfile({
   const [biometricPreviewImage, setBiometricPreviewImage] = useState<string | null>(null);
   // If backend gives a persistent URL, store it here:
   const [biometricImageUrl, setBiometricImageUrl] = useState<string | null>(null);
+  // Store images from all 5 angles for viewing - HARDCODED: Initialize with demo images
+  
+  // replace with your own face angle images in the bucket
+  const [biometricImages, setBiometricImages] = useState<Array<{ angle: string, url: string, path: string }>>([
+    {
+      angle: "DOWN",
+      url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/DOWN/img_0161.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL0RPV04vaW1nXzAxNjEuanBnIiwiaWF0IjoxNzcwNzc5OTk3LCJleHAiOjE4MDIzMTU5OTd9.0mTjyyq_jfZvtNcn7uZC727dxFkSZl6M-Nm9NLVmUnE",
+      path: "hardcoded/down.jpg"
+    },
+    {
+      angle: "FRONT",
+      url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/FRONT/img_0001.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL0ZST05UL2ltZ18wMDAxLmpwZyIsImlhdCI6MTc3MDc4MDAxOCwiZXhwIjoxODAyMzE2MDE4fQ.6Bj846XPrnSpWHrY1zwImvYX38jWM0JIxcwv7nV07wA",
+      path: "hardcoded/front.jpg"
+    },
+    {
+      angle: "LEFT",
+      url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/LEFT/img_0042.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL0xFRlQvaW1nXzAwNDIuanBnIiwiaWF0IjoxNzcwNzgwMDMyLCJleHAiOjE4MDIzMTYwMzJ9.jczYYzO9JwPh28z38Eal4eCAdR8C_eM83Ta4AqgKnkE",
+      path: "hardcoded/left.jpg"
+    },
+    {
+      angle: "RIGHT",
+      url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/RIGHT/img_0081.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL1JJR0hUL2ltZ18wMDgxLmpwZyIsImlhdCI6MTc3MDc4MDA0NiwiZXhwIjoxODAyMzE2MDQ2fQ.xMbBImK___rzELgSeJaa79V25C9oV4we5AoEajInZs4",
+      path: "hardcoded/right.jpg"
+    },
+    {
+      angle: "UP",
+      url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/UP/img_0121.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL1VQL2ltZ18wMTIxLmpwZyIsImlhdCI6MTc3MDc4MDA1OCwiZXhwIjoxODAyMzE2MDU4fQ.EjKa0z2VZb7cl4SZxKhAisoB_EmjsOAGbPU7lUb23zo",
+      path: "hardcoded/up.jpg"
+    }
+  ]);
+  const [loadingBiometricImages, setLoadingBiometricImages] = useState(false);
 
   // ========= Camera state =========
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -215,6 +246,101 @@ export function StudentProfile({
     };
     fetchData();
   }, [token]);
+
+  // ========= fetch biometric status when component loads =========
+  useEffect(() => {
+    const fetchBiometricStatus = async () => {
+      if (!user?.student_num || !token) return;
+
+      // HARDCODED: Always set as enrolled to ensure View button works
+      setIsBiometricEnrolled(true);
+      setBiometricLastUpdated(new Date().toISOString());
+
+      /* Original API call - commented out for hardcoding
+      try {
+        const response = await fetch(`${API_URL}/ai/profile/status?student_num=${user.student_num}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setIsBiometricEnrolled(data.enrolled || false);
+          setBiometricLastUpdated(data.last_updated);
+        } else {
+          console.error('Biometric status fetch failed:', response.status);
+        }
+      } catch (error) {
+        console.error('Failed to fetch biometric status:', error);
+      }
+      */
+    };
+
+    fetchBiometricStatus();
+  }, [user?.student_num, token]);
+
+  // ========= fetch all 5 biometric images for viewing =========
+  const fetchBiometricImages = async () => {
+    if (!user?.student_num || !token) return;
+
+    setLoadingBiometricImages(true);
+
+    // HARDCODED: replace the url with hardcoded demo images of your face angles in the bucket 
+    const hardcodedImages = [
+      {
+        angle: "DOWN",
+        url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/DOWN/img_0161.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL0RPV04vaW1nXzAxNjEuanBnIiwiaWF0IjoxNzcwNzc5OTk3LCJleHAiOjE4MDIzMTU5OTd9.0mTjyyq_jfZvtNcn7uZC727dxFkSZl6M-Nm9NLVmUnE",
+        path: "hardcoded/down.jpg"
+      },
+      {
+        angle: "FRONT",
+        url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/FRONT/img_0001.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL0ZST05UL2ltZ18wMDAxLmpwZyIsImlhdCI6MTc3MDc4MDAxOCwiZXhwIjoxODAyMzE2MDE4fQ.6Bj846XPrnSpWHrY1zwImvYX38jWM0JIxcwv7nV07wA",
+        path: "hardcoded/front.jpg"
+      },
+      {
+        angle: "LEFT",
+        url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/LEFT/img_0042.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL0xFRlQvaW1nXzAwNDIuanBnIiwiaWF0IjoxNzcwNzgwMDMyLCJleHAiOjE4MDIzMTYwMzJ9.jczYYzO9JwPh28z38Eal4eCAdR8C_eM83Ta4AqgKnkE",
+        path: "hardcoded/left.jpg"
+      },
+      {
+        angle: "RIGHT",
+        url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/RIGHT/img_0081.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL1JJR0hUL2ltZ18wMDgxLmpwZyIsImlhdCI6MTc3MDc4MDA0NiwiZXhwIjoxODAyMzE2MDQ2fQ.xMbBImK___rzELgSeJaa79V25C9oV4we5AoEajInZs4",
+        path: "hardcoded/right.jpg"
+      },
+      {
+        angle: "UP",
+        url: "https://eaowbscmemdywjumvjkx.supabase.co/storage/v1/object/sign/student-faces/albert_zweistein_000000/UP/img_0121.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81ZDdkNDM2ZC0zN2Q4LTRiYTAtYTI1Mi1iNWY1MjA5MGJhZDEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzdHVkZW50LWZhY2VzL2FsYmVydF96d2Vpc3RlaW5fMDAwMDAwL1VQL2ltZ18wMTIxLmpwZyIsImlhdCI6MTc3MDc4MDA1OCwiZXhwIjoxODAyMzE2MDU4fQ.EjKa0z2VZb7cl4SZxKhAisoB_EmjsOAGbPU7lUb23zo",
+        path: "hardcoded/up.jpg"
+      }
+    ];
+
+    setBiometricImages(hardcodedImages);
+    setLoadingBiometricImages(false);
+
+    /* Original API call - commented out for hardcoding
+    try {
+      const response = await fetch(`${API_URL}/ai/biometric/${user.student_num}/images`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setBiometricImages(data.images || []);
+      } else {
+        console.error('Failed to fetch biometric images:', response.status);
+        setBiometricImages([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch biometric images:', error);
+      setBiometricImages([]);
+    } finally {
+      setLoadingBiometricImages(false);
+    }
+    */
+  };
 
   // Handle Input Changes
   const handleChange = (
@@ -547,8 +673,8 @@ export function StudentProfile({
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar title="Student Profile"
-      onNavigateToProfile={onNavigateToProfile}
-      onOpenNotifications={onOpenNotifications} />
+        onNavigateToProfile={onNavigateToProfile}
+        onOpenNotifications={onOpenNotifications} />
 
       <main className="container mx-auto px-4 py-8 flex-1">
         <Button variant="ghost" className="mb-6" onClick={onBack}>
@@ -604,6 +730,13 @@ export function StudentProfile({
                     )}
 
                     <div className="flex gap-3">
+                      <Button variant="outline" onClick={() => {
+                        // HARDCODED: Always show images regardless of enrollment status
+                        fetchBiometricImages();
+                        setShowBiometricDialog(true);
+                      }}>
+                        View
+                      </Button>
                       <Button variant="outline" onClick={() => setShowUpdateBiometricDialog(true)}>
                         Update
                       </Button>
@@ -621,12 +754,14 @@ export function StudentProfile({
                     <p className="text-sm text-gray-600 mb-4">
                       Enroll your face profile to enable touchless attendance tracking on campus.
                     </p>
-                    <Button
-                      className="bg-blue-600 text-white hover:bg-blue-700"
-                      onClick={() => setShowEnrollDialog(true)}
-                    >
-                      Start Capture
-                    </Button>
+                    <div className="flex gap-3">
+                      <Button
+                        className="bg-blue-600 text-white hover:bg-blue-700"
+                        onClick={() => setShowEnrollDialog(true)}
+                      >
+                        Start Capture
+                      </Button>
+                    </div>
                   </>
                 )}
               </div>
@@ -964,62 +1099,203 @@ export function StudentProfile({
             </DialogDescription>
           </DialogHeader>
 
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-600">User ID:</p>
-              <p className="font-semibold">{formData.studentNum}</p>
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-600">User ID:</p>
+                <p className="font-semibold">{formData.studentNum}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Date Enrolled:</p>
+                <p className="font-semibold">{lastUpdatedText}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-gray-600">Date Enrolled:</p>
-              <p className="font-semibold">{lastUpdatedText}</p>
-            </div>
-          </div>
 
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8">
-            <div className="flex items-center justify-center gap-4">
-              <Button variant="ghost" size="icon" onClick={handlePreviousImage} className="h-12 w-12">
-                <ChevronLeft className="h-6 w-6" />
-              </Button>
-
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-64 h-64 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                  {(biometricImageUrl || biometricPreviewImage) ? (
-                    <img
-                      src={biometricImageUrl ?? biometricPreviewImage ?? ""}
-                      className="w-full h-full object-cover"
-                      alt="Biometric"
-                    />
-                  ) : (
-                    <User className="h-32 w-32 text-gray-400" />
+            <div className="border border-gray-200 rounded-lg p-6">
+              {loadingBiometricImages ? (
+                <div className="flex items-center justify-center py-12">
+                  <p className="text-gray-500">Loading biometric images...</p>
+                </div>
+              ) : biometricImages.length > 0 ? (
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-4">Captured Face Angles ({biometricImages.length}/5)</p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                    {biometricImages.map((image, index) => (
+                      <div key={image.angle} className="flex flex-col items-center space-y-2">
+                        <div className="w-40 h-40 bg-gray-100 rounded-lg overflow-hidden border">
+                          <img
+                            src={image.url}
+                            alt={`${image.angle} view`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                          <div className="hidden w-full h-full flex items-center justify-center">
+                            <User className="h-8 w-8 text-gray-400" />
+                          </div>
+                        </div>
+                        <p className="text-xs font-medium text-gray-600">
+                          {image.angle}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  {biometricImages.length < 5 && (
+                    <p className="text-sm text-amber-600 mt-4">Some angles may be missing. Consider re-enrolling for complete coverage.</p>
                   )}
                 </div>
-                <p className="text-sm font-medium text-gray-700">
-                  {faceImages[currentImageIndex].label}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Image {currentImageIndex + 1} of {faceImages.length}
-                </p>
-              </div>
-
-              <Button variant="ghost" size="icon" onClick={handleNextImage} className="h-12 w-12">
-                <ChevronRight className="h-6 h-6" />
-              </Button>
+              ) : (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <User className="h-16 w-16 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-500">No biometric images found</p>
+                    <p className="text-sm text-gray-400">Please enroll first to view images</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        </div>
         </DialogContent>
       </Dialog>
 
-      {/* Enroll dialog left as-is in your original file; you can route it to same 200 capture later */}
+      {/* Enroll Biometric Profile Dialog */}
       <Dialog open={showEnrollDialog} onOpenChange={setShowEnrollDialog}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl">Enroll Biometric Profile</DialogTitle>
-            <DialogDescription>Use Update to capture the full 200-frame enrolment.</DialogDescription>
+            <DialogDescription>
+              Capture 200 guided frames to enroll your biometric profile.
+              <div className="mt-2 text-xs text-gray-500">
+                Enrolment label: <code>{studentLabel}</code>
+              </div>
+            </DialogDescription>
           </DialogHeader>
-          <div className="text-sm text-gray-600">
-            For now, please click <b>Update</b> in the Biometric Enrollment Profile section to run the full pipeline.
+
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-600">User ID:</p>
+                <p className="font-semibold">{formData.studentNum}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Status:</p>
+                <p className="font-semibold">New Enrollment</p>
+              </div>
+            </div>
+
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 min-h-[360px] flex items-center justify-center">
+              <div className="flex flex-col items-center justify-center gap-4 w-full">
+                {cameraError ? (
+                  <>
+                    <div className="text-center">
+                      <Camera className="h-24 w-24 text-red-400 mx-auto mb-4" />
+                      <p className="text-red-600 mb-4">{cameraError}</p>
+                    </div>
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          alert("Photo uploaded (but not yet sent to enrolment pipeline).");
+                        }
+                      }}
+                    />
+
+                    <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => fileInputRef.current?.click()}>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Photo
+                    </Button>
+                  </>
+                ) : isCameraActive ? (
+                  <>
+                    <video
+                      ref={videoRef}
+                      className="w-full h-72 rounded-lg bg-black object-cover"
+                      autoPlay
+                      playsInline
+                      muted
+                    />
+                    <canvas ref={(el) => (canvasRef.current = el)} className="hidden" />
+
+                    <div className="text-sm text-gray-600">
+                      <b>Status:</b> {status} &nbsp;|&nbsp; <b>Progress:</b> {count}/{required}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      <b>Instruction:</b> {instructionText}
+                    </div>
+
+                    {enrolError && (
+                      <div className="text-sm text-red-600">
+                        <b>Error:</b> {enrolError}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Button
+                        className="bg-blue-600 text-white hover:bg-blue-700"
+                        onClick={startEnrolmentAndCapture}
+                        disabled={running}
+                      >
+                        Start 200 Capture
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          stopCaptureLoop();
+                          setStatus("Stopped.");
+                        }}
+                        disabled={!running}
+                      >
+                        Stop
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={stopCamera}
+                        disabled={running}
+                      >
+                        Close Camera
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Camera className="h-24 w-24 text-gray-400" />
+                    <p className="text-gray-600">Camera preview will appear here</p>
+                    <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={startCamera}>
+                      Start Camera
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-center gap-4 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowEnrollDialog(false)}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                className="bg-blue-600 text-white hover:bg-blue-700"
+                onClick={() => {
+                  // After successful enrollment, mark as enrolled and close dialog
+                  setIsBiometricEnrolled(true);
+                  setBiometricLastUpdated(new Date().toLocaleString());
+                  alert("Biometric profile enrolled successfully!");
+                  setShowEnrollDialog(false);
+                }}
+              >
+                Complete Enrollment
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

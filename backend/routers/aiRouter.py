@@ -89,19 +89,18 @@ def upload_jpeg_to_supabase(storage_path: str, jpeg_bytes: bytes) -> None:
 def _studentangles_upsert(db: Session, *, student_uuid: str, angle: str, image_path: str) -> bool:
     """
     Upsert into public.studentangles.
-    Your table is lowercase: studentid, photoangle, imagepath, updatedat.
+    Correct column names: "studentID", "photoAngle"
     """
     try:
         db.execute(
             text("""
-                INSERT INTO public.studentangles (studentid, photoangle, imagepath, updatedat)
-                VALUES (:sid, :angle, :path, NOW())
-                ON CONFLICT (studentid, photoangle)
+                INSERT INTO public.studentangles ("studentID", "photoAngle")
+                VALUES (:sid, :angle)
+                ON CONFLICT ("studentID", "photoAngle")
                 DO UPDATE SET
-                  imagepath = EXCLUDED.imagepath,
-                  updatedat = NOW();
+                  "photoAngle" = EXCLUDED."photoAngle";
             """),
-            {"sid": student_uuid, "angle": angle, "path": image_path},
+            {"sid": student_uuid, "angle": angle},
         )
         db.commit()
         return True
@@ -453,3 +452,153 @@ def get_user_profile_photo(user_id: str, db: Session = Depends(get_db)):
         url = SUPABASE_URL.rstrip("/") + url
 
     return {"url": url}
+
+
+# @router.get("/profile/status")
+# def get_biometric_status(student_num: str, db: Session = Depends(get_db)):
+#     """Check if student has biometric enrollment data"""
+#     try:
+#         # 1. Find the Student UUID
+#         student_uuid = _resolve_student_uuid(db, student_num=student_num)
+        
+#         if not student_uuid:
+#             return {"enrolled": True, "last_updated": None}
+
+#         # 2. Check if they have entries in 'studentangles' table
+#         # Use proper quoted column names for PostgreSQL case-sensitivity
+#         result = db.execute(
+#             text('SELECT COUNT(*) FROM public.studentangles WHERE "studentID" = :sid'),
+#             {"sid": student_uuid}
+#         ).fetchone()
+        
+#         count = result[0] if result else 0
+        
+#         if count > 0:
+#             return {"enrolled": True, "last_updated": None}
+        
+#         return {"enrolled": True, "last_updated": None}
+#     except Exception as e:
+#         print(f"[AI] get_biometric_status error: {repr(e)}")
+#         return {"enrolled": True, "last_updated": None}
+
+
+@router.get("/biometric/{student_num}/images")
+def get_biometric_images(student_num: str, db: Session = Depends(get_db)):
+    """Get one representative image from each of the 5 biometric angles"""
+    try:
+        student_uuid = _resolve_student_uuid(db, student_num=student_num)
+        if not student_uuid:
+            raise HTTPException(status_code=404, detail="Student not found")
+
+        # Check if student has biometric records
+        existing_records = db.execute(
+            text('SELECT COUNT(*) FROM public.studentangles WHERE "studentID" = :student_id'),
+            {"student_id": student_uuid},
+        ).fetchone()
+
+        if not existing_records or existing_records[0] == 0:
+            raise HTTPException(status_code=404, detail="No biometric profile found")
+
+        # Get all distinct angles for this student
+        angles_result = db.execute(
+            text('SELECT DISTINCT "photoAngle" FROM public.studentangles WHERE "studentID" = :student_id ORDER BY "photoAngle"'),
+            {"student_id": student_uuid},
+        ).fetchall()
+
+        if not angles_result:
+            raise HTTPException(status_code=404, detail="No biometric images found")
+
+        sb = _require_supabase()
+        images = []
+        
+        # Expected angles in order
+        expected_angles = ["DOWN", "FRONT", "LEFT", "RIGHT", "UP"]
+        
+        for angle_row in angles_result:
+            angle = angle_row[0]
+            if angle in expected_angles:
+                # Get student info for folder name construction
+                student_data = db.execute(
+                    text('SELECT "firstName", "lastName" FROM public.students WHERE "studentID" = :student_id'),
+                    {"student_id": student_uuid},
+                ).fetchone()
+                
+                if student_data:
+                    # Construct the expected path pattern (same as used in enrollment)
+                    student_name = f"{student_data[0]}_{student_data[1]}" if student_data[0] and student_data[1] else "unknown"
+                    student_folder = f"{_safe_label(student_name)}_{_safe_label(student_num)}"
+                    
+                    # Try to get a representative image for this angle (e.g., img_0001.jpg)
+                    image_path = f"{student_folder}/{angle}/img_0001.jpg"
+                    
+                    try:
+                        # Generate signed URL for this image
+                        res = sb.storage.from_(SUPABASE_BUCKET).create_signed_url(image_path, 3600)
+                        url = res.get("signedURL") or res.get("signedUrl") or res.get("signed_url")
+                        
+                        if url:
+                            if url.startswith("/") and SUPABASE_URL:
+                                url = SUPABASE_URL.rstrip("/") + url
+                            
+                            images.append({
+                                "angle": angle,
+                                "url": url,
+                                "path": image_path
+                            })
+                    except Exception as e:
+                        print(f"[AI] Failed to get signed URL for {image_path}: {e}")
+                        # Continue to next angle instead of failing
+                        continue
+
+        if not images:
+            raise HTTPException(status_code=404, detail="No accessible biometric images found")
+
+        return {
+            "student_id": student_uuid,
+            "student_num": student_num,
+            "total_angles": len(images),
+            "images": images
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[AI] get_biometric_images error: {repr(e)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve biometric images")
+
+
+@router.delete("/biometric/{student_num}")
+def delete_biometric_profile(
+    student_num: str, 
+    db: Session = Depends(get_db)
+):
+    """Delete biometric profile for a student"""
+    try:
+        student_uuid = _resolve_student_uuid(db, student_num=student_num)
+        if not student_uuid:
+            raise HTTPException(status_code=404, detail="Student not found")
+
+        # Check if student has existing biometric records using proper quoted column names
+        existing_records = db.execute(
+            text('SELECT COUNT(*) FROM public.studentangles WHERE "studentID" = :student_id'),
+            {"student_id": student_uuid},
+        ).fetchone()
+
+        if not existing_records or existing_records[0] == 0:
+            raise HTTPException(status_code=404, detail="No biometric profile found")
+
+        # Delete all biometric records for this student using proper quoted column names
+        db.execute(
+            text('DELETE FROM public.studentangles WHERE "studentID" = :student_id'),
+            {"student_id": student_uuid},
+        )
+        db.commit()
+
+        return {"message": "Biometric profile deleted successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"[AI] delete_biometric_profile error: {repr(e)}")
+        raise HTTPException(status_code=500, detail="Failed to delete biometric profile")
