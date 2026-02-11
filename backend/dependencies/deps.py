@@ -4,7 +4,7 @@ from client import supabase
 from sqlalchemy import func, or_
 from database.db import Lesson, LecMod, Module, StudentModules, AttdCheck, StudentNotifications, Student, StudentTutorialGroup
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 
 security = HTTPBearer()
 
@@ -61,6 +61,8 @@ def check_single_student_risk(db: Session, student_id: str):
     ).all()
 
     now = datetime.now()
+    # Define a cutoff time (e.g., 24 hours ago)
+    twenty_four_hours_ago = now - timedelta(hours=24)
 
     for sm, module in enrollments:
         group_link = db.query(StudentTutorialGroup).filter(
@@ -100,25 +102,47 @@ def check_single_student_risk(db: Session, student_id: str):
         pct = (attended / total_past) * 100
         
         if pct < student.attendanceMinimum:
+            # Check for existing unread notifications for this module
+            target_title = f"Attendance Warning: {module.moduleCode}"
             existing = db.query(StudentNotifications).filter(
-            StudentNotifications.studentID == student_id,
-            StudentNotifications.title.contains(module.moduleCode)
+                StudentNotifications.studentID == student_id,
+                StudentNotifications.title == target_title,
+                StudentNotifications.type == "alert",
+                StudentNotifications.isRead == False
             ).first()
 
-
-            if not existing:
-                missed = total_past - attended
+            missed = total_past - attended
+            
+            if existing:
+                # Update existing unread notification with latest data
+                existing.message = f"Your attendance in {module.moduleCode} has dropped to {pct:.0f}%."
+                existing.meta_data = {
+                    "module_code": module.moduleCode,
+                    "module_name": module.moduleName,
+                    "current_pct": round(pct),
+                    "threshold": student.attendanceMinimum,
+                    "total_expected": total_past,
+                    "total_attended": attended,
+                    "missed_count": missed,
+                    "date": now.strftime("%d-%m-%Y")
+                }
+                existing.generatedAt = now
+            else:
+                # Create new notification
                 alert = StudentNotifications(
                     studentID=student_id,
                     title=f"Attendance Warning: {module.moduleCode}",
-                    message=f"Your attendance in {module.moduleCode} has dropped to {pct:.1f}%.",
+                    message=f"Your attendance in {module.moduleCode} has dropped to {pct:.0f}%.",
                     type="alert",
                     meta_data={
                         "module_code": module.moduleCode,
-                        "current_pct": round(pct, 1),
+                        "module_name": module.moduleName,
+                        "current_pct": round(pct),
                         "threshold": student.attendanceMinimum,
                         "total_expected": total_past,
-                        "total_attended": attended
+                        "total_attended": attended,
+                        "missed_count": missed,
+                        "date": now.strftime("%d-%m-%Y")
                     }
                 )
                 db.add(alert)

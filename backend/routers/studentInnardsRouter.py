@@ -257,10 +257,37 @@ def get_student_notifications(
     user_id: str = Depends(get_current_user_id), # This is the UUID
     db: Session = Depends(get_db)
 ):
+    # First, run risk assessment to ensure notifications are up to date
     check_single_student_risk(db, user_id)
     
-    # Then get all notifications
-    raw_notifications = db.query(StudentNotifications).filter(StudentNotifications.studentID == user_id).all()
+    # Clean up any duplicate notifications after risk assessment
+    # Get all unread notifications for this student, grouped by title
+    notifications_by_title = {}
+    all_unread_notifications = db.query(StudentNotifications).filter(
+        StudentNotifications.studentID == user_id,
+        StudentNotifications.isRead == False
+    ).order_by(StudentNotifications.generatedAt.desc()).all()
+    
+    for notif in all_unread_notifications:
+        title = notif.title
+        if title not in notifications_by_title:
+            notifications_by_title[title] = []
+        notifications_by_title[title].append(notif)
+    
+    # Remove duplicates - keep only the most recent for each title
+    for title, notifs in notifications_by_title.items():
+        if len(notifs) > 1:
+            # Keep the most recent, delete the rest
+            notifs.sort(key=lambda x: x.generatedAt, reverse=True)
+            for duplicate in notifs[1:]:
+                db.delete(duplicate)
+    
+    db.commit()
+    
+    # Get final notifications after cleanup
+    raw_notifications = db.query(StudentNotifications).filter(
+        StudentNotifications.studentID == user_id
+    ).order_by(StudentNotifications.generatedAt.desc()).all()
 
     return raw_notifications
 
