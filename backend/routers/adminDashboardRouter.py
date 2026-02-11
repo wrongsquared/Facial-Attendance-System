@@ -274,36 +274,44 @@ def get_all_modules_for_admin(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    """
-    Returns a simple list of all modules for the Admin Report dropdown.
-    """
-    try:
-        modules = db.query(Module).all()
-        result = []
-        
-        for module in modules:
-            # Get the lecturer assigned to this module
-            lecmod = db.query(LecMod).filter(LecMod.moduleID == module.moduleID).first()
-            lecturer_id = str(lecmod.lecturerID) if lecmod else None
+    current_admin = db.query(Admin).filter(Admin.adminID == user_id).first()
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+    
+    my_campus_id = current_admin.campusID
 
-            
-            result.append({
-                "moduleID": str(module.moduleID),  # Ensure it's a string
-                "moduleCode": module.moduleCode, 
-                "moduleName": module.moduleName,
-                "startDate": module.startDate.isoformat() if module.startDate else None,
-                "endDate": module.endDate.isoformat() if module.endDate else None,
-                "lecturerID": lecturer_id  # Convert UUID to string
-            })
-        
-        print(f"Returning {len(result)} modules")
-        return result
-        
-    except Exception as e:
-        print(f"Error in get_all_modules_for_admin: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error fetching modules: {str(e)}")
+
+    LecUser = aliased(User)
+
+    modules_data = (
+        db.query(Module, LecUser.name.label("lecturerName"))
+        .outerjoin(LecMod, Module.moduleID == LecMod.moduleID)
+        .outerjoin(Lecturer, LecMod.lecturerID == Lecturer.lecturerID)
+        .outerjoin(LecUser, Lecturer.lecturerID == LecUser.userID)
+        .filter(Module.campusID == my_campus_id)
+        .all()
+    )
+
+    result = []
+    
+    for module, lecturer_name in modules_data:
+        group_headers = []
+        if module.lecMod:
+
+            for lm in module.lecMod:
+                group_headers.extend([g.groupName for g in lm.tutorial_groups])
+
+        result.append({
+            "moduleID": module.moduleID,
+            "moduleCode": module.moduleCode, 
+            "moduleName": module.moduleName,
+            "lecturerName": lecturer_name or "Unassigned",
+            "tutorialGroups": group_headers, # ["Tutorial Group 1", "Tutorial Group 2"]
+            "startDate": module.startDate.isoformat() if module.startDate else None,
+            "endDate": module.endDate.isoformat() if module.endDate else None,
+        })
+    
+    return result
 
 @router.post("/admin/modules")
 def create_module(
