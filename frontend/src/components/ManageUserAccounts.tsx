@@ -70,6 +70,7 @@ export function ManageUserAccounts({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [userToDelete, setUserToDelete] = useState<AdminUserAccount | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
 
   const itemsPerPage = 30;
   useEffect(() => {
@@ -83,13 +84,15 @@ export function ManageUserAccounts({
   }, [debouncedSearch, roleFilter, statusFilter]);
 
   useEffect(() => {
+    if (!token) return;
     const fetchData = async () => {
-      if (!token) return;
       try {
         const data = await getManageUsers(token, debouncedSearch, roleFilter, statusFilter);
         setUsers(data);
       } catch (err) {
         console.error(err);
+      } finally{
+        setLoading(false);
       }
     };
     fetchData();
@@ -153,19 +156,6 @@ export function ManageUserAccounts({
         return "bg-green-100 text-green-700 hover:bg-green-100";
       case "Inactive":
         return "bg-gray-100 text-gray-700 hover:bg-gray-100";
-      default:
-        return "bg-gray-100 text-gray-700 hover:bg-gray-100";
-    }
-  };
-
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case "Admin":
-        return "bg-purple-100 text-purple-700 hover:bg-purple-100";
-      case "Lecturer":
-        return "bg-blue-100 text-blue-700 hover:bg-blue-100";
-      case "Student":
-        return "bg-orange-100 text-orange-700 hover:bg-orange-100";
       default:
         return "bg-gray-100 text-gray-700 hover:bg-gray-100";
     }
@@ -251,7 +241,15 @@ export function ManageUserAccounts({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentUsers.length > 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-20">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <span className="text-gray-500 font-medium">Loading Users...</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) :currentUsers.length > 0 ? (
                     currentUsers.map((user, index) => (
                       <TableRow key={`${user.uuid}-${index}`}>
                         <TableCell>{user.uuid}</TableCell>

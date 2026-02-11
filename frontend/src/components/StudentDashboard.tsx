@@ -50,7 +50,7 @@ export function StudentDashboard({
   })
 
 
-  const { token } = useAuth();
+  const { token, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [todaysClasses, setTodaysClasses] = useState<TodaysLessons[]>([]);
   const [oAS, setOverallAttendanceStats] = useState<OverallLessonsStat>({
@@ -63,9 +63,10 @@ export function StudentDashboard({
   const [weeklyLessons, setWeeklyLessons] = useState<WeeklyLesson[]>([]);
 
   useEffect(() => {
-    if (!token) return;
+    if (authLoading||!token) return;
     const fetchDashboardData = async () => {
       try {
+        setLoading(true);
         const [
           todaysData,
           overallLessonsData,
@@ -95,7 +96,7 @@ export function StudentDashboard({
     };
 
     fetchDashboardData();
-  }, [token]);
+  }, [token, authLoading]);
 
   const groupWeeklySchedule = () => {
     const grouped: Record<string, WeeklyLesson[]> = {
@@ -123,8 +124,6 @@ export function StudentDashboard({
     <div className="min-h-screen bg-gray-50 flex flex-col">
 
       <Navbar title="Student Portal" onNavigateToProfile={onNavigateToProfile} onOpenNotifications={onOpenNotifications} />
-
-
       <main className="container mx-auto px-4 py-8 flex-1">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 min-h-[275px]">
 

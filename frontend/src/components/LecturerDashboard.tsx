@@ -59,8 +59,8 @@ export function LecturerDashboard({
     year: 'numeric'
   })
 
-  const [, setLoading] = useState(true);
-  const { token } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const { token, loading: authLoading } = useAuth();
 
   const [totalModules, settotalModules] = useState(0);
   const [avgattM, setavgattM] = useState(0);
@@ -83,9 +83,10 @@ export function LecturerDashboard({
   };
 
   useEffect(() => {
-    if (!token) return;
-    const fetchDashboardData = async () => {
+    if (authLoading || !token) return;
+    const fetchDashboardData = async () => { 
       try {
+        setLoading(true);
         const [
           ModulesCount,
           timetable,
@@ -115,14 +116,14 @@ export function LecturerDashboard({
       }
     };
     fetchDashboardData();
-  }, [token]);
+  }, [token, authLoading]);
+
   const getWeeklySchedule = () => {
     const grouped: Record<string, timetableEntry[]> = {
       Mon: [], Tue: [], Wed: [], Thu: [], Fri: [], Sat: [], Sun: []
     };
 
     timetable.forEach((lesson) => {
-      // The backend sends "Mon", "Tue", etc.
       const day = lesson.day_of_week;
 
       if (grouped[day]) {
@@ -146,6 +147,13 @@ export function LecturerDashboard({
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
+            {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '275px' }} 
+              />
+            ) : (
+              <>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm">
                 Total Active Modules
@@ -155,9 +163,17 @@ export function LecturerDashboard({
             <CardContent>
               <div className="text-6xl font-bold">{totalModules}</div>
             </CardContent>
+            </>
+            )}
           </Card>
 
           <Card>
+            {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '275px' }} 
+              /> ) : (
+              <>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm">
                 Average Attendance
@@ -170,9 +186,16 @@ export function LecturerDashboard({
                 Across all courses
               </p>
             </CardContent>
+            </>)}
           </Card>
 
           <Card>
+              {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '275px' }} 
+              /> ) : (
+              <>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-sm">
                 Timetable
@@ -227,9 +250,16 @@ export function LecturerDashboard({
                 View Full Timetable
               </Button>
             </CardContent>
+            </>)}
           </Card>
 
           <Card>
+              {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '275px' }} 
+              /> ) : (
+              <>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm">
                 Attendance Records and Report
@@ -255,13 +285,19 @@ export function LecturerDashboard({
                   View Report
                 </Button>
               </div>
-            </CardContent>
+            </CardContent></>)}
           </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Upcoming Class Today */}
           <Card>
+            {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '275px' }} 
+              /> ) : (
+              <>
             <CardHeader>
               <CardTitle>Upcoming Class Today  ({todaysdate})</CardTitle>
               <CardDescription>
@@ -319,10 +355,17 @@ export function LecturerDashboard({
                 )}
               </div>
             </CardContent>
+            </> )}
           </Card>
 
           {/* My Courses */}
           <Card>
+            {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '275px' }} 
+              /> ) : (
+              <>
             <CardHeader>
               <CardTitle>My Courses</CardTitle>
               <CardDescription>
@@ -369,11 +412,19 @@ export function LecturerDashboard({
                 )}
               </div>
             </CardContent>
+            </>)}
           </Card>
         </div>
 
         {/* Recent Sessions */}
         <Card>
+            {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '400px' }} 
+              />
+            ) : (
+              <>
           <CardHeader>
             <CardTitle>Recent Sessions</CardTitle>
             <CardDescription>
@@ -435,6 +486,7 @@ export function LecturerDashboard({
               </Table>
             )}
           </CardContent>
+          </>)}
         </Card>
       </main>
 

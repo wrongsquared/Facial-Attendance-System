@@ -251,7 +251,7 @@ export function ManageUserProfile({
                     {/* colSpan={6} makes the cell stretch across all 6 columns */}
                     <TableCell colSpan={6} className="text-center py-20 text-gray-500">
                       <div className="flex flex-col items-center justify-center gap-2">
-                        <span className="text-lg font-medium">Loading users...</span>
+                        <span className="text-gray-500 font-medium">Loading users...</span>
                       </div>
                     </TableCell>
                   </TableRow>
