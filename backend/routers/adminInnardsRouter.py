@@ -265,9 +265,8 @@ def get_admin_attendance_log_filtered(
         # CRITICAL: Filter by admin's campus - only show students from this campus
         .filter(Student.campusID == my_campus_id)
         
-        # Base Filter: Show all lessons (not just past ones)
-        # Removed: .filter(Lesson.endDateTime < datetime.now())
-        # This allows seeing current and future lessons as well
+        # Base Filter: Show only lessons that have ended (attendance can only be taken for completed lessons)
+        .filter(Lesson.endDateTime < datetime.now())
         
         # Grouping is required because we used an aggregate function: min(entry_time)
         .group_by(
