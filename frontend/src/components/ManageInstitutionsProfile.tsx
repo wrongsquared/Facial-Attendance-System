@@ -72,7 +72,8 @@ export function ManageInstitutionsProfile({
   const [sortOption, setSortOption] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [institutions, setInstitutions] = useState<InstitutionData[]>([]);
-  const itemsPerPage = 10;
+
+  const itemsPerPage = 30;
 
   const { token } = useAuth();
 
@@ -94,6 +95,11 @@ export function ManageInstitutionsProfile({
     };
     fetchAllInstitutions();
   }, [token]);
+
+  // Reset to first page when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortOption]);
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A";

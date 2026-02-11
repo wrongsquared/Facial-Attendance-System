@@ -71,14 +71,15 @@ export function ManageUserProfile({
   userProfiles,
   onNavigateToProfile
 }: ManageUserProfileProps) {
-  const {token} = useAuth();
-  const [users, setUsers] = useState<any[]>([]); 
+  const { token } = useAuth();
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const PROFILES_PER_PAGE = 8;
+
+  const itemsPerPage = 30;
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
   useEffect(() => {
@@ -91,7 +92,7 @@ export function ManageUserProfile({
       try {
         setLoading(true);
         const data = await getUsers(token);
-        setUsers(data); 
+        setUsers(data);
       } catch (err) {
         console.error("Failed to load users:", err);
       } finally {
@@ -100,6 +101,11 @@ export function ManageUserProfile({
     };
     loadUsers();
   }, [token]);
+
+  // Reset to first page when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, roleFilter, statusFilter]);
   // Filter profiles based on search and filters
   const filteredProfiles = users.filter((profile) => {
     const matchesSearch =
@@ -115,10 +121,11 @@ export function ManageUserProfile({
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  // Pagination
-  const totalPages = Math.ceil(filteredProfiles.length / PROFILES_PER_PAGE);
-  const startIndex = (currentPage - 1) * PROFILES_PER_PAGE;
-  const currentProfiles = filteredProfiles.slice(startIndex, startIndex + PROFILES_PER_PAGE);
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredProfiles.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProfiles = filteredProfiles.slice(startIndex, endIndex);
 
 
   const handlePreviousPage = () => {
@@ -135,7 +142,7 @@ export function ManageUserProfile({
   const handleManageProfile = (userId: string) => {
     //Look up the extended profile from the 'userProfiles' prop
     const detailedProfile = userProfiles[userId];
-    
+
     // Use the navigation prop passed from the parent
     onNavigateToUpdateUserProfile({
       uuid: userId, //  ID used for the API call
@@ -242,22 +249,22 @@ export function ManageUserProfile({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                 {loading ? (
-                      <TableRow>
-                      {/* colSpan={6} makes the cell stretch across all 6 columns */}
-                      <TableCell colSpan={6} className="text-center py-20 text-gray-500">
-                        <div className="flex flex-col items-center justify-center gap-2">
-                          <span className="text-lg font-medium">Loading users...</span>
-                        </div>      
-                      </TableCell>
-                    </TableRow>
-                  ) : currentProfiles.length > 0 ? (
+                {loading ? (
+                  <TableRow>
+                    {/* colSpan={6} makes the cell stretch across all 6 columns */}
+                    <TableCell colSpan={6} className="text-center py-20 text-gray-500">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <span className="text-lg font-medium">Loading users...</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : currentProfiles.length > 0 ? (
                   currentProfiles.map((profile) => {
                     const isStudent = profile.role.toLowerCase() === "student";
-                    const displayGoal = isStudent && profile.attendanceMinimum != null 
-                      ? `${profile.attendanceMinimum}%` 
+                    const displayGoal = isStudent && profile.attendanceMinimum != null
+                      ? `${profile.attendanceMinimum}%`
                       : "N/A";
-                    const isActive = profile.active === true; 
+                    const isActive = profile.active === true;
                     return (
                       <TableRow key={profile.userID}>
                         {/* User ID Column */}
@@ -273,26 +280,25 @@ export function ManageUserProfile({
 
                         {/* Status Column */}
                         <TableCell className="align-middle">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            isActive 
-                              ? "bg-green-100 text-green-800" 
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${isActive
+                              ? "bg-green-100 text-green-800"
                               : "bg-gray-100 text-gray-800"
-                          }`}>
+                            }`}>
                             {isActive ? "Active" : "Inactive"}
                           </span>
                         </TableCell>
-                        
+
                         {/* Current Goals Column (RE-IMPLEMENTED) */}
                         <TableCell className="align-middle">
                           {displayGoal}
                         </TableCell>
-                        
+
                         {/* Actions Column */}
                         <TableCell className="text-right align-middle">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleManageProfile(profile.userID) }
+                            onClick={() => handleManageProfile(profile.userID)}
                           >
                             Manage Profile
                           </Button>
@@ -300,33 +306,33 @@ export function ManageUserProfile({
                       </TableRow>
                     );
                   })
-                )  : (
-                    <TableRow><TableCell colSpan={6} className="text-center py-20 text-gray-500">No users found.</TableCell></TableRow>
-                  )}
+                ) : (
+                  <TableRow><TableCell colSpan={6} className="text-center py-20 text-gray-500">No users found.</TableCell></TableRow>
+                )}
               </TableBody>
             </Table>
 
-            {/* Pagination */}
-            {filteredProfiles.length > 0 && (
-              <div className="flex items-center justify-center gap-6 mt-6 pt-6 border-t">
+            {/* Pagination Controls */}
+            {totalPages > 0 && (
+              <div className="flex items-center justify-center gap-4 py-4">
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="icon"
                   onClick={handlePreviousPage}
                   disabled={currentPage === 1}
                 >
-                  <ChevronLeft className="h-5 w-5" />
+                  <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <span className="text-sm">
                   Page {currentPage} of {totalPages}
                 </span>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="icon"
                   onClick={handleNextPage}
                   disabled={currentPage === totalPages}
                 >
-                  <ChevronRight className="h-5 w-5" />
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             )}
