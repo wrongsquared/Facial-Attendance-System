@@ -12,8 +12,6 @@ import {
   TrendingUp,
   UserPlus,
   ClipboardCheck,
-  UserX,
-  Fingerprint,
   FileEdit,
   FileText,
 } from "lucide-react";
@@ -25,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Tabs, TabsContent } from "./ui/tabs";
 import { useAuth } from "../cont/AuthContext";
 import { useEffect, useState } from "react";
 import { AdminStats, CourseAttention, UserManagementItem } from "../types/admindash";
@@ -51,11 +49,12 @@ interface AdminDashboardProps {
 }
 
 export function AdminDashboard({
+  onLogout,
   onNavigateToManageUsers,
   onNavigateToManageUserProfile,
   onNavigateToManageCustomGoals,
-  onNavigateToBiometricProfile,
   onNavigateToAttendanceRecords,
+  onNavigateToBiometricProfile,
   onNavigateToProfile,
   onNavigateToReports,
   onNavigateToManageModules,
@@ -63,16 +62,16 @@ export function AdminDashboard({
   onNavigateToManageCourses,
 }: AdminDashboardProps) {
   const [loading, setLoading] = useState(true);
-  const { token, user } = useAuth();
+  const { token, user, loading: authLoading } = useAuth();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [recentU, setRecentU] = useState<UserManagementItem[]>([]);
   const [lowAttendanceCourses, setLowAttendanceCourses] = useState<CourseAttention[]>([]);
 
   useEffect(() => {
+    if (authLoading || !token) return;
     const fetchDashboardData = async () => {
-      if (!token) return;
-
       try {
+        setLoading(true);
         const [dbdata, attentionData, recentUs] = await Promise.all([
           getAdminStats(token),
           getCoursesRequiringAttention(token),
@@ -89,7 +88,7 @@ export function AdminDashboard({
       }
     };
     fetchDashboardData();
-  }, [token]);
+  }, [token, authLoading]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -102,34 +101,52 @@ export function AdminDashboard({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {/* Overall Attendance */}
           <Card>
+            {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '174px' }} 
+              />
+            ) : (
+              <>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm">Overall Attendance Rate</CardTitle>
               <TrendingUp className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
               <div className="text-6xl font-bold">{stats?.overall_attendance_rate ?? 0}%</div>
-              <p className="text-xs text-green-600 mt-1">
-                {stats?.trend_attendance ?? "No data"}
-              </p>
+
             </CardContent>
+            </>)}
           </Card>
 
           {/* Total Active Users */}
           <Card>
+          {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '174px' }} 
+              />
+            ) : (
+              <>    
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm">Total Active Users</CardTitle>
               <Users className="h-4 w-4 text-purple-600" />
             </CardHeader>
             <CardContent>
               <div className="text-6xl font-bold">{stats?.total_active_users ?? 0}</div>
-              <p className="text-xs text-green-600 mt-1">
-                {stats?.trend_users ?? "No data"}
-              </p>
             </CardContent>
+            </>)}
           </Card>
 
           {/* Attendance Records */}
           <Card>
+            {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '174px' }} 
+              />
+            ) : (
+              <>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm">Attendance Records and Report</CardTitle>
               <ClipboardCheck className="h-4 w-4 text-orange-600" />
@@ -154,6 +171,7 @@ export function AdminDashboard({
                 </Button>
               </div>
             </CardContent>
+            </>)}
           </Card>
         </div>
 
@@ -161,6 +179,13 @@ export function AdminDashboard({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Low Attendance Courses */}
           <Card>
+            {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '586px' }} 
+              />
+            ) : (
+              <>
             <CardHeader>
               <CardTitle>Modules Requiring Attention</CardTitle>
               <CardDescription>Modules with attendance below 80%</CardDescription>
@@ -189,10 +214,18 @@ export function AdminDashboard({
                 )}
               </div>
             </CardContent>
+            </>)}
           </Card>
 
           {/* Quick Actions */}
           <Card>
+            {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '586px' }} 
+              />
+            ) : (
+              <>
             <CardHeader>
               <CardTitle>Quick Actions</CardTitle>
               <CardDescription>Common administrative tasks</CardDescription>
@@ -252,9 +285,18 @@ export function AdminDashboard({
 
               </div>
             </CardContent>
+            </>)}
           </Card>
+
           {/* User Management */}
           <Card className="lg:col-span-2">
+          {loading ? (
+              <div 
+                className="animate-hard-pulse w-full" 
+                style={{ flex: 1, height:'100%' ,minHeight: '300px' }} 
+              />
+            ) : (
+              <>
             <CardHeader>
               <CardTitle>User Management</CardTitle>
               <CardDescription>Recent user registrations and updates</CardDescription>
@@ -302,6 +344,7 @@ export function AdminDashboard({
                 </TabsContent>
               </Tabs>
             </CardContent>
+            </>)}
           </Card>
         </div>
       </main>

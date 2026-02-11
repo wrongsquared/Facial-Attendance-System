@@ -14,15 +14,20 @@ import { Navbar } from "./Navbar";
 import { useAuth } from "../cont/AuthContext";
 import { AdminProfileData } from "../types/adminInnards";
 import { getAdminProfile, updateAdminProfile } from "../services/api";
+import { Textarea } from "./ui/textarea";
 
 interface ViewAdminProfileProps {
   onBack: () => void;
   onNavigateToProfile: () => void;
+  adminData: any;
+  onLogout?: () => void;
 }
 
 export function ViewAdminProfile({
   onBack,
   onNavigateToProfile,
+  adminData, 
+  onLogout
 }: ViewAdminProfileProps) {
   const { token } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -53,9 +58,10 @@ export function ViewAdminProfile({
 
   // Fetch Admin Profile
   useEffect(() => {
+    if (!token) return;
     const fetchProfile = async () => {
-      if (!token) return;
       try {
+        setLoading(true);
         const data = await getAdminProfile(token);
         const profileData = {
           name: data.name || "",
@@ -79,11 +85,16 @@ export function ViewAdminProfile({
     fetchProfile();
   }, [token]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle Input Changes
+  const handleChange = (
+  e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> // Update this line
+  ) => {
     const { id, value } = e.target;
-    setFormData((prev) => ({ ...prev, [id]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
   };
-
   const handleCancel = () => {
     setFormData(originalData); // Restore original data
     setIsEditMode(false);
@@ -184,8 +195,8 @@ export function ViewAdminProfile({
                 disabled={!isEditMode}
               />
 
-              <Field
-                label="Address"
+              <Label htmlFor="address">Address:</Label>
+              <Textarea
                 id="address"
                 value={formData.address}
                 onChange={handleChange}
@@ -265,7 +276,6 @@ export function ViewAdminProfile({
   );
 }
 
-/* ---------- Reusable Field ---------- */
 function Field({
   label,
   id,

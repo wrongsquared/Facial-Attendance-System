@@ -1,7 +1,10 @@
 import './index.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './cont/AuthContext';
-import { loginUser, getNotifications, updateAttendanceRecord as updateAttendanceRecordAPI, getManageUsers, getStudentsForCustomGoals } from './services/api';
+import { loginUser, 
+  getNotifications, 
+  updateAttendanceRecord as updateAttendanceRecordAPI, getStudentsForCustomGoals } from './services/api';
 import { LoginCredentials } from './types/auth';
 import { LoginPage } from './components/LoginPage';
 import { StudentDashboard } from './components/StudentDashboard';
@@ -9,26 +12,11 @@ import { LecturerDashboard } from './components/LecturerDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
 import { PlatformManagerDashboard } from './components/PlatformManagerDashboard';
 import { ManageInstitutionsProfile } from './components/ManageInstitutionsProfile';
-import { ViewInstitutionProfile } from './components/ViewInstitutionProfile';
-import { UpdateInstitutionProfile } from './components/UpdateInstitutionProfile';
-import { CreateInstitutionProfile } from './components/CreateInstitutionProfile';
-import { AdminAttendanceRecords } from './components/AdminAttendanceRecords';
-import { AdminAttendanceReports } from './components/AdminAttendanceReports';
 import { AttendanceReports } from './components/AttendanceReports';
 import { UpdateProfile } from './components/UpdateProfile';
-import { ViewAdminProfile } from './components/ViewAdminProfile';
-import { UpdateAdminProfile } from './components/UpdateAdminProfile';
 import { LecturerTimetable } from './components/LecturerTimetable';
 import { LecturerAttendanceRecords } from './components/LecturerAttendanceRecords';
 import { ManageUserAccounts } from './components/ManageUserAccounts';
-import { ManageBiometricProfile } from './components/ManageBiometricProfile';
-import { ManageUserProfile } from './components/ManageUserProfile';
-import { ManageCustomGoals } from './components/ManageCustomGoals';
-import { CreateCustomGoal } from './components/CreateCustomGoal';
-import { AdminUpdateUserProfile } from './components/AdminUpdateUserProfile';
-import { CreateBiometricProfile } from './components/CreateBiometricProfile';
-import { UpdateBiometricProfile } from './components/UpdateBiometricProfile';
-import { ManualOverride } from './components/ManualOverride';
 import { StudentAttendanceHistory } from './components/StudentAttendanceHistory';
 import { StudentTimetable } from './components/StudentTimetable';
 import { StudentProfile } from './components/StudentProfile';
@@ -45,7 +33,48 @@ import { UpdateLesson } from './components/UpdateLesson';
 import { ManageCourses } from './components/ManageCourses';
 import { CreateCourse } from './components/CreateCourse';
 import { UpdateCourse } from './components/UpdateCourse';
+import { Header } from './components/Header';
+import { HeroSection } from './components/HeroSection';
+import { AboutSection } from './components/AboutSection';
+import { FeaturesSection } from './components/FeaturesSection';
+import { TestimonialsSection } from './components/TestimonialsSection';
+import { Footer } from './components/Footer';
+import { AboutPage } from './components/AboutPage';
+import { FeaturesPage } from './components/FeaturesPage';
+import { ServicesPage } from './components/ServicesPage';
+import { RegistrationPage } from './components/RegistrationPage';
+import { NotificationAlerts } from "./components/NotificationAlerts";
+import { ManageUserProfile } from './components/ManageUserProfile';
+import { AdminAttendanceRecords, AttendanceRecord } from './components/AdminAttendanceRecords';
+import { UpdateAdminProfile } from './components/UpdateAdminProfile';
+import { ViewAdminProfile } from './components/ViewAdminProfile';
+import { AdminAttendanceReports } from './components/AdminAttendanceReports';
+import { ManageCustomGoals } from './components/ManageCustomGoals';
+import { CreateCustomGoal } from './components/CreateCustomGoal';
+import { AdminUpdateUserProfile } from './components/AdminUpdateUserProfile';
+import { ManualOverride } from './components/ManualOverride';
 
+
+const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) => {
+  const { user, token, loading } = useAuth();
+  
+  if (loading) return <div className="flex min-h-screen justify-center items-center">Loading...</div>;
+  if (!token || !user) return <Navigate to="/login" replace />;
+  
+  if (allowedRoles && !allowedRoles.includes(user.role_name.toLowerCase())) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+export default function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
+  );
+}
 // Custom goals API functions
 const updateStudentAttendanceMinimum = async (token: string, userId: string, attendanceMinimum: number) => {
   const response = await fetch(`http://localhost:8000/admin/users/${userId}/attendance-minimum`, {
@@ -74,58 +103,61 @@ const deleteStudentAttendanceMinimum = async (token: string, userId: string) => 
   }
   return response.json();
 };
-import { Header } from './components/Header';
-import { HeroSection } from './components/HeroSection';
-import { AboutSection } from './components/AboutSection';
-import { FeaturesSection } from './components/FeaturesSection';
-import { TestimonialsSection } from './components/TestimonialsSection';
-import { Footer } from './components/Footer';
-import { AboutPage } from './components/AboutPage';
-import { FeaturesPage } from './components/FeaturesPage';
-import { ServicesPage } from './components/ServicesPage';
-import { RegistrationPage } from './components/RegistrationPage';
-import type { AttendanceRecord } from './components/AdminAttendanceRecords';
-import { NotificationAlerts } from "./components/NotificationAlerts";
-import { NotificationItem } from './types/studentinnards';
 
-// User profile data type
-interface UserProfileData {
-  userId: string;
-  name: string;
-  role: string;
-  status: string;
-  email: string;
-  dateOfBirth: string;
-  contactNumber: string;
-  address: string;
-  enrollmentDate: string;
-  associatedModules: string;
-  biometricStatus: string;
-  biometricLastUpdated: string;
-}
+function AppContent() {
+  const { user, login, logout, token } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-type LecturerView = 'dashboard' | 'reports' | 'profile' | 'timetable' | 'records';
-type AdminView = 'dashboard' | 'manageUsers' | 'manageUserProfile' | 'manageCustomGoals' | 'updateUserProfile' | 'createCustomGoal' | 'manageBiometric' | 'createBiometric' | 'updateBiometric' | 'attendanceRecords' | 'adminReports' | 'manualOverride' | 'createUser' | 'updateUser' | 'viewAdminProfile' | 'updateAdminProfile' | 'manageModules' | 'createModule' | 'updateModule' | 'manageLessons' | 'createLesson' | 'updateLesson' | 'manageCourses' | 'createCourse' | 'updateCourse';
-type StudentView = 'dashboard' | 'attendanceHistory' | 'timetable' | 'profile' | 'progress';
-type PlatformManagerView = 'dashboard' | 'manageInstitutions' | 'viewInstitution' | 'updateInstitution' | 'createInstitution';
-type MarketingPage = 'home' | 'about' | 'features' | 'services' | 'registration' | 'login';
-
-export default function App() {
-  const { user, login, logout, loading, token } = useAuth();
-  const [currentPage, setCurrentPage] = useState<MarketingPage>('home');
-  const [lecturerView, setLecturerView] = useState<LecturerView>('dashboard');
-  const [adminView, setAdminView] = useState<AdminView>('dashboard');
-  const [studentView, setStudentView] = useState<StudentView>('dashboard');
-  const [platformManagerView, setPlatformManagerView] = useState<PlatformManagerView>('dashboard');
-  const [moduleRefreshTrigger, setModuleRefreshTrigger] = useState<number>(0);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [notificationAlerts, setNotificationAlerts] = useState<any[]>([]);
+  
+  const [selectedInstitutionData, setSelectedInstitutionData] = useState<any>(null);
   const [moduleToUpdate, setModuleToUpdate] = useState<any>(null);
+  const [selectedStudentData, setSelectedStudentData] = useState<{
+  userId: string;
+  studentName: string;
+  date: string;
+  status: string;
+  lessonId: number;
+} | null>(null);
+  const showToast = (msg: string) => setToastMessage(msg);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+  const [attendanceRefreshTrigger, setAttendanceRefreshTrigger] = useState(0);
+  const [userGoals, setUserGoals] = useState<Record<string, number | null>>({});
+  const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
+  const [goalMetadata, setGoalMetadata] = useState<Record<string, any>>({});
   const [lessonRefreshTrigger, setLessonRefreshTrigger] = useState<number>(0);
   const [courseRefreshTrigger, setCourseRefreshTrigger] = useState<number>(0);
-  const [courseToUpdate, setCourseToUpdate] = useState<any>(null);
   const [lessonToUpdate, setLessonToUpdate] = useState<any>(null);
-  const [selectedInstitutionData, setSelectedInstitutionData] = useState<{
-    institutionId: string;
-    institutionName: string;
+  const [courseToUpdate, setCourseToUpdate] = useState<any>(null);
+  const [selectedCustomGoalUserData, setSelectedCustomGoalUserData] = useState<{
+    userId: string;
+    name: string;
+    role: string;
+    currentGoal: number | null;
+  } | null>(null);
+    const [adminProfileData, setAdminProfileData] = useState({
+    name: "",
+    email: "",
+    contactNumber: "",
+    address: "",
+    emergencyContactName: "",
+    emergencyRelationship: "",
+    emergencyContactNumber: "",
+  });
+
+  const handleSaveAdminProfile = (profileData: any) => {
+    setAdminProfileData(profileData);
+    showToast('Profile updated successfully!');
+    navigate('/admin/profile'); // Navigate back to the view page
+  };
+  const [selectedBiometricUserData, setSelectedBiometricUserData] = useState<{
+    userId: string;
+    name: string;
+    role: string;
   } | null>(null);
   const [selectedUserData, setSelectedUserData] = useState<{
     uuid: string;
@@ -133,194 +165,17 @@ export default function App() {
     role: string;
     status: string;
   } | null>(null);
-  const [selectedStudentData, setSelectedStudentData] = useState<{
-    userId: string;
-    studentName: string;
-    date: string;
-    status: string;
-  } | null>(null);
-  const [attendanceRefreshTrigger, setAttendanceRefreshTrigger] = useState(0);
-  const [selectedBiometricUserData, setSelectedBiometricUserData] = useState<{
-    userId: string;
-    name: string;
-    role: string;
-  } | null>(null);
-  const [selectedCustomGoalUserData, setSelectedCustomGoalUserData] = useState<{
-    userId: string;
-    name: string;
-    role: string;
-    currentGoal: number | null;
-  } | null>(null);
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-
-  const [notificationAlerts, setNotificationAlerts] = useState<NotificationItem[]>([]);
-  // User goals state - mapping userId to goal percentage (null means deleted/no goal)
-  const [userGoals, setUserGoals] = useState<Record<string, number | null>>({
-  });
-
-  // Goal metadata state - tracking when and by whom goals were set/updated
-  const [goalMetadata, setGoalMetadata] = useState<Record<string, {
-    lastUpdated: string;
-    setBy: string;
-  }>>({
-  });
-
-  // User profiles state - comprehensive profile data for all users
-  const [userProfiles, setUserProfiles] = useState<Record<string, UserProfileData>>({
-  });
-
-  // Loading state for student data
-  const [isLoadingStudents, setIsLoadingStudents] = useState(false);
-
-  // Attendance records state
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
-
-  // Toast state
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  useEffect(() => {
-    const fetchAlerts = async () => {
-      // Only fetch if user is logged in AND is a student
-      if (token && user?.role_name.toLowerCase() === 'student') {
-        try {
-          const data = await getNotifications(token);
-          setNotificationAlerts(data);
-        } catch (err) {
-          console.error("Failed to load notifications", err);
-        }
-      }
-    };
-    fetchAlerts();
-  }, [token, user]);
-
-  // Fetch student data for custom goals management
-  useEffect(() => {
-    const fetchStudentData = async () => {
-      if (token && user?.role_name.toLowerCase() === 'admin' && adminView === 'manageCustomGoals') {
-        setIsLoadingStudents(true);
-        try {
-          console.log('Fetching student data for custom goals...');
-
-          // Fetch all students directly from Student table to get all 12 students
-          const studentsData = await getStudentsForCustomGoals(token, '', 'All Status');
-          console.log('Students data received:', studentsData);
-
-          // Transform the data to match the expected userProfiles format
-          const profilesMap: Record<string, any> = {};
-
-          studentsData.forEach((student: any) => {
-            profilesMap[student.uuid] = {
-              userId: student.uuid,
-              name: student.name,
-              role: student.role,
-              status: student.status,
-              email: student.name.toLowerCase().replace(' ', '.') + '@example.com', // Generate email
-              dateOfBirth: 'N/A',
-              contactNumber: 'N/A',
-              address: 'N/A',
-              enrollmentDate: 'N/A',
-              associatedModules: 'N/A',
-              biometricStatus: 'N/A',
-              biometricLastUpdated: 'N/A'
-            };
-
-            // Set the custom goal to attendanceMinimum from database
-            const attendanceGoal = student.attendanceMinimum !== undefined && student.attendanceMinimum !== null && student.attendanceMinimum > 0
-              ? student.attendanceMinimum
-              : null;
-
-            setUserGoals(prev => ({ ...prev, [student.uuid]: attendanceGoal }));
-          });
-
-          setUserProfiles(profilesMap);
-
-        } catch (err) {
-          console.error('Failed to load student data:', err);
-          showToast('Failed to load student data');
-        } finally {
-          setIsLoadingStudents(false);
-        }
-      }
-    };
-
-    fetchStudentData();
-  }, [token, user, adminView]);
-
-  // Admin profile data state
-  const [adminProfileData, setAdminProfileData] = useState({
-    name: "John Smith",
-    email: "john.smith@uow.edu.au",
-    contactNumber: "+61 2 4221 3456",
-    address: "123 Innovation Campus\nSquires Way\nNorth Wollongong NSW 2500\nAustralia",
-    emergencyContactName: "Jane Smith",
-    emergencyRelationship: "Spouse",
-    emergencyContactNumber: "+61 412 345 678",
-  });
-
-  // Institutions state
-  const [institutions, setInstitutions] = useState<Array<{
-    id: string;
-    name: string;
-    status: string;
-    address?: string;
-    adminFullName?: string;
-    adminEmail?: string;
-    adminPhone?: string;
-    tempPassword?: string;
-  }>>([
-    {
-      id: "INS001",
-      name: "University of Wollongong",
-      status: "Active",
-    },
-    {
-      id: "INS002",
-      name: "University of Sydney",
-      status: "Active",
-    },
-    {
-      id: "INS003",
-      name: "University of New South Wales",
-      status: "Active",
-    },
-    {
-      id: "INS004",
-      name: "Monash University",
-      status: "Active",
-    },
-    {
-      id: "INS005",
-      name: "University of Melbourne",
-      status: "Inactive",
-    },
-    {
-      id: "INS006",
-      name: "Australian National University",
-      status: "Active",
-    },
-    {
-      id: "INS007",
-      name: "University of Queensland",
-      status: "Active",
-    },
-  ]);
-
-  // Function to show toast messages
-  const showToast = (message: string) => {
-    setToastMessage(message);
-  };
-
-  const hideToast = () => {
-    setToastMessage(null);
-  };
-
-  // Function to update attendance record
-  const updateAttendanceRecord = async (userId: string, date: string, newStatus: string, reason?: string, adminNotes?: string, lessonId?: number) => {
+  const updateAttendanceRecord = async (
+    userId: string, 
+    date: string, 
+    newStatus: string, 
+    reason?: string, 
+    adminNotes?: string, 
+    lessonId?: number
+  ) => {
     try {
-      if (!token) {
-        throw new Error("No authentication token available");
-      }
+      if (!token) throw new Error("No authentication token available");
 
-      // Call the API to update the record in the database
       await updateAttendanceRecordAPI(token, {
         user_id: userId,
         date: date,
@@ -330,7 +185,6 @@ export default function App() {
         lesson_id: lessonId
       });
 
-      // Update the local state for immediate UI feedback
       setAttendanceRecords(prev =>
         prev.map(record =>
           record.userId === userId && record.date === date
@@ -338,891 +192,464 @@ export default function App() {
             : record
         )
       );
-
-      // Trigger refresh of attendance records in AdminAttendanceRecords component
-      // This will be handled by the component's useEffect when we navigate back
+      setAttendanceRefreshTrigger(prev => prev + 1);
 
     } catch (error) {
       console.error("Failed to update attendance record:", error);
-      throw error; // Re-throw so ManualOverride component can handle the error
+      throw error; 
     }
   };
-
-  // Login Logic
-  const handleLogin = async (creds: LoginCredentials, _selectedRole: string) => {
-    try {
-      // Call the API
-      const data = await loginUser(creds);
-
-      // Optional: Check Role Mismatch
-      // Ensure the backend role matches the tab the user selected
-      //if (data.role_name.toLowerCase() !== selectedRole.toLowerCase()) {
-      // throw new Error(`Account found, but you are a ${data.role_name}. Please select the ${data.role_name} tab.`);
-      //}
-
-      // Save to Context (Redirects automatically)
-      login(data);
-
-      // Reset views to default
-      setLecturerView('dashboard');
-      setAdminView('dashboard');
-      setStudentView('dashboard');
-      setPlatformManagerView('dashboard');
-
-
-    } catch (error: any) {
-      console.error("Login Error:", error);
-      alert(error.message || "Login failed");
-    }
-  };
-
-  // NEW LOGOUT LOGIC
   const handleLogout = () => {
-
-    // Run the Context logic (Server call + Local cleanup)
     logout();
-
-    // Reset your local view states (Clean slate for next user)
-    setLecturerView('dashboard');
-    setAdminView('dashboard');
-    setStudentView('dashboard');
-    setPlatformManagerView('dashboard');
+    navigate('/');
   };
-
-  const handleNavigateToReports = () => {
-    setLecturerView('reports');
+  const handleUpdateUserProfile = (userId: string, profileData: any) => {
+    setUserProfiles(prev => ({
+      ...prev,
+      [userId]: {
+        ...prev[userId],
+        ...profileData,
+        userId, 
+      }
+    }));
+    showToast("Profile updated successfully");
   };
-
-  const handleNavigateToProfile = () => {
-    setLecturerView('profile');
-  };
-
-  const handleNavigateToTimetable = () => {
-    setLecturerView('timetable');
-  };
-
-  const handleNavigateToRecords = () => {
-    setLecturerView('records');
-  };
-
-  const handleBackToDashboard = () => {
-    setLecturerView('dashboard');
-  };
-
-  const handleNavigateToManageUsers = () => {
-    setAdminView('manageUsers');
-  };
-
-  const handleBackToAdminDashboard = () => {
-    setAdminView('dashboard');
-  };
-
-  const handleNavigateToCreateUser = () => {
-    setAdminView('createUser');
-  };
-
-  const handleBackToManageUsers = () => {
-    setAdminView('manageUsers');
-  };
-
-  const handleNavigateToUpdateUser = (userData: {
-    uuid: string;
-    name: string;
-    role: string;
-    status: string;
-  }) => {
-    setSelectedUserData(userData);
-    setAdminView('updateUser');
-  };
-
-  const handleNavigateToManageUserProfile = () => {
-    setAdminView('manageUserProfile');
-  };
-
-  const handleNavigateToManageCustomGoals = () => {
-    setAdminView('manageCustomGoals');
-  };
-
-  const handleNavigateToManageModules = () => {
-    setAdminView('manageModules');
-  };
-
-  const handleNavigateToCreateModule = () => {
-    setAdminView('createModule');
-  };
-
-  const handleNavigateToUpdateModule = (moduleData: any) => {
-    setModuleToUpdate(moduleData);
-    setAdminView('updateModule');
-  };
-
-  const handleNavigateToManageLessons = () => {
-    setAdminView('manageLessons');
-  };
-
-  const handleNavigateToCreateLesson = () => {
-    setAdminView('createLesson');
-  };
-
-  const handleNavigateToUpdateLesson = (lessonData: any) => {
-    setLessonToUpdate(lessonData);
-    setAdminView('updateLesson');
-  };
-
-  const handleNavigateToManageCourses = () => {
-    setAdminView('manageCourses');
-  };
-
-  const handleNavigateToCreateCourse = () => {
-    setAdminView('createCourse');
-  };
-
-  const handleNavigateToUpdateCourse = (courseData: any) => {
-    setCourseToUpdate(courseData);
-    setAdminView('updateCourse');
-  };
-
-  const handleNavigateToBiometricProfile = () => {
-    setAdminView('manageBiometric');
-  };
-
-  const handleNavigateToCreateBiometric = (userData: {
-    userId: string;
-    name: string;
-    role: string;
-  }) => {
-    setSelectedBiometricUserData(userData);
-    setAdminView('createBiometric');
-  };
-
-  const handleNavigateToUpdateBiometric = (userData: {
-    userId: string;
-    name: string;
-    role: string;
-  }) => {
-    setSelectedBiometricUserData(userData);
-    setAdminView('updateBiometric');
-  };
-
-  const handleBackToBiometricProfile = () => {
-    setAdminView('manageBiometric');
-  };
-
-  const handleNavigateToCreateCustomGoalFromManageGoals = (userData: {
-    userId: string;
-    name: string;
-    role: string;
-    currentGoal: number | null;
-  }) => {
-    setSelectedCustomGoalUserData(userData);
-    setAdminView('createCustomGoal');
-  };
-
-  const handleNavigateToCreateCustomGoal = (userData: {
-    userId: string;
-    name: string;
-    role: string;
-    currentGoal: number | null;
-  }) => {
-    setSelectedCustomGoalUserData(userData);
-    setAdminView('createCustomGoal');
-  };
-
-  const handleBackToManageUserProfile = () => {
-    setAdminView('manageUserProfile');
-  };
-
-  const handleBackToManageCustomGoals = () => {
-    setAdminView('manageCustomGoals');
-  };
-
-  const handleBackFromCustomGoal = () => {
-  };
-
-  const handleUpdateUserGoal = async (userId: string, goal: number) => {
+  const handleLogin = async (creds: any) => {
     try {
-      // Update in database
-      await updateStudentAttendanceMinimum(token!, userId, goal);
+      const data = await loginUser(creds);
+      login(data);
+      // Redirect based on role
+      const role = data.role_name.toLowerCase();
+      if (role === 'student') navigate('/student');
+      else if (role === 'lecturer') navigate('/lecturer');
+      else if (role === 'admin') navigate('/admin');
+      else if (role === 'pmanager') navigate('/pmanager');
+    } catch (err: any) {
+      alert(err.message || "Login failed");
+    }
+  };
+const handleUpdateUserGoal = async (userId: string, goal: number) => {
+    try {
+      if (!token) return;
+      
+      // 1. Call the API (ensure updateStudentAttendanceMinimum is imported)
+      await updateStudentAttendanceMinimum(token, userId, goal);
 
-      // Update frontend state
+      // 2. Update the local goals list
       setUserGoals(prev => ({
         ...prev,
         [userId]: goal
       }));
 
-      // Update metadata when goal is created/updated
+      // 3. Update metadata (to show who set the goal and when)
       const now = new Date();
       const dateTime = now.toLocaleString('en-AU', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
+        day: 'numeric', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: true
       });
 
       setGoalMetadata(prev => ({
         ...prev,
         [userId]: {
           lastUpdated: dateTime,
-          setBy: user?.name || "Admin User"
+          setBy: user?.name || "Admin"
         }
       }));
 
-      const studentName = userProfiles[userId]?.name || 'student';
-      showToast(`Goal ${goal}% set successfully for ${studentName}`);
+      showToast(`Goal set to ${goal}% successfully`);
     } catch (error) {
       console.error('Failed to update goal:', error);
       showToast('Failed to update goal. Please try again.');
     }
   };
-  const handleDismissAlert = (alertId: string) => {
-    setNotificationAlerts((prev) => prev.filter((alert) => alert.id !== alertId));
-  };
-  const handleDeleteUserGoal = async (userId: string, userName?: string) => {
-    try {
-      // Delete from database
-      await deleteStudentAttendanceMinimum(token!, userId);
 
-      // Update frontend state
+  const handleDeleteUserGoal = async (userId: string) => {
+    try {
+      if (!token) return;
+
+      // 1. Call the API (ensure deleteStudentAttendanceMinimum is imported)
+      await deleteStudentAttendanceMinimum(token, userId);
+
+      // 2. Clear the local state
       setUserGoals(prev => ({
         ...prev,
         [userId]: null
       }));
 
-      // Remove metadata for deleted goal
+      // 3. Remove metadata
       setGoalMetadata(prev => {
         const updated = { ...prev };
         delete updated[userId];
         return updated;
       });
 
-      const studentName = userName || userProfiles[userId]?.name || 'student';
-      showToast(`Goal removed successfully for ${studentName}`);
+      showToast('Goal removed successfully');
     } catch (error) {
       console.error('Failed to delete goal:', error);
-      showToast('Failed to remove goal. Please try again.');
+      showToast('Failed to remove goal.');
     }
   };
-
-  const handleUpdateUserProfile = (userId: string, profileData: Omit<UserProfileData, 'userId'>) => {
-    // Store the old name before updating
-    const oldName = userProfiles[userId]?.name;
-
-    setUserProfiles(prev => ({
-      ...prev,
-      [userId]: {
-        ...prev[userId],
-        ...profileData,
-        userId, // Ensure userId is preserved
-      }
-    }));
-
-    // Also update attendance records if name changed
-    if (profileData.name && oldName !== profileData.name) {
-      setAttendanceRecords(prevRecords =>
-        prevRecords.map(record =>
-          record.userId === userId
-            ? { ...record, studentName: profileData.name }
-            : record
-        )
-      );
-    }
-  };
-
-  const handleNavigateToUpdateUserProfile = (userData: {
-    userId: string;
-    name: string;
-    role: string;
-  }) => {
-    setSelectedBiometricUserData(userData);
-    setAdminView('updateUserProfile');
-  };
-
-  const handleNavigateToAdminAttendanceRecords = () => {
-    setAdminView('attendanceRecords');
-  };
-
-  const handleNavigateToAdminReports = () => {
-    setAdminView('adminReports');
-  };
-
-  const handleNavigateToManualOverride = (studentData: {
-    userId: string;
-    studentName: string;
-    date: string;
-    status: string;
-  }) => {
-    setSelectedStudentData(studentData);
-    setAdminView('manualOverride');
-  };
-
-  const handleBackToAttendanceRecords = () => {
-    setAdminView('attendanceRecords');
-    // Trigger refresh of attendance records
-    setAttendanceRefreshTrigger(prev => {
-      const newValue = prev + 1;
-      return newValue;
-    });
-  };
-
-  const handleNavigateToAdminProfile = () => {
-    setAdminView('viewAdminProfile');
-  };
-
-  const handleNavigateToUpdateAdminProfile = () => {
-    setAdminView('updateAdminProfile');
-  };
-
-  const handleBackToViewAdminProfile = () => {
-    setAdminView('viewAdminProfile');
-  };
-
-  const handleSaveAdminProfile = (profileData: {
-    name: string;
-    email: string;
-    contactNumber: string;
-    address: string;
-    emergencyContactName: string;
-    emergencyRelationship: string;
-    emergencyContactNumber: string;
-  }) => {
-    // Update the admin profile state
-    setAdminProfileData(profileData);
-    showToast('Profile updated successfully!');
-    setAdminView('viewAdminProfile');
-  };
-
-  const handleNavigateToAttendanceHistory = () => {
-    setStudentView('attendanceHistory');
-  };
-
-  const handleBackToStudentDashboard = () => {
-    setStudentView('dashboard');
-  };
-
-  const handleNavigateToStudentTimetable = () => {
-    setStudentView('timetable');
-  };
-
-
-  const handleNavigateToStudentProfile = () => {
-    setStudentView('profile');
-  };
-
-  const handleNavigateToStudentProgress = () => {
-    setStudentView('progress');
-  };
-
-  const handleNavigateToInstitutionsProfile = () => {
-    setPlatformManagerView('manageInstitutions');
-  };
-
-  const handleBackToPlatformManagerDashboard = () => {
-    setPlatformManagerView('dashboard');
-  };
-
-  const handleNavigateToCreateProfile = () => {
-    setPlatformManagerView('createInstitution');
-  };
-
-  const handleCreateInstitution = (institutionData: {
-    institutionName: string;
-    address: string;
-    fullName: string;
-    email: string;
-    phoneNumber: string;
-    tempPassword: string;
-  }) => {
-    // Generate new institution ID
-    const newId = `INS${String(institutions.length + 1).padStart(3, '0')}`;
-
-    // Add new institution to the list
-    const newInstitution = {
-      id: newId,
-      name: institutionData.institutionName,
-      status: "Active",
-      address: institutionData.address,
-      adminFullName: institutionData.fullName,
-      adminEmail: institutionData.email,
-      adminPhone: institutionData.phoneNumber,
-      tempPassword: institutionData.tempPassword,
-    };
-
-    setInstitutions(prev => [...prev, newInstitution]);
-
-    // Show success toast
-    showToast(`Institution "${institutionData.institutionName}" created successfully!`);
-
-    // Navigate back to manage institutions
-    setPlatformManagerView('manageInstitutions');
-  };
-
-  const handleNavigateToViewInstitution = (institutionData: {
-    institutionId: string;
-    institutionName: string;
-  }) => {
-    setSelectedInstitutionData(institutionData);
-    setPlatformManagerView('viewInstitution');
-  };
-
-  const handleBackToManageInstitutions = () => {
-    setPlatformManagerView('manageInstitutions');
-  };
-
-  const handleNavigateToEditInstitution = () => {
-    setPlatformManagerView('updateInstitution');
-  };
-
-  const handleBackToViewInstitution = () => {
-    setPlatformManagerView('viewInstitution');
-  };
-  const handleOpenNotifications = () => {
-    setIsNotificationOpen(true);
-  };
-  const handleUpdateInstitution = (updatedData: {
-    institutionId: string;
-    institutionName: string;
-    institutionType?: string;
-    address?: string;
-    status?: "Active" | "Inactive";
-    adminFullName?: string;
-    adminEmail?: string;
-    adminPhone?: string;
-  }) => {
-    // Update the selected institution data
-    setSelectedInstitutionData({
-      institutionId: updatedData.institutionId,
-      institutionName: updatedData.institutionName,
-    });
-    // In a real app, this would make an API call to update the backend
-    console.log("Institution updated in App.tsx:", updatedData);
-  };
-
-  // Make setCurrentPage available globally for navigation from marketing website Header
-  (window as any).navigateTo = setCurrentPage;
-
-  // Show marketing website pages if no user is logged in
-  if (!user) {
-    // Marketing page - About
-    if (currentPage === 'about') {
-      return <AboutPage />;
-    }
-
-    // Marketing page - Features
-    if (currentPage === 'features') {
-      return <FeaturesPage />;
-    }
-
-    // Marketing page - Services
-    if (currentPage === 'services') {
-      return <ServicesPage />;
-    }
-
-    // Marketing page - Registration
-    if (currentPage === 'registration') {
-      return <RegistrationPage />;
-    }
-
-    // Marketing page - Login
-    if (currentPage === 'login') {
-      return <LoginPage onLogin={handleLogin} />;
-    }
-
-    // Marketing page - Home (default)
-    return (
-      <div className="min-h-screen bg-black">
-        <Header />
-        <main>
-          <HeroSection />
-          <AboutSection />
-          <FeaturesSection />
-          <TestimonialsSection />
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  // Normalize to lowercase to match strict comparisons
-  const userRole = user.role_name.toLowerCase();
-
-
-  if (loading) {
-    return <div className="flex min-h-screen justify-center items-center">Loading...</div>;
-  }
-  // Show appropriate dashboard based on user type
   return (
     <div className="flex flex-col min-h-screen">
-      {userRole === 'student' && studentView === 'dashboard' && (
-        <StudentDashboard
-          onLogout={handleLogout}
-          onNavigateToAttendanceHistory={handleNavigateToAttendanceHistory}
-          onNavigateToTimetable={handleNavigateToStudentTimetable}
-          onNavigateToProfile={handleNavigateToStudentProfile}
-          onNavigateToProgress={handleNavigateToStudentProgress}
-          onOpenNotifications={handleOpenNotifications}
-        />
-      )}
-      {userRole === 'student' && studentView === 'attendanceHistory' && (
-        <StudentAttendanceHistory
-          onLogout={handleLogout}
-          onBack={handleBackToStudentDashboard}
-          onNavigateToProfile={handleNavigateToStudentProfile}
-          onOpenNotifications={handleOpenNotifications}
-        />
-      )}
-      {userRole === 'student' && studentView === 'timetable' && (
-        <StudentTimetable
-          onLogout={handleLogout}
-          onBack={handleBackToStudentDashboard}
-          onNavigateToProfile={handleNavigateToStudentProfile}
-          onOpenNotifications={handleOpenNotifications}
-        />
-      )}
-      {userRole === 'student' && studentView === 'profile' && (
-        <StudentProfile
-          onLogout={handleLogout}
-          onBack={handleBackToStudentDashboard}
-          onNavigateToProfile={handleNavigateToStudentProfile}
-          onOpenNotifications={handleOpenNotifications}
-        />
-      )}
-      {userRole === 'student' && studentView === 'progress' && (
-        <StudentProgressTracker
-          onLogout={handleLogout}
-          onBack={handleBackToStudentDashboard}
-          onNavigateToProfile={handleNavigateToStudentProfile}
-          onOpenNotifications={handleOpenNotifications}
-        />
-      )}
-      {userRole === 'lecturer' && lecturerView === 'dashboard' && (
-        <LecturerDashboard
-          onLogout={handleLogout}
-          onNavigateToReports={handleNavigateToReports}
-          onNavigateToProfile={handleNavigateToProfile}
-          onNavigateToTimetable={handleNavigateToTimetable}
-          onNavigateToRecords={handleNavigateToRecords}
-        />
-      )}
-      {userRole === 'lecturer' && lecturerView === 'reports' && (
-        <AttendanceReports
-          onLogout={handleLogout}
-          onBack={handleBackToDashboard}
-          onNavigateToProfile={handleNavigateToProfile}
-        />
-      )}
-      {userRole === 'lecturer' && lecturerView === 'profile' && (
-        <UpdateProfile
-          onLogout={handleLogout}
-          onBack={handleBackToDashboard}
-          onNavigateToProfile={handleNavigateToProfile}
-        />
-      )}
-      {userRole === 'lecturer' && lecturerView === 'timetable' && (
-        <LecturerTimetable
-          onLogout={handleLogout}
-          onBack={handleBackToDashboard}
-          onNavigateToProfile={handleNavigateToProfile}
-        />
-      )}
-      {userRole === 'lecturer' && lecturerView === 'records' && (
-        <LecturerAttendanceRecords
-          onLogout={handleLogout}
-          onBack={handleBackToDashboard}
-          onNavigateToProfile={handleNavigateToProfile}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'dashboard' && (
-        <AdminDashboard
-          onLogout={handleLogout}
-          onNavigateToManageUsers={handleNavigateToManageUsers}
-          onNavigateToManageUserProfile={handleNavigateToManageUserProfile}
-          onNavigateToManageCustomGoals={handleNavigateToManageCustomGoals}
-          onNavigateToBiometricProfile={handleNavigateToBiometricProfile}
-          onNavigateToAttendanceRecords={handleNavigateToAdminAttendanceRecords}
-          onNavigateToReports={handleNavigateToAdminReports}
-          onNavigateToProfile={handleNavigateToAdminProfile}
-          onNavigateToManageModules={handleNavigateToManageModules}
-          onNavigateToManageLessons={handleNavigateToManageLessons}
-          onNavigateToManageCourses={handleNavigateToManageCourses}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'manageUsers' && (
-        <ManageUserAccounts
-          onLogout={handleLogout}
-          onBack={handleBackToAdminDashboard}
-          onCreateUser={handleNavigateToCreateUser}
-          onUpdateUser={handleNavigateToUpdateUser}
-          onNavigateToProfile={handleNavigateToAdminProfile}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'createUser' && (
-        <CreateUser
-          onLogout={handleLogout}
-          onBack={handleBackToManageUsers}
-          onCreateSuccess={handleBackToManageUsers}
-          onNavigateToProfile={handleNavigateToAdminProfile}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'updateUser' && selectedUserData && (
-        <UpdateUser
-          onLogout={handleLogout}
-          onBack={handleBackToManageUsers}
-          onUpdateSuccess={handleBackToManageUsers}
-          onNavigateToProfile={handleNavigateToAdminProfile}
-          userData={selectedUserData}
-          showToast={showToast}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'manageUserProfile' && (
-        <ManageUserProfile
-          onLogout={handleLogout}
-          onBack={handleBackToAdminDashboard}
-          onNavigateToCreateCustomGoal={handleNavigateToCreateCustomGoalFromManageGoals}
-          onNavigateToUpdateUserProfile={handleNavigateToUpdateUserProfile}
-          userGoals={userGoals}
-          userProfiles={userProfiles}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'manageCustomGoals' && (
-        <ManageCustomGoals
-          onBack={handleBackToAdminDashboard}
-          onNavigateToProfile={handleNavigateToAdminProfile}
-          onCreateGoal={handleUpdateUserGoal}
-          onUpdateGoal={handleUpdateUserGoal}
-          onDeleteGoal={handleDeleteUserGoal}
-          showToast={showToast}
-          userGoals={userGoals}
-          userProfiles={userProfiles}
-          goalMetadata={goalMetadata}
-          loading={isLoadingStudents}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'manageModules' && (
-        <ManageModules
-          onBack={handleBackToAdminDashboard}
-          onNavigateToProfile={handleNavigateToAdminProfile}
-          onNavigateToCreateModule={handleNavigateToCreateModule}
-          onNavigateToUpdateModule={handleNavigateToUpdateModule}
-          refreshTrigger={moduleRefreshTrigger}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'createModule' && (
-        <CreateModule
-          onBack={() => {
-            setModuleRefreshTrigger(prev => prev + 1);
-            setAdminView('manageModules');
-          }}
-          onLogout={handleLogout}
-          onNavigateToProfile={handleNavigateToAdminProfile}
-        />
-      )}
+      <Routes>
+        <Route path="/" element={!token ? <LandingPage /> : <Navigate to={`/${user?.role_name.toLowerCase()}`} />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/services" element={<ServicesPage />} />
+        <Route path="/registration" element={<RegistrationPage />} />
+        <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
 
-      {userRole === 'admin' && adminView === 'updateModule' && moduleToUpdate && (
-        <UpdateModule
-          moduleData={moduleToUpdate}
-          onBack={() => {
-            setModuleRefreshTrigger(prev => prev + 1);
-            setAdminView('manageModules');
-            setModuleToUpdate(null);
-          }}
-          onLogout={handleLogout}
-          onNavigateToProfile={handleNavigateToAdminProfile}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'manageLessons' && (
-        <ManageLessons
-          onBack={handleBackToAdminDashboard}
-          onLogout={handleLogout}
-          onNavigateToProfile={handleNavigateToAdminProfile}
-          onNavigateToCreateLesson={handleNavigateToCreateLesson}
-          onNavigateToUpdateLesson={handleNavigateToUpdateLesson}
-          refreshTrigger={lessonRefreshTrigger}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'manageCourses' && (
-        <ManageCourses
-          onBack={handleBackToAdminDashboard}
-          onLogout={handleLogout}
-          onNavigateToProfile={handleNavigateToAdminProfile}
-          onNavigateToCreateCourse={handleNavigateToCreateCourse}
-          onNavigateToUpdateCourse={handleNavigateToUpdateCourse}
-          refreshTrigger={courseRefreshTrigger}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'createCourse' && (
-        <CreateCourse
-          onBack={() => {
-            setCourseRefreshTrigger(prev => prev + 1);
-            setAdminView('manageCourses');
-          }}
-          onLogout={handleLogout}
-          onNavigateToProfile={handleNavigateToAdminProfile}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'updateCourse' && courseToUpdate && (
-        <UpdateCourse
-          onBack={() => {
-            setCourseRefreshTrigger(prev => prev + 1);
-            setAdminView('manageCourses');
-          }}
-          onLogout={handleLogout}
-          onNavigateToProfile={handleNavigateToAdminProfile}
-          courseData={courseToUpdate}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'createLesson' && (
-        <CreateLesson
-          onBack={() => {
-            setLessonRefreshTrigger(prev => prev + 1);
-            setAdminView('manageLessons');
-          }}
-          onLogout={handleLogout}
-          onNavigateToProfile={handleNavigateToAdminProfile}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'updateLesson' && lessonToUpdate && (
-        <UpdateLesson
-          lessonData={lessonToUpdate}
-          onBack={() => {
-            setLessonRefreshTrigger(prev => prev + 1);
-            setAdminView('manageLessons');
-            setLessonToUpdate(null);
-          }}
-          onLogout={handleLogout}
-          onNavigateToProfile={handleNavigateToAdminProfile}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'updateUserProfile' && selectedBiometricUserData && (
-        <AdminUpdateUserProfile
-          onLogout={handleLogout}
-          onBack={handleBackToManageUserProfile}
-          onNavigateToBiometricProfile={handleNavigateToBiometricProfile}
-          userData={selectedBiometricUserData}
-          userProfileData={userProfiles[selectedBiometricUserData.userId]}
-          onUpdateProfile={handleUpdateUserProfile}
-          showToast={showToast}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'createCustomGoal' && selectedCustomGoalUserData && (
-        <CreateCustomGoal
-          onLogout={handleLogout}
-          onBack={handleBackFromCustomGoal}
-          userData={selectedCustomGoalUserData}
-          onCreateGoal={handleUpdateUserGoal}
-          showToast={showToast}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'manageBiometric' && (
-        <ManageBiometricProfile
-          onLogout={handleLogout}
-          onBack={handleBackToAdminDashboard}
-          onNavigateToCreateBiometric={handleNavigateToCreateBiometric}
-          onNavigateToUpdateBiometric={handleNavigateToUpdateBiometric}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'createBiometric' && selectedBiometricUserData && (
-        <CreateBiometricProfile
-          onLogout={handleLogout}
-          onBack={handleBackToBiometricProfile}
-          userData={selectedBiometricUserData}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'updateBiometric' && selectedBiometricUserData && (
-        <UpdateBiometricProfile
-          onLogout={handleLogout}
-          onBack={handleBackToBiometricProfile}
-          userData={selectedBiometricUserData}
-          showToast={showToast}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'attendanceRecords' && (
-        <AdminAttendanceRecords
-          onLogout={handleLogout}
-          onBack={handleBackToAdminDashboard}
-          onNavigateToProfile={handleNavigateToAdminProfile}
-          onNavigateToManualOverride={handleNavigateToManualOverride}
-          attendanceRecords={attendanceRecords}
-          updateAttendanceRecord={updateAttendanceRecord}
-          refreshTrigger={attendanceRefreshTrigger}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'manualOverride' && selectedStudentData && (
-        <ManualOverride
-          onLogout={handleLogout}
-          onBack={handleBackToAttendanceRecords}
-          studentData={selectedStudentData}
-          showToast={showToast}
-          updateAttendanceRecord={updateAttendanceRecord}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'adminReports' && (
-        <AdminAttendanceReports
-          onNavigateToProfile={handleNavigateToAdminProfile}
-          onLogout={handleLogout}
-          onBack={handleBackToAdminDashboard} />
-      )}
-      {userRole === 'admin' && adminView === 'viewAdminProfile' && (
-        <ViewAdminProfile
-          onLogout={handleLogout}
-          onBack={handleBackToAdminDashboard}
-          onUpdateProfile={handleNavigateToUpdateAdminProfile}
-          onSave={handleSaveAdminProfile}
-          adminData={adminProfileData}
-        />
-      )}
-      {userRole === 'admin' && adminView === 'updateAdminProfile' && (
-        <UpdateAdminProfile
-          onLogout={handleLogout}
-          onBack={handleBackToViewAdminProfile}
-          onSave={handleSaveAdminProfile}
-          adminData={adminProfileData}
-        />
-      )}
-      {userRole === 'pmanager' && platformManagerView === 'dashboard' && (
-        <PlatformManagerDashboard
-          onLogout={handleLogout}
-          onNavigateToInstitutionsProfile={handleNavigateToInstitutionsProfile}
-        />
-      )}
-      {userRole === 'pmanager' && platformManagerView === 'manageInstitutions' && (
-        <ManageInstitutionsProfile
-          onLogout={handleLogout}
-          onBack={handleBackToPlatformManagerDashboard}
-          onCreateProfile={handleNavigateToCreateProfile}
-          onViewProfile={handleNavigateToViewInstitution}
-        />
-      )}
-      {userRole === 'pmanager' && platformManagerView === 'viewInstitution' && selectedInstitutionData && (
-        <ViewInstitutionProfile
-          onLogout={handleLogout}
-          onBack={handleBackToManageInstitutions}
-          onEditProfile={handleNavigateToEditInstitution}
-          institutionData={selectedInstitutionData}
-        />
-      )}
-      {userRole === 'pmanager' && platformManagerView === 'updateInstitution' && selectedInstitutionData && (
-        <UpdateInstitutionProfile
-          onLogout={handleLogout}
-          onBack={handleBackToViewInstitution}
-          institutionData={selectedInstitutionData}
-        />
-      )}
-      {userRole === 'pmanager' && platformManagerView === 'createInstitution' && (
-        <CreateInstitutionProfile
-          onLogout={handleLogout}
-          onBack={handleBackToManageInstitutions}
-          onCreate={handleCreateInstitution}
-        />
-      )}
-      <Toast message={toastMessage} onClose={hideToast} />
+                {/* --- STUDENT ROUTES --- */}
+        <Route path="/student" element={<ProtectedRoute allowedRoles={['student']}>
+                                        <StudentDashboard 
+                                        onLogout={handleLogout} 
+                                        onNavigateToAttendanceHistory={() => navigate('/student/history')} 
+                                        onNavigateToTimetable={() => navigate('/student/timetable')} 
+                                        onNavigateToProfile={() => navigate('/student/profile')} 
+                                        onNavigateToProgress={() => navigate('/student/progress')} 
+                                        onOpenNotifications={() => setIsNotificationOpen(true)} />
+                                        </ProtectedRoute>} />
+        <Route path="/student/history" element={<ProtectedRoute allowedRoles={['student']}>
+                                                <StudentAttendanceHistory 
+                                                onLogout={handleLogout} 
+                                                onBack={() => navigate('/student')} 
+                                                onNavigateToProfile={() => navigate('/student/profile')} 
+                                                onOpenNotifications={() => setIsNotificationOpen(true)} />
+                                                </ProtectedRoute>} />
+        <Route path="/student/timetable" element={<ProtectedRoute allowedRoles={['student']}>
+                                                  <StudentTimetable 
+                                                  onLogout={handleLogout} 
+                                                  onBack={() => navigate('/student')} 
+                                                  onNavigateToProfile={() => navigate('/student/profile')} 
+                                                  onOpenNotifications={() => setIsNotificationOpen(true)} />
+                                                  </ProtectedRoute>} />
+        <Route path="/student/progress" element={<ProtectedRoute allowedRoles={['student']}>
+                                                  <StudentProgressTracker 
+                                                  onLogout={handleLogout} 
+                                                  onBack={() => navigate('/student')} 
+                                                  onNavigateToProfile={() => navigate('/student/profile')} 
+                                                  onOpenNotifications={() => setIsNotificationOpen(true)} />
+                                                  </ProtectedRoute>} />
+        <Route path="/student/profile" element={<ProtectedRoute allowedRoles={['student']}><StudentProfile onLogout={handleLogout} onBack={() => navigate('/student')} onNavigateToProfile={() => navigate('/student/profile')} onOpenNotifications={() => setIsNotificationOpen(true)} /></ProtectedRoute>} />
+        {/* Lecturer Routes */}
+        <Route path="/lecturer" element={<ProtectedRoute allowedRoles={['lecturer']}>
+                                                  <LecturerDashboard 
+                                                  onLogout={handleLogout} 
+                                                  onNavigateToReports={() => navigate('/lecturer/reports')} 
+                                                  onNavigateToProfile={() => navigate('/lecturer/profile')} 
+                                                  onNavigateToTimetable={() => navigate('/lecturer/timetable')} 
+                                                  onNavigateToRecords={() => navigate('/lecturer/records')} />
+                                                  </ProtectedRoute>} />
+        <Route path="/lecturer/reports" element={<ProtectedRoute allowedRoles={['lecturer']}>
+                                                  <AttendanceReports 
+                                                  onLogout={handleLogout} 
+                                                  onBack={() => navigate('/lecturer')} 
+                                                  onNavigateToProfile={() => navigate('/lecturer/profile')} />
+                                                  </ProtectedRoute>} />
+        <Route path="/lecturer/profile" element={<ProtectedRoute allowedRoles={['lecturer']}>
+                                                  <UpdateProfile 
+                                                    onLogout={handleLogout} 
+                                                    onBack={() => navigate('/lecturer')} 
+                                                    onNavigateToProfile={() => navigate('/lecturer/profile')} />
+                                                  </ProtectedRoute>} />
+        <Route path="/lecturer/timetable" element={<ProtectedRoute allowedRoles={['lecturer']}>
+                                                    <LecturerTimetable 
+                                                      onLogout={handleLogout} 
+                                                      onBack={() => navigate('/lecturer')} 
+                                                      onNavigateToProfile={() => navigate('/lecturer/profile')}/>
+                                                    </ProtectedRoute>}/>
+          <Route path="/lecturer/records" element={<ProtectedRoute allowedRoles={['lecturer']}>
+                                                  <LecturerAttendanceRecords 
+                                                    onLogout={handleLogout} 
+                                                    onBack={() => navigate('/lecturer')} 
+                                                    onNavigateToProfile={() => navigate('/lecturer/profile')} 
+                                                  />
+                                                </ProtectedRoute>
+                                              } 
+                                            />
+        <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}>
+                                      <AdminDashboard 
+                                      onLogout={handleLogout} 
+                                      onNavigateToManageUsers={() => navigate('/admin/users')} 
+                                      onNavigateToManageModules={() => navigate('/admin/modules')} 
+                                      onNavigateToManageLessons={() => navigate('/admin/lessons')}
+                                      onNavigateToManageUserProfile={() => navigate('/admin/user-profiles')} 
+                                      onNavigateToManageCustomGoals={() => navigate('/admin/goals')} 
+                                      onNavigateToBiometricProfile={() => navigate('/admin/biometrics')}
+                                      onNavigateToManageCourses={() => navigate('/admin/courses')} 
+                                      onNavigateToAttendanceRecords={() => navigate('/admin/records')} 
+                                      onNavigateToReports={() => navigate('/admin/reports')} 
+                                      onNavigateToProfile={() => navigate('/admin/profile')} />
+                                      </ProtectedRoute>} />
+        <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}>
+                                            <ManageUserAccounts 
+                                            onLogout={handleLogout} 
+                                            onBack={() => navigate('/admin')} 
+                                            onCreateUser={() => navigate('/admin/users/create')} 
+                                            onUpdateUser={(data) => { setSelectedUserData(data); navigate('/admin/users/update'); }} 
+                                            onNavigateToProfile={() => navigate('/admin/profile')} />
+                                            </ProtectedRoute>} />
+        <Route path="/admin/users/create" element={<ProtectedRoute allowedRoles={['admin']}>
+                                                  <CreateUser 
+                                                  onLogout={handleLogout} 
+                                                  onBack={() => navigate('/admin/users')} 
+                                                  onCreateSuccess={() => navigate('/admin/users')} 
+                                                  onNavigateToProfile={() => navigate('/admin/profile')} />
+                                                  </ProtectedRoute>} />
+        <Route path="/admin/users/update" element={<ProtectedRoute allowedRoles={['admin']}>
+                                                  {selectedUserData ? (
+                                                    <UpdateUser
+                                                      userData={selectedUserData}
+                                                      onLogout={handleLogout}
+                                                      onBack={() => navigate('/admin/users')}
+                                                      onUpdateSuccess={() => navigate('/admin/users')}
+                                                      onNavigateToProfile={() => navigate('/admin/profile')}
+                                                      showToast={showToast}
+                                                    />
+                                                  ) : (
+                                                    <Navigate to="/admin/users" replace />
+                                                  )}
+                                                </ProtectedRoute>
+                                              } 
+                                            />
+
+        <Route path="/admin/records" element={<ProtectedRoute allowedRoles={['admin']}>
+                                                <AdminAttendanceRecords onLogout={handleLogout} onBack={() => navigate('/admin')} 
+                                                  onNavigateToProfile={() => navigate('/admin/profile')} 
+                                                  onNavigateToManualOverride={(data) => { setSelectedStudentData(data); navigate('/admin/records/override'); }}
+                                                  attendanceRecords={attendanceRecords} 
+                                                  updateAttendanceRecord={updateAttendanceRecord} 
+                                                  refreshTrigger={attendanceRefreshTrigger} />
+                                                </ProtectedRoute>} />
+        
+        <Route path="/admin/records/override" element={<ProtectedRoute allowedRoles={['admin']}>
+                                                    {selectedStudentData ? (
+                                                      <ManualOverride 
+                                                        onLogout={handleLogout} 
+                                                        onBack={() => navigate('/admin/records')} 
+                                                        studentData={selectedStudentData} 
+                                                        showToast={showToast} 
+                                                        updateAttendanceRecord={updateAttendanceRecord} 
+                                                      />
+                                                    ) : (
+                                                      /* If someone refreshes and the state is gone, redirect them back */
+                                                      <Navigate to="/admin/records" replace />
+                                                    )}
+                                                  </ProtectedRoute>
+                                                } 
+                                              />
+        <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}>
+                                              <AdminAttendanceReports
+                                              onNavigateToProfile={() => navigate('/admin/profile')} 
+                                              onLogout={handleLogout} 
+                                              onBack={() => navigate('/admin')} />
+                                              </ProtectedRoute>} />
+        <Route path="/admin/user-profiles" element={<ProtectedRoute allowedRoles={['admin']}>
+                                                    <ManageUserProfile 
+                                                    onLogout={handleLogout} 
+                                                    onBack={() => navigate('/admin')} 
+                                                    onNavigateToCreateCustomGoal={(data) => { setSelectedCustomGoalUserData(data); navigate('/admin/goals/create'); }} 
+                                                    onNavigateToUpdateUserProfile={(data) => { setSelectedBiometricUserData({userId: data.uuid, name: data.name, role: data.role}); navigate('/admin/user-profiles/update'); }} 
+                                                    userGoals={userGoals} 
+                                                    userProfiles={userProfiles} />
+                                                    </ProtectedRoute>} />
+        <Route path="/admin/user-profiles/update" element={<ProtectedRoute allowedRoles={['admin']}>
+                                                            {selectedBiometricUserData ? (
+                                                            <AdminUpdateUserProfile 
+                                                            onLogout={handleLogout} 
+                                                            onBack={() => navigate('/admin/user-profiles')} 
+                                                            onNavigateToBiometricProfile={() => navigate('/admin/biometrics')} 
+                                                            userData={{
+                                                                        uuid: selectedBiometricUserData.userId,
+                                                                        name: selectedBiometricUserData.name,
+                                                                        role: selectedBiometricUserData.role
+                                                                      }}
+                                                            userProfileData={userProfiles[selectedBiometricUserData.userId]}
+                                                            onUpdateProfile={handleUpdateUserProfile} 
+                                                            showToast={showToast} />
+                                                            ) : (
+                                                              <Navigate to="/admin/user-profiles" replace />
+                                                              )}
+                                                            </ProtectedRoute>} />
+            
+        <Route path="/admin/users/create" element={<ProtectedRoute allowedRoles={['admin']}>
+                                                    <CreateUser 
+                                                    onLogout={handleLogout} 
+                                                    onBack={() => navigate('/admin/users')} 
+                                                    onCreateSuccess={() => navigate('/admin/users')} 
+                                                    onNavigateToProfile={() => navigate('/admin/profile')} />
+                                                    </ProtectedRoute>} />
+        <Route path="/admin/users/update" element={<ProtectedRoute allowedRoles={['admin']}>
+                                                    {selectedBiometricUserData ? (
+                                                      <AdminUpdateUserProfile
+                                                        onLogout={handleLogout}
+                                                        onBack={() => navigate('/admin/user-profiles')}
+                                                        onNavigateToBiometricProfile={() => navigate('/admin/biometrics')}
+                                                        userData={{
+                                                          uuid: selectedBiometricUserData.userId,
+                                                          name: selectedBiometricUserData.name,
+                                                          role: selectedBiometricUserData.role
+                                                        }}
+                                                        userProfileData={userProfiles[selectedBiometricUserData.userId]}
+                                                        onUpdateProfile={handleUpdateUserProfile}
+                                                        showToast={showToast}
+                                                      />
+                                                    ) : (
+                                                      <Navigate to="/admin/user-profiles" replace />
+                                                    )}
+                                                    </ProtectedRoute>} />
+        <Route path="/admin/lessons" element={<ProtectedRoute allowedRoles={['admin']}>
+                                              <ManageLessons 
+                                              onBack={() => navigate('/admin')} 
+                                              onLogout={handleLogout} 
+                                              onNavigateToProfile={() => navigate('/admin/profile')}
+                                              onNavigateToCreateLesson={() => navigate('/admin/lessons/create')} 
+                                              onNavigateToUpdateLesson={(data) => { setLessonToUpdate(data); navigate('/admin/lessons/update'); }} 
+                                              refreshTrigger={lessonRefreshTrigger} />
+                                              </ProtectedRoute>} />
+        <Route path="/admin/lessons/create" element={<ProtectedRoute allowedRoles={['admin']}>
+                                            <CreateLesson 
+                                            onBack={() => {setLessonRefreshTrigger(prev => prev + 1);
+                                                          navigate('/admin/lessons')
+                                                        }} 
+                                            onLogout={handleLogout} 
+                                            
+                                            onNavigateToProfile={() => navigate('/admin/profile')} />
+                                            </ProtectedRoute>} />
+        <Route path="/admin/lessons/update" element={<ProtectedRoute allowedRoles={['admin']}>
+                                          <UpdateLesson 
+                                          lessonData={lessonToUpdate} 
+                                          onBack={() => {
+                                            setLessonRefreshTrigger(prev => prev + 1);
+                                            setLessonToUpdate(null);
+                                            navigate('/admin/lessons')}} 
+                                          onLogout={handleLogout} 
+                                          onNavigateToProfile={() => navigate('/admin/profile')} />
+                                          </ProtectedRoute>} />
+
+        <Route path="/admin/courses" element={<ProtectedRoute allowedRoles={['admin']}>
+                                          <ManageCourses onBack={() => navigate('/admin')} 
+                                          onLogout={handleLogout} 
+                                          onNavigateToProfile={() => navigate('/admin/profile')} 
+                                          onNavigateToCreateCourse={() => navigate('/admin/courses/create')} 
+                                          onNavigateToUpdateCourse={(data) => { setCourseToUpdate(data); navigate('/admin/courses/update'); }} 
+                                          refreshTrigger={courseRefreshTrigger} />
+                                          </ProtectedRoute>} />
+        <Route path="/admin/courses/create" element={<ProtectedRoute allowedRoles={['admin']}>
+                                          <CreateCourse 
+                                          onBack={() => navigate('/admin/courses')} 
+                                          onLogout={handleLogout} 
+                                          onNavigateToProfile={() => navigate('/admin/profile')} />
+                                          </ProtectedRoute>} />
+        <Route path="/admin/courses/update" element={<ProtectedRoute allowedRoles={['admin']}>
+                                            <UpdateCourse 
+                                            courseData={courseToUpdate} 
+                                            onBack={() => navigate('/admin/courses')} 
+                                            onLogout={handleLogout} 
+                                            onNavigateToProfile={() => navigate('/admin/profile')} />
+                                            </ProtectedRoute>} />
+        <Route path="/admin/modules" element={<ProtectedRoute allowedRoles={['admin']}>
+                                              <ManageModules 
+                                              onBack={() => navigate('/admin')} 
+                                              onNavigateToProfile={() => navigate('/admin/profile')} 
+                                              onNavigateToCreateModule={() => navigate('/admin/modules/create')} 
+                                              onNavigateToUpdateModule={(data) => { setModuleToUpdate(data); navigate('/admin/modules/update'); }} />
+                                              </ProtectedRoute>} />
+        <Route path="/admin/modules/create" element={<ProtectedRoute allowedRoles={['admin']}>
+                                              <CreateModule 
+                                              onLogout={handleLogout} 
+                                              onBack={() => navigate('/admin/modules')} 
+                                              onNavigateToProfile={() => navigate('/admin/profile')} />
+                                              </ProtectedRoute>} />
+        <Route path="/admin/modules/update" element={<ProtectedRoute allowedRoles={['admin']}>
+                                              <UpdateModule 
+                                              moduleData={moduleToUpdate} 
+                                              onBack={() => navigate('/admin/modules')} 
+                                              onNavigateToProfile={() => navigate('/admin/profile')} />
+                                              </ProtectedRoute>} />
+        <Route path="/admin/goals" element={<ProtectedRoute allowedRoles={['admin']}>
+                                            <ManageCustomGoals
+                                            onBack={() => navigate('/admin')} 
+                                            onNavigateToProfile={() => navigate('/admin/profile')} 
+                                            onCreateGoal={handleUpdateUserGoal} 
+                                            onUpdateGoal={handleUpdateUserGoal} 
+                                            onDeleteGoal={handleDeleteUserGoal} 
+                                            showToast={showToast} 
+                                            userGoals={userGoals} 
+                                            userProfiles={userProfiles} 
+                                            goalMetadata={goalMetadata} 
+                                            loading={isLoadingStudents} />
+                                            </ProtectedRoute>} />
+        <Route path="/admin/goals/create" element={<ProtectedRoute allowedRoles={['admin']}>
+                                           {selectedCustomGoalUserData ? (
+                                              <CreateCustomGoal
+                                                onLogout={handleLogout}
+                                                onBack={() => navigate('/admin/goals')}
+                                                userData={selectedCustomGoalUserData}
+                                                onCreateGoal={handleUpdateUserGoal}
+                                                showToast={showToast}
+                                              />
+                                            ) : (
+                                              <Navigate to="/admin/goals" replace />
+                                            )}
+                                          </ProtectedRoute>} />
+        <Route path="/admin/profile" element={<ProtectedRoute allowedRoles={['admin']}>
+                                              <ViewAdminProfile 
+                                                onBack={() => navigate('/admin')} 
+                                                onNavigateToProfile={() => navigate('/admin/profile/update')}
+                                                {...({
+                                                  onSave: handleSaveAdminProfile,
+                                                  adminData: adminProfileData
+                                                } as any)} 
+                                              />
+                                            </ProtectedRoute>} />
+        <Route path="/admin/profile/update" element={<ProtectedRoute allowedRoles={['admin']}>
+                                              <UpdateAdminProfile 
+                                              onLogout={handleLogout} 
+                                              onBack={() => navigate('/admin/profile')} 
+                                              onSave={handleSaveAdminProfile} 
+                                              adminData={adminProfileData} />
+                                              </ProtectedRoute>} />
+
+
+        <Route path="/pmanager" element={<ProtectedRoute allowedRoles={['pmanager']}>
+          <PlatformManagerDashboard onLogout={handleLogout} 
+          onNavigateToInstitutionsProfile={() => navigate('/pmanager/institutions')} />
+          </ProtectedRoute>} />
+        <Route path="/pmanager/institutions" element={<ProtectedRoute allowedRoles={['pmanager']}>
+                                              <ManageInstitutionsProfile 
+                                              onLogout={handleLogout} 
+                                              onBack={() => navigate('/pmanager')} 
+                                              onCreateProfile={() => navigate('/pmanager/institutions/create')} 
+                                              onViewProfile={(data) => { setSelectedInstitutionData(data); navigate('/pmanager/institutions/view'); }} />
+                                              </ProtectedRoute>} />
+
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       <NotificationAlerts
         isOpen={isNotificationOpen}
         onClose={() => setIsNotificationOpen(false)}
         alerts={notificationAlerts}
-        onDismissAlert={handleDismissAlert}
+        onDismissAlert={(id) => setNotificationAlerts(prev => prev.filter(a => a.id !== id))}
       />
+    </div>
+  );
+}
+
+// Simple wrapper for your Landing Page
+function LandingPage() {
+  return (
+    <div className="min-h-screen bg-black">
+      <Header />
+      <main>
+        <HeroSection />
+        <AboutSection />
+        <FeaturesSection />
+        <TestimonialsSection />
+      </main>
+      <Footer />
     </div>
   );
 }

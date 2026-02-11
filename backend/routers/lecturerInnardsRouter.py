@@ -1,20 +1,24 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import and_, func, case, desc, or_, extract, cast, Integer
+from sqlalchemy import and_, func, case, desc, or_, extract, cast, Integer, exists
 from datetime import datetime,time, date, timedelta
 from database.db_config import get_db
+import csv
+import uuid as uuid_module
+import os
 from dependencies.deps import get_current_user_id
 from database.db import (
                          User, 
                          Student, 
-                         Lecturer,
                          Lesson, 
                          Module, 
                          AttdCheck, 
                          StudentModules,  
                          LecMod,
                          EntLeave,
-                         GeneratedReport)
+                         GeneratedReport,
+                         TutorialsGroup,
+                         StudentTutorialGroup)
 
 from schemas import(Literal,
                     viewUserProfile,
@@ -33,7 +37,6 @@ import csv
 import os
 import uuid as uuid_module
 from fastapi.responses import FileResponse
-
 router = APIRouter() 
 
 
@@ -45,9 +48,7 @@ def get_view_only_user_profile(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    """
-    Fetches all profile data from the merged 'users' table.
-    """
+
     # The query is simple SELECT * FROM users
     user_record = db.query(User).filter(User.userID == user_id).first()
     
@@ -86,7 +87,6 @@ def update_user_profile(
     db.commit()
     db.refresh(user_record)
     
-    # Return the full, updated profile
     return user_record
 
 
@@ -102,12 +102,10 @@ def generate_and_download_report(
     for the selected module and time period, returning it as CSV content.
     """
     
-    # Define time boundaries and retrieve module details
     start_date = criteria.date_from 
     end_date = criteria.date_to
     
-    # --- START OF CRITICAL CHANGES ---
-    # Fetch module details using the new criteria field: criteria.module_code
+
     module_details = db.query(Module).filter(Module.moduleCode == criteria.module_code).first()
     
     if not module_details:
@@ -118,9 +116,10 @@ def generate_and_download_report(
     module_code = module_details.moduleCode
     module_name = module_details.moduleName
     
-    # 2. Identify the pool of relevant lessons (subquery for efficiency)
-    lesson_pool = db.query(Lesson.lessonID, Lesson.startDateTime)\
+    # 2. Identify the pool of relevant lessons (subquery for efficiency) with tutorial group info
+    lesson_pool_query = db.query(Lesson.lessonID, Lesson.startDateTime, Lesson.lessontype, TutorialsGroup.tutorialGroupsID.label('tutorial_group_id'))\
     .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
+    .outerjoin(TutorialsGroup, Lesson.tutorialGroupID == TutorialsGroup.tutorialGroupsID)\
     .filter(
         # The Lesson is already linked to a LecMod record.
         # We need to ensure that LecMod record satisfies BOTH conditions:
@@ -133,27 +132,48 @@ def generate_and_download_report(
         
         # Falls within the date range (using the fixed date comparison)
         func.date(Lesson.startDateTime).between(start_date, end_date)
-    ).subquery()
+    )
+    
+    # Filter by tutorial group if specified
+    if criteria.tutorial_group_id:
+        lesson_pool_query = lesson_pool_query.filter(TutorialsGroup.tutorialGroupsID == criteria.tutorial_group_id)
+    
+    lesson_pool = lesson_pool_query.subquery()
         
     if not db.query(lesson_pool).first():
         raise HTTPException(status_code=404, detail="No relevant lessons found for the selected module and dates.")
 
-    # Get all students enrolled in the selected module
-    enrolled_students = db.query(Student.studentID, Student.name)\
+    # Get all students enrolled in the selected module with tutorial group info
+    enrolled_students_query = db.query(
+        Student.studentID, 
+        Student.name,
+        TutorialsGroup.tutorialGroupsID.label('student_tutorial_group_id')
+    )\
         .join(StudentModules, Student.studentID == StudentModules.studentID)\
+        .outerjoin(StudentTutorialGroup, StudentModules.studentModulesID == StudentTutorialGroup.studentModulesID)\
+        .outerjoin(TutorialsGroup, StudentTutorialGroup.tutorialGroupID == TutorialsGroup.tutorialGroupsID)\
         .filter(
             # Use the Module ID for the student enrollment join
             StudentModules.modulesID == module_id
-        ).all()
+        )
+        
+    # Filter by tutorial group if specified
+    if criteria.tutorial_group_id:
+        enrolled_students_query = enrolled_students_query.filter(TutorialsGroup.tutorialGroupsID == criteria.tutorial_group_id)
+        
+    enrolled_students = enrolled_students_query.all()
         
 
     
     report_data = []
     
     # Compile the detailed report row (Student-Session Data)
-    for student_id, student_name in enrolled_students:
-        for lesson_id, lesson_start_time in db.query(lesson_pool).all():
-            
+    for student_id, student_name, student_tutorial_group_id in enrolled_students:
+        for lesson_id, lesson_start_time, lesson_type, lesson_tutorial_group_id in db.query(lesson_pool).all():
+            # Skip if student is not in the same tutorial group as the lesson
+            if student_tutorial_group_id and lesson_tutorial_group_id and student_tutorial_group_id != lesson_tutorial_group_id:
+                continue
+                
             # This is where the status check happens, and it's missing!
             attendance_record = db.query(AttdCheck).filter(
                 AttdCheck.studentID == student_id,
@@ -171,15 +191,24 @@ def generate_and_download_report(
                 # If the user requested 'Present' but the status is 'Absent', skip this row.
                 continue   
 
-        report_data.append({
-            "Module Code": module_code, 
-            "Module Name": module_name,
-            "Student ID": student_id,
-            "Student Name": student_name,
-            "Date": lesson_start_time.strftime("%Y-%m-%d"),
-            "Time": lesson_start_time.strftime("%H:%M"),
-            "Attendance Status": status_text,
-        })
+            # Get tutorial group name
+            tutorial_group_name = "N/A"
+            if lesson_tutorial_group_id:
+                tutorial_group = db.query(TutorialsGroup).filter(TutorialsGroup.tutorialGroupsID == lesson_tutorial_group_id).first()
+                if tutorial_group:
+                    tutorial_group_name = f"Group {lesson_tutorial_group_id}"
+
+            report_data.append({
+                "Module Code": module_code, 
+                "Module Name": module_name,
+                "Student ID": student_id,
+                "Student Name": student_name,
+                "Tutorial Group": tutorial_group_name,
+                "Lesson Type": lesson_type,
+                "Date": lesson_start_time.strftime("%Y-%m-%d"),
+                "Time": lesson_start_time.strftime("%H:%M"),
+                "Attendance Status": status_text,
+            })
             
     # Handle Download (CSV Generation)
 
@@ -250,26 +279,49 @@ def generate_report(
     module_code = module_details.moduleCode
     module_name = module_details.moduleName
     
-    # Get lesson pool
-    lesson_pool = db.query(Lesson.lessonID, Lesson.startDateTime)\
+    # Get lesson pool with tutorial group info
+    lesson_pool_query = db.query(Lesson.lessonID, Lesson.startDateTime, Lesson.lessontype, TutorialsGroup.tutorialGroupsID.label('tutorial_group_id'))\
     .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
+    .outerjoin(TutorialsGroup, Lesson.tutorialGroupID == TutorialsGroup.tutorialGroupsID)\
     .filter(
         LecMod.lecturerID == user_id, 
         LecMod.moduleID == module_id,
         func.date(Lesson.startDateTime).between(start_date, end_date)
-    ).subquery()
+    )
+    
+    # Filter by tutorial group if specified
+    if criteria.tutorial_group_id:
+        lesson_pool_query = lesson_pool_query.filter(TutorialsGroup.tutorialGroupsID == criteria.tutorial_group_id)
+    
+    lesson_pool = lesson_pool_query.subquery()
         
     if not db.query(lesson_pool).first():
         raise HTTPException(status_code=404, detail="No relevant lessons found for the selected module and dates.")
 
-    enrolled_students = db.query(Student.studentID, Student.name)\
+    enrolled_students_query = db.query(
+        Student.studentID, 
+        Student.name,
+        TutorialsGroup.tutorialGroupsID.label('student_tutorial_group_id')
+    )\
         .join(StudentModules, Student.studentID == StudentModules.studentID)\
-        .filter(StudentModules.modulesID == module_id).all()
+        .outerjoin(StudentTutorialGroup, StudentModules.studentModulesID == StudentTutorialGroup.studentModulesID)\
+        .outerjoin(TutorialsGroup, StudentTutorialGroup.tutorialGroupID == TutorialsGroup.tutorialGroupsID)\
+        .filter(StudentModules.modulesID == module_id)
+        
+    # Filter by tutorial group if specified
+    if criteria.tutorial_group_id:
+        enrolled_students_query = enrolled_students_query.filter(TutorialsGroup.tutorialGroupsID == criteria.tutorial_group_id)
+        
+    enrolled_students = enrolled_students_query.all()
     
     report_data = []
     
-    for student_id, student_name in enrolled_students:
-        for lesson_id, lesson_start_time in db.query(lesson_pool).all():
+    for student_id, student_name, student_tutorial_group_id in enrolled_students:
+        for lesson_id, lesson_start_time, lesson_type, lesson_tutorial_group_id in db.query(lesson_pool).all():
+            # Skip if student is not in the same tutorial group as the lesson
+            if student_tutorial_group_id and lesson_tutorial_group_id and student_tutorial_group_id != lesson_tutorial_group_id:
+                continue
+                
             attendance_record = db.query(AttdCheck).filter(
                 AttdCheck.studentID == student_id,
                 AttdCheck.lessonID == lesson_id
@@ -280,11 +332,20 @@ def generate_report(
             if criteria.attendance_status != "All" and status_text != criteria.attendance_status:
                 continue   
 
+            # Get tutorial group name
+            tutorial_group_name = "N/A"
+            if lesson_tutorial_group_id:
+                tutorial_group = db.query(TutorialsGroup).filter(TutorialsGroup.tutorialGroupsID == lesson_tutorial_group_id).first()
+                if tutorial_group:
+                    tutorial_group_name = f"Group {lesson_tutorial_group_id}"
+
             report_data.append({
                 "Module Code": module_code, 
                 "Module Name": module_name,
                 "Student ID": student_id,
                 "Student Name": student_name,
+                "Tutorial Group": tutorial_group_name,
+                "Lesson Type": lesson_type,
                 "Date": lesson_start_time.strftime("%Y-%m-%d"),
                 "Time": lesson_start_time.strftime("%H:%M"),
                 "Attendance Status": status_text,
@@ -363,189 +424,118 @@ def download_report(
 # Lecturer Attendance Log with Dynamic Filtering
 @router.get("/lecturer/attendance-log", response_model=AttendanceLogResponse)
 def get_lecturer_attendance_log_filtered(
-    search_term: str = Query(None, description="Search by Student Name or ID"),
-    module_code: str = Query(None, description="Filter by Module Code"),
-    status: Literal['Present', 'Absent', 'Late'] = Query(None, description="Filter by Status"),
-    date: date = Query(None, description="Filter by specific date (YYYY-MM-DD)"),
-    limit: int = Query(10, gt=0),
-    offset: int = Query(0, ge=0),
-    
+    search_term: str = Query(None),
+    module_code: str = Query(None),
+    status: Literal['Present', 'Absent', 'Late'] = Query(None),
+    date: date = Query(None),
+    limit: int = Query(10),
+    offset: int = Query(0),
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    print("="*50)
-    print("ATTENDANCE LOG API CALLED!!!")
-    print("="*50)
-    try:
-        print(f"DEBUG: Starting attendance log function for user: {user_id}")
-        print(f"DEBUG: Received parameters - limit: {limit}, offset: {offset}")
+    lecturer_uuid = uuid_module.UUID(user_id) if isinstance(user_id, str) else user_id
+    now = datetime.now()
+
+    student_in_group = exists().where(
+        and_(
+            StudentTutorialGroup.tutorialGroupID == Lesson.tutorialGroupID,
+            StudentTutorialGroup.studentModulesID == StudentModules.studentModulesID
+        )
+    )
+
+    query = (
+        db.query(
+            Lesson.lessonID,
+            Lesson.building,
+            Lesson.room,
+            Lesson.startDateTime,
+            Lesson.tutorialGroupID,
+            Module.moduleCode,
+            Student.studentNum,
+            Student.name,
+            Student.studentID,
+            AttdCheck.AttdCheckID,
+            AttdCheck.status.label("attd_status"),
+            func.min(EntLeave.detectionTime).label("entry_time")
+        )
+        .select_from(Lesson)
+        .join(LecMod, Lesson.lecModID == LecMod.lecModID)
+        .join(Module, LecMod.moduleID == Module.moduleID)
+        .join(StudentModules, Module.moduleID == StudentModules.modulesID)
+        .join(Student, StudentModules.studentID == Student.studentID)
+        # Polymorphic join to User is handled by Student.name/studentID
         
-        import uuid as uuid_module
-        
-        # Convert user_id to UUID if it's a string
-        try:
-            lecturer_uuid = uuid_module.UUID(user_id) if isinstance(user_id, str) else user_id
-            print(f"DEBUG: Converted to UUID: {lecturer_uuid}")
-        except ValueError:
-            print(f"DEBUG: Invalid UUID format: {user_id}")
-            return {"data": [], "total": 0, "page": 1, "limit": limit}
-        
-        # Check if this user is actually a lecturer
-        lecturer = db.query(Lecturer).filter(Lecturer.lecturerID == lecturer_uuid).first()
-        if not lecturer:
-            print(f"DEBUG: User {lecturer_uuid} is not found in lecturers table")
-            return {"data": [], "total": 0, "page": 1, "limit": limit}
-        
-        print(f"DEBUG: Found lecturer: {lecturer.name}")
-        
-        # Check if this lecturer has any modules assigned
-        lecturer_modules = db.query(LecMod).filter(LecMod.lecturerID == lecturer_uuid).all()
-        print(f"DEBUG: Lecturer has {len(lecturer_modules)} modules assigned")
-        
-        if not lecturer_modules:
-            print("DEBUG: No modules found for lecturer")
-            return {"data": [], "total": 0, "page": 1, "limit": limit}
-        
-        # Check if there are any lessons for these modules
-        lesson_count = db.query(Lesson).join(LecMod).filter(LecMod.lecturerID == lecturer_uuid).count()
-        print(f"DEBUG: Found {lesson_count} lessons for lecturer")
-        
-        # Build the main query
-        try:
-            query = (
-                db.query(
-                    Lesson,
-                    Module.moduleCode,
-                    Student.studentNum,
-                    Student.name,
-                    AttdCheck.AttdCheckID, # If this exists, they are Present
-                    AttdCheck.remarks,
-                    func.min(EntLeave.detectionTime).label("entry_time") # Get the FIRST time they entered
-                )
-                .select_from(Lesson)
-                .join(LecMod, Lesson.lecModID == LecMod.lecModID)
-                .join(Module, LecMod.moduleID == Module.moduleID)
-                
-                # Link Lesson -> Module -> Enrolled Students
-                .join(StudentModules, Module.moduleID == StudentModules.modulesID)
-                .join(Student, StudentModules.studentID == Student.studentID)
-                
-                # Check if they have an Attendance Record (Left Join)
-                .outerjoin(AttdCheck, (AttdCheck.lessonID == Lesson.lessonID) & (AttdCheck.studentID == Student.studentID))
-                
-                # Check their Entry Logs to see if they were late (Left Join)
-                .outerjoin(EntLeave, (EntLeave.lessonID == Lesson.lessonID) & (EntLeave.studentID == Student.studentID))
-                
-                # Base Filters: Current Lecturer & Past Lessons only
-                .filter(LecMod.lecturerID == lecturer_uuid)
-                .filter(Lesson.endDateTime < datetime.now())
-                
-                # Grouping is required because we used an aggregate function: min(entry_time)
-                .group_by(
-                    Lesson.lessonID, 
-                    Module.moduleCode, 
-                    Student.studentNum, 
-                    Student.name, 
-                    AttdCheck.AttdCheckID,
-                    AttdCheck.remarks
-                )
+        .filter(
+            or_(
+                Lesson.tutorialGroupID == None,
+                student_in_group
             )
-            print(f"DEBUG: Query built successfully")
-        except Exception as query_error:
-            print(f"DEBUG: Error building query: {str(query_error)}")
-            import traceback
-            print(f"DEBUG: Query build traceback: {traceback.format_exc()}")
-            return {"data": [], "total": 0, "page": 1, "limit": limit}
+        )
+        .outerjoin(AttdCheck, (AttdCheck.lessonID == Lesson.lessonID) & (AttdCheck.studentID == Student.studentID))
+        .outerjoin(EntLeave, (EntLeave.lessonID == Lesson.lessonID) & (EntLeave.studentID == Student.studentID))
+        .filter(LecMod.lecturerID == lecturer_uuid)
+        .filter(Lesson.endDateTime < now)
+    )
 
-        # Apply filters
-        if date:
-            start_of_day = datetime.combine(date, time.min)
-            end_of_day = datetime.combine(date, time.max)
-            query = query.filter(Lesson.startDateTime.between(start_of_day, end_of_day))
+    if date:
+        query = query.filter(Lesson.startDateTime.between(
+            datetime.combine(date, time.min), 
+            datetime.combine(date, time.max)
+        ))
+    if module_code:
+        query = query.filter(Module.moduleCode == module_code)
+    if search_term:
+        query = query.filter(or_(
+            Student.name.ilike(f"%{search_term}%"),
+            Student.studentNum.ilike(f"%{search_term}%")
+        ))
 
-        if module_code:
-            query = query.filter(Module.moduleCode == module_code)
-
-        if search_term:
-            search_like = f"%{search_term}%"
-            query = query.filter(or_(
-                Student.name.ilike(search_like),
-                Student.studentNum.ilike(search_like)
-            ))
-
-        # Execute query
-        try:
-            print(f"DEBUG: Executing query...")
-            results = query.order_by(Lesson.startDateTime.desc()).all()
-            print(f"DEBUG: Raw query returned {len(results)} rows")
-        except Exception as exec_error:
-            print(f"DEBUG: Error executing query: {str(exec_error)}")
-            import traceback
-            print(f"DEBUG: Query execution traceback: {traceback.format_exc()}")
-            return {"data": [], "total": 0, "page": 1, "limit": limit}
-
-        # Process results
-        log_entries = []
+    query = query.group_by(
+        Lesson.lessonID,
+        Lesson.building,
+        Lesson.room,
+        Lesson.startDateTime,
+        Lesson.tutorialGroupID,
+        Module.moduleCode,
+        Student.studentNum,
+        Student.name,
+        Student.studentID,
+        AttdCheck.AttdCheckID,
+        AttdCheck.status
+    )
+    
+    results = query.order_by(Lesson.startDateTime.desc()).all()
+    
+    log_entries = []
+    for (l_id, l_bldg, l_rm, l_start, l_tgroup, m_code, s_num, s_name, s_uuid, attd_id, attd_status, entry_time) in results:
         
-        for lesson, mod_code, s_id, s_name, attd_id, remarks, entry_time in results:
-            
-            # Calculate status
-            current_status = "Absent"
-            
-            if attd_id:
-                current_status = "Present"
-                
-                # Late Logic: If they entered more than 15 mins after start
-                if entry_time and entry_time > (lesson.startDateTime + timedelta(minutes=15)):
-                    current_status = "Late"
-            
-            loc = f"Building: {lesson.building or 'TBA'}, Room: {lesson.room or 'TBA'}"
-            
-            # Format entry time using consistent 12-hour format like other parts of the system
-            if entry_time:
-                entry_time_str = entry_time.strftime("%I:%M %p").lstrip("0")
-            elif current_status == "Present":
-                # If marked present but no entry time recorded, use lesson start time
-                entry_time_str = lesson.startDateTime.strftime("%I:%M %p").lstrip("0")
-            else:
-                entry_time_str = "N/A"
-                
-            # Format method based on attendance status
-            if current_status == "Absent":
-                method_str = "N/A"
-            else:
-                method_str = "Camera Capture"
-            
-            # Filter by status if requested
-            if status and current_status != status:
-                continue
+        final_status = attd_status if attd_id else "Absent"
+        
+        if status and final_status != status:
+            continue
+        
 
-            # Add to list
-            log_entries.append(AttendanceLogEntry(
-                user_id=s_id,
-                student_name=s_name,
-                module_code=mod_code,
-                status=current_status,
-                date=lesson.startDateTime.strftime("%d %b %Y"),
-                lesson_id=lesson.lessonID,
-                location=loc,
-                timestamp=entry_time_str,
-                method=method_str
-            ))
+        display_mod = f"{m_code} (T{l_tgroup})" if l_tgroup else m_code
         
-        total_records = len(log_entries)
-        paginated_data = log_entries[offset : offset + limit]
-        
-        print(f"DEBUG: Total log entries processed: {total_records}")
-        print(f"DEBUG: Returning {len(paginated_data)} entries after pagination")
-        
-        return {"data": paginated_data, "total": total_records, "page": (offset // limit) + 1, "limit": limit}
-        
-    except Exception as e:
-        import traceback
-        print(f"DEBUG: Error in attendance log function: {str(e)}")
-        print(f"DEBUG: Full traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        log_entries.append(AttendanceLogEntry(
+            user_id=s_num,
+            student_name=s_name,
+            module_code=display_mod,
+            status=final_status,
+            date=l_start.strftime("%d %b %Y"),
+            lesson_id=l_id,
+            location=f"Blk {l_bldg or 'TBA'}, {l_rm or 'TBA'}",
+            timestamp=entry_time.strftime("%I:%M %p").lstrip("0") if entry_time else "N/A",
+            method="Camera Capture" if attd_id else "N/A"
+        ))
+
+    total_records = len(log_entries)
+    return {
+        "data": log_entries[offset : offset + limit],
+        "total": total_records,
+        "page": (offset // limit) + 1,
+        "limit": limit
+    }
 # Detailed Attendance Record
 @router.get("/lecturer/attendance/details/{lesson_id}/{student_num}", response_model=DetailedAttendanceRecord)
 def get_detailed_attendance_record(
@@ -631,91 +621,78 @@ def get_detailed_attendance_record(
 # Daily Timetable
 @router.get("/lecturer/timetable/daily", response_model=list[DailyTimetable])
 def get_daily_timetable(
-    date_str: str, # Date as string (e.g., "2025-12-01") from the URL
+    date_str: str, 
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    """
-    Fetches lessons for a specific single day based on the date provided in the URL path.
-    """
-    
     try:
-        # CRITICAL: Convert the URL string to a Python date object
         selected_date = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
 
-    # Define the time window: Start of the selected day to End of the selected day
     start_of_day = datetime.combine(selected_date, time.min)
     end_of_day = datetime.combine(selected_date, time.max)
-    
-    # Query Lessons
-    upcoming_lessons = db.query(Lesson, Module)\
+
+    query_results = db.query(Lesson, Module, TutorialsGroup)\
         .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
         .join(Module, LecMod.moduleID == Module.moduleID)\
+        .outerjoin(TutorialsGroup, Lesson.tutorialGroupID == TutorialsGroup.tutorialGroupsID)\
         .filter(
             LecMod.lecturerID == user_id,
-            Lesson.startDateTime.between(start_of_day, end_of_day) # Filter for the single day
+            Lesson.startDateTime.between(start_of_day, end_of_day)
         )\
         .order_by(Lesson.startDateTime)\
         .all()
-    # Format the data
+
     results = []
 
-    for lesson, module in upcoming_lessons:
+    for lesson, module, group in query_results:
         
-        # Location: Combine Building + Room (using the fields you have)
-        loc_str = ""
-        bldg = lesson.building or ""
-        rm = lesson.room or ""
-        if bldg and rm:
-            # Note: We can't tell what T01/T02 is from your DB, so we use a simple string
-            loc_str = f"Building {bldg} | Room {rm}"
+        display_code = module.moduleCode
+        if lesson.tutorialGroupID:
+            display_code = f"{module.moduleCode} (T{lesson.tutorialGroupID})"
+
+        if lesson.building and lesson.room:
+            loc_str = f"Blk {lesson.building} {lesson.room}"
+        elif lesson.building or lesson.room:
+            loc_str = f"{lesson.building or ''}{lesson.room or ''}"
         else:
             loc_str = "Online"
 
-        # Time
-        start_time = lesson.startDateTime.strftime("%I:%M %p").lstrip("0")
-        end_time = lesson.endDateTime.strftime("%I:%M %p").lstrip("0")
+        start_t = lesson.startDateTime.strftime("%I:%M %p").lstrip("0")
+        end_t = lesson.endDateTime.strftime("%I:%M %p").lstrip("0")
 
-        # Create the Pydantic Object
-        entry = DailyTimetable(
-            module_code=module.moduleCode,
-            module_name=module.moduleName,          # ADDED: Required by DailyTimetable schema
-            lesson_type=lesson.lessontype,          # ADDED: Required by DailyTimetable schema
-            start_time=start_time,
-            end_time=end_time,
+        results.append(DailyTimetable(
+            module_code=display_code,
+            module_name=module.moduleName,
+            lesson_type=lesson.lessontype, 
+            start_time=start_t,
+            end_time=end_t,
             location=loc_str
-        )
-        results.append(entry)
+        ))
 
     return results
 
 # Weekly Timetable 
-@router.get("/lecturer/timetable/weekly", response_model=List[Weeklytimetable])
+@router.get("/lecturer/timetable/weekly", response_model=list[Weeklytimetable])
 def get_weekly_timetable_flat(
     start_date_str: str, 
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    """
-    Fetches all lessons for a 7-day period starting from the provided date 
-    and returns them as a single, flat list (no grouping by day).
-    """
-    
+
     try:
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
     
-    # Define the time window: 7 days
     start_time = datetime.combine(start_date, time.min)
     end_time = datetime.combine(start_date + timedelta(days=6), time.max)
     
-    # Query Lessons (Fetch all 7 days of data)
-    upcoming_lessons = db.query(Lesson, Module)\
+    query_results = db.query(Lesson, Module, TutorialsGroup)\
         .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
         .join(Module, LecMod.moduleID == Module.moduleID)\
+        .outerjoin(TutorialsGroup, Lesson.tutorialGroupID == TutorialsGroup.tutorialGroupsID)\
         .filter(
             LecMod.lecturerID == user_id,
             Lesson.startDateTime.between(start_time, end_time) 
@@ -723,25 +700,33 @@ def get_weekly_timetable_flat(
         .order_by(Lesson.startDateTime)\
         .all()
 
-    # Format the data into a single, flat list
     results = []
 
-    for lesson, module in upcoming_lessons:
+    for lesson, module, group in query_results:
         
-        # Formatting Logic
-        bldg = lesson.building or ""
-        rm = lesson.room or ""
-        loc_str = f"Building {bldg} | Room {rm}" if bldg and rm else "Online"
+
+        display_code = module.moduleCode
+        if lesson.tutorialGroupID:
+            display_code = f"{module.moduleCode} (T{lesson.tutorialGroupID})"
+        
+
+        if lesson.building and lesson.room:
+            loc_str = f"Blk {lesson.building}  {lesson.room}"
+        elif lesson.building or lesson.room:
+            loc_str = f"{lesson.building or ''}{lesson.room or ''}"
+        else:
+            loc_str = "Online"
         
         start_t = lesson.startDateTime.strftime("%I:%M %p").lstrip("0")
         end_t = lesson.endDateTime.strftime("%I:%M %p").lstrip("0")
-        date_full_str = lesson.startDateTime.strftime("%d")
         
-        # Construct the flat Weeklytimetable object
+        day_name = lesson.startDateTime.strftime("%a") # e.g., "Mon"
+        day_digit = lesson.startDateTime.strftime("%d") # e.g., "28"
+        
         results.append(Weeklytimetable(
-            day_of_week=lesson.startDateTime.strftime("%a"), # e.g. Mon
-            date_of_day=date_full_str,                             # e.g. 28
-            module_code=f"{module.moduleCode}",
+            day_of_week=day_name,
+            date_of_day=day_digit,
+            module_code=display_code,
             module_name=module.moduleName,
             lesson_type=lesson.lessontype,
             start_time=start_t,
@@ -749,7 +734,6 @@ def get_weekly_timetable_flat(
             location=loc_str
         ))
 
-    # The frontend will now receive the entire week's schedule as one long list
     return results
 
 # Monthly Timetable
@@ -760,10 +744,10 @@ def get_monthly_timetable(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    
-    lessons = db.query(Lesson.startDateTime, Module.moduleCode)\
+    lessons = db.query(Lesson, Module, TutorialsGroup)\
         .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
         .join(Module, LecMod.moduleID == Module.moduleID)\
+        .outerjoin(TutorialsGroup, Lesson.tutorialGroupID == TutorialsGroup.tutorialGroupsID)\
         .filter(
             LecMod.lecturerID == user_id,
             cast(extract('year', Lesson.startDateTime), Integer) == year, 
@@ -774,14 +758,19 @@ def get_monthly_timetable(
 
     results = []
 
-    for start_dt, module_code in lessons:
+    for lesson, module, group in lessons:
         
+        display_code = module.moduleCode
+        if lesson.tutorialGroupID:
+            display_code = f"{module.moduleCode} (T{lesson.tutorialGroupID})"
+
         results.append(MonthlyTimetable(
-            date_of_month=start_dt.date(),
-            module_code=module_code
+            date_of_month=lesson.startDateTime.date(),
+            module_code=display_code
         ))
 
     return results
+
 
 @router.get("/lecturer/modules")
 def get_lecturer_modules(

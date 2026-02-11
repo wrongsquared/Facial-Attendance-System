@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { getUserAccDetails, updateUser, updateUserProfile } from "../services/api";
+import { getUserAccDetails, updateUserProfile } from "../services/api";
 import { useAuth } from "../cont/AuthContext";
 import { Navbar } from "./Navbar";
 import { UpdateProfilePayload } from "../types/adminInnards";
@@ -85,25 +85,6 @@ const validateAddress = (address: string): { isValid: boolean; error: string } =
 
   return { isValid: true, error: "" };
 };
-
-// Attendance validation function
-const validateAttendance = (attendance: string): { isValid: boolean; error: string } => {
-  if (!attendance.trim()) {
-    return { isValid: false, error: "Attendance percentage is required" };
-  }
-
-  const attendanceNum = parseFloat(attendance);
-  if (isNaN(attendanceNum)) {
-    return { isValid: false, error: "Attendance must be a valid number" };
-  }
-
-  if (attendanceNum < 0 || attendanceNum > 100) {
-    return { isValid: false, error: "Attendance must be between 0 and 100" };
-  }
-
-  return { isValid: true, error: "" };
-};
-
 interface AdminUpdateUserProfileProps {
   onLogout: () => void;
   onBack: () => void;
@@ -146,10 +127,7 @@ interface AdminUpdateUserProfileProps {
 
 export function AdminUpdateUserProfile({
   onBack,
-  onNavigateToBiometricProfile,
   userData,
-  userProfileData,
-  onUpdateProfile,
   showToast,
   onNavigateToProfile
 }: AdminUpdateUserProfileProps) {
@@ -171,7 +149,6 @@ export function AdminUpdateUserProfile({
   const hardName = name;
   // Role specific fields
   const [studentNum, setStudentNum] = useState("");
-  const [attendance, setAttendance] = useState("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   // Handle input changes with real-time validation
@@ -204,13 +181,6 @@ export function AdminUpdateUserProfile({
         if (isEditMode) {
           const addressValidation = validateAddress(value);
           setErrors(prev => ({ ...prev, address: addressValidation.error }));
-        }
-        break;
-      case 'attendance':
-        setAttendance(value);
-        if (isEditMode) {
-          const attendanceValidation = validateAttendance(value);
-          setErrors(prev => ({ ...prev, attendance: attendanceValidation.error }));
         }
         break;
       case 'role':
@@ -254,11 +224,6 @@ export function AdminUpdateUserProfile({
         setContactNumber(data.phone || "");
         setAddress(data.fulladdress || "");
 
-        // Fields from 'student' table (if applicable)
-        if (data.role.toLowerCase() === "student") {
-          setStudentNum(data.studentNum || "");
-          setAttendance(data.attendanceMinimum?.toString() || "");
-        }
         setCreationDate(formatDate(data.creationDate) ?? "");
         setAssociatedModules(data.associatedModules || "N/A");
       } catch (err: any) {
@@ -308,14 +273,6 @@ export function AdminUpdateUserProfile({
       validationErrors.status = "Status is required";
     }
 
-    // Attendance validation (only for students)
-    if (role.toLowerCase() === "student") {
-      const attendanceValidation = validateAttendance(attendance);
-      if (!attendanceValidation.isValid) {
-        validationErrors.attendance = attendanceValidation.error;
-      }
-    }
-
     // If there are validation errors, show them and don't submit
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -334,12 +291,6 @@ export function AdminUpdateUserProfile({
         roleName: role,
         status: status,
       };
-
-      // Only include attendance if the user is a Student
-      if (role.toLowerCase() === "student") {
-        // Convert the string state to a number for the backend
-        payload.attendanceMinimum = Number(attendance);
-      }
 
       await updateUserProfile(userData.uuid, payload, token!);
 
@@ -463,7 +414,7 @@ export function AdminUpdateUserProfile({
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">Role:</label>
-              <Select value={role} onValueChange={(value) => handleInputChange("role", value)} disabled={!isEditMode}>
+              <Select value={role} onValueChange={(value: string) => handleInputChange("role", value)} disabled={!isEditMode}>
                 <SelectTrigger className={errors.role ? "border-red-500" : ""}>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
@@ -481,7 +432,7 @@ export function AdminUpdateUserProfile({
               <label className="text-sm text-gray-600 mb-2 block">
                 Status:
               </label>
-              <Select value={status} onValueChange={(value) => handleInputChange("status", value)} disabled={!isEditMode}>
+              <Select value={status} onValueChange={(value: string) => handleInputChange("status", value)} disabled={!isEditMode}>
                 <SelectTrigger className={errors.status ? "border-red-500" : ""}>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -506,25 +457,6 @@ export function AdminUpdateUserProfile({
                 Associated Modules:
               </label>
               <p className="font-medium">{associatedModules}</p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600 mb-2 block">
-                Attendance (%):
-              </label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                value={attendance}
-                onChange={(e) => handleInputChange("attendance", e.target.value)}
-                placeholder="Attendance percentage (0-100)"
-                disabled={!isEditMode}
-                className={errors.attendance ? "border-red-500" : ""}
-              />
-              {errors.attendance && (
-                <p className="text-red-500 text-sm mt-1">{errors.attendance}</p>
-              )}
             </div>
           </CardContent>
         </Card>

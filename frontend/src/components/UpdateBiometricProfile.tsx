@@ -1,21 +1,9 @@
-import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Textarea } from "./ui/textarea";
-import {
-  BookOpen,
-  LogOut,
-  ArrowLeft,
-  Bell,
-  Settings,
-  Upload,
-} from "lucide-react";
+import { BookOpen, LogOut, ArrowLeft, Bell, Settings, Upload, Camera } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -35,6 +23,15 @@ import {
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
 
+const API_URL = "http://localhost:8000";
+
+type PhaseInfo = {
+  idx: number;
+  instruction: string;
+  need: number;
+  done: number;
+} | null;
+
 interface UpdateBiometricProfileProps {
   onLogout: () => void;
   onBack: () => void;
@@ -52,6 +49,7 @@ export function UpdateBiometricProfile({
   userData,
   showToast,
 }: UpdateBiometricProfileProps) {
+  // ===== original state =====
   const [updateMethod, setUpdateMethod] = useState("Facial Recognition");
   const [notes, setNotes] = useState("");
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -64,10 +62,9 @@ export function UpdateBiometricProfile({
   const enrolledBy = "Admin User";
 
   const handleLoadImage = () => {
-    // Mock image upload functionality
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
@@ -81,14 +78,261 @@ export function UpdateBiometricProfile({
     input.click();
   };
 
-  const handleUpdate = () => {
-    showToast("Biometric Profile Updated!");
-    onBack();
-  };
+  // ===== camera/enrol state =====
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+
+  const [running, setRunning] = useState(false);
+  const [enrolmentId, setEnrolmentId] = useState<string | null>(null);
+
+  const [status, setStatus] = useState<string>("Idle");
+  const [error, setError] = useState<string | null>(null);
+
+  const [phase, setPhase] = useState<PhaseInfo>(null);
+  const [count, setCount] = useState(0);
+  const [required, setRequired] = useState(200);
+
+  const studentLabel = useMemo(() => {
+    const firstName = (userData.name || "").split(" ")[0] || "User";
+    return `${userData.userId}_${firstName}`.trim();
+  }, [userData.name, userData.userId]);
+
+  function stopCaptureLoop() {
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setRunning(false);
+  }
+
+  async function startCamera() {
+    setError(null);
+    setCameraReady(false);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+
+      // store stream first
+      streamRef.current = stream;
+
+      // mount the <video> (it exists only when cameraOn === true)
+      setCameraOn(true);
+      setStatus("Camera requested...");
+    } catch (e: any) {
+      setError(e?.message ?? "Could not access camera");
+      setStatus("Camera failed.");
+    }
+  }
+
+  // Attach stream AFTER the <video> exists
+  useEffect(() => {
+    if (!cameraOn) return;
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!video || !stream) return;
+
+    video.srcObject = stream;
+
+    const onLoaded = () => {
+      setCameraReady(true);
+      setStatus("Camera ready.");
+    };
+
+    video.addEventListener("loadedmetadata", onLoaded);
+
+    video.play().catch(() => null);
+
+    return () => {
+      video.removeEventListener("loadedmetadata", onLoaded);
+    };
+  }, [cameraOn]);
+
+  function stopCamera() {
+    const stream = streamRef.current;
+    stream?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+
+    if (videoRef.current) videoRef.current.srcObject = null;
+
+    setCameraOn(false);
+    setCameraReady(false);
+  }
+
+  async function takePhotoPreview() {
+    setError(null);
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    if (!cameraReady || video.videoWidth === 0 || video.videoHeight === 0) {
+      setError("Camera not ready yet — wait 1 second and try again.");
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0);
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+    setUploadedImage(dataUrl);
+    setStatus("Photo captured (preview).");
+  }
+
+  async function startEnrolmentAndCapture() {
+    setError(null);
+
+    if (!cameraOn) {
+      setError("Please click Start Camera first.");
+      return;
+    }
+    if (!cameraReady) {
+      setError("Camera not ready yet. Wait 1 second and try again.");
+      return;
+    }
+
+    setStatus("Starting enrolment...");
+
+    try {
+      const res = await fetch(`${API_URL}/ai/enrolment/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ student_label: studentLabel }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setError(JSON.stringify(data ?? { error: "Failed to start enrolment" }));
+        setStatus("Failed to start.");
+        return;
+      }
+
+      setEnrolmentId(data.enrolment_id);
+      setRequired(data.capture_count ?? 200);
+      setPhase(data.phase ?? null);
+      setCount(0);
+
+      setStatus("Capturing...");
+      setRunning(true);
+
+      timerRef.current = window.setInterval(async () => {
+        await captureAndSendFrame(data.enrolment_id);
+      }, 350);
+    } catch (e: any) {
+      setError(e?.message ?? "Network error");
+      setStatus("Network error");
+    }
+  }
+
+  async function captureAndSendFrame(id: string) {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+    if (video.videoWidth === 0 || video.videoHeight === 0) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+
+    const blob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85)
+    );
+    if (!blob) return;
+
+    const form = new FormData();
+    form.append("enrolment_id", id);
+    form.append("image", blob, "frame.jpg");
+
+    try {
+      const res = await fetch(`${API_URL}/ai/enrolment/frame`, {
+        method: "POST",
+        body: form,
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setError(JSON.stringify(data ?? { error: "Backend rejected frame" }));
+        setStatus("Backend rejected frame.");
+        return;
+      }
+
+      if (data.accepted) {
+        setCount(data.count ?? 0);
+        setPhase(data.phase ?? null);
+
+        if (data.done) {
+          setStatus("Capture complete!");
+          stopCaptureLoop();
+          await finishEnrolment(id);
+        } else {
+          setStatus("Capturing...");
+        }
+      } else {
+        setStatus(`Waiting... (${data.reason ?? "not accepted"})`);
+      }
+    } catch (e: any) {
+      setError(e?.message ?? "Network error");
+      setStatus("Network error");
+    }
+  }
+
+  async function finishEnrolment(id: string) {
+    setStatus("Finalizing...");
+    try {
+      const res = await fetch(
+        `${API_URL}/ai/enrolment/finish?enrolment_id=${encodeURIComponent(id)}`,
+        { method: "POST" }
+      );
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setError(JSON.stringify(data ?? { error: "Finish failed" }));
+        setStatus("Finish failed.");
+        return;
+      }
+
+      setStatus("Done! Profile updated.");
+      showToast("Biometric Profile Updated!");
+
+      stopCamera();
+      setRunning(false);
+    } catch (e: any) {
+      setError(e?.message ?? "Network error");
+      setStatus("Network error");
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      stopCaptureLoop();
+      stopCamera();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const instructionText =
+    phase ? `${phase.instruction} (phase ${phase.idx + 1}: ${phase.done}/${phase.need})` : "—";
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -126,14 +370,10 @@ export function UpdateBiometricProfile({
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Log out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure ?
-                  </AlertDialogDescription>
+                  <AlertDialogDescription>Are you sure ?</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogAction onClick={onLogout}>
-                    Log out
-                  </AlertDialogAction>
+                  <AlertDialogAction onClick={onLogout}>Log out</AlertDialogAction>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -142,74 +382,61 @@ export function UpdateBiometricProfile({
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
-        {/* Back Button */}
         <Button variant="ghost" onClick={onBack} className="mb-6">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Manage Biometric Profile
         </Button>
 
-        {/* Page Title */}
         <div className="mb-8">
           <h2 className="text-3xl mb-2">Update Biometric Profile</h2>
         </div>
 
-        {/* Update Biometric Profile Card */}
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle>Biometric Profile Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* User ID */}
             <div>
               <p className="text-sm text-gray-600 mb-2">User ID:</p>
               <p className="font-medium">{userData.userId}</p>
             </div>
 
-            {/* User Name */}
             <div>
               <p className="text-sm text-gray-600 mb-2">User Name:</p>
               <p className="font-medium">{userData.name}</p>
             </div>
 
-            {/* Role */}
             <div>
               <p className="text-sm text-gray-600 mb-2">Role:</p>
               <p className="font-medium">{userData.role}</p>
             </div>
 
-            {/* Current Status */}
             <div>
               <p className="text-sm text-gray-600 mb-2">Current Status:</p>
               <p className="font-medium">{currentStatus}</p>
             </div>
 
-            {/* Profile ID */}
             <div>
               <p className="text-sm text-gray-600 mb-2">Profile ID:</p>
               <p className="font-medium">{profileId}</p>
             </div>
 
-            {/* Enrolled On */}
             <div>
               <p className="text-sm text-gray-600 mb-2">Enrolled On:</p>
               <p className="font-medium">{enrolledOn}</p>
             </div>
 
-            {/* Last Updated */}
             <div>
               <p className="text-sm text-gray-600 mb-2">Last Updated:</p>
               <p className="font-medium">{lastUpdated}</p>
             </div>
 
-            {/* Enrolled By */}
             <div>
               <p className="text-sm text-gray-600 mb-2">Enrolled By:</p>
               <p className="font-medium">{enrolledBy}</p>
             </div>
 
-            {/* Update Method */}
             <div>
               <p className="text-sm text-gray-600 mb-2">Update Method:</p>
               <Select value={updateMethod} onValueChange={setUpdateMethod}>
@@ -225,14 +452,9 @@ export function UpdateBiometricProfile({
               </Select>
             </div>
 
-            {/* Upload Image */}
             <div>
-              <p className="text-sm text-gray-600 mb-2">Upload Image:</p>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={handleLoadImage}
-              >
+              <p className="text-sm text-gray-600 mb-2">Upload / Preview Image:</p>
+              <Button variant="outline" className="w-full justify-start" onClick={handleLoadImage}>
                 <Upload className="h-4 w-4 mr-2" />
                 Load Image
               </Button>
@@ -247,7 +469,6 @@ export function UpdateBiometricProfile({
               )}
             </div>
 
-            {/* Notes */}
             <div>
               <p className="text-sm text-gray-600 mb-2">Notes:</p>
               <Textarea
@@ -259,14 +480,124 @@ export function UpdateBiometricProfile({
               />
             </div>
 
-            {/* Action Buttons */}
             <div className="flex justify-center gap-4 pt-6 border-t">
               <Button variant="outline" onClick={onBack}>
                 Cancel
               </Button>
-              <Button onClick={handleUpdate}>
-                Update Biometric Profile
-              </Button>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button>Update Biometric Profile</Button>
+                </AlertDialogTrigger>
+
+                <AlertDialogContent className="max-w-3xl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Update Biometric Profile</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      We will capture face crops following guided phases. The first accepted “look straight”
+                      will be saved as the profile picture.
+                      <div className="mt-2 text-xs text-gray-500">
+                        Enrolment label: <code>{studentLabel}</code>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+
+                  <div className="border border-dashed rounded-lg p-6 flex flex-col items-center justify-center gap-3">
+                    {!cameraOn ? (
+                      <>
+                        <Camera className="h-16 w-16 text-gray-400" />
+                        <div className="text-gray-500">Camera preview will appear here</div>
+                        <Button onClick={startCamera} className="bg-blue-600 hover:bg-blue-700">
+                          Start Camera
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <video
+                          ref={videoRef}
+                          className="w-full h-[320px] rounded-lg bg-black object-cover"
+                          playsInline
+                          muted
+                          autoPlay
+                        />
+                        <canvas ref={canvasRef} className="hidden" />
+
+                        <div className="text-sm text-gray-600">
+                          <b>Status:</b> {status} &nbsp;|&nbsp; <b>Progress:</b> {count}/{required}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          <b>Instruction:</b> {instructionText}
+                        </div>
+
+                        <div className="flex gap-2 flex-wrap justify-center">
+                          <Button
+                            onClick={takePhotoPreview}
+                            variant="outline"
+                            disabled={!cameraReady}
+                          >
+                            Take Photo (Preview)
+                          </Button>
+
+                          <Button
+                            onClick={startEnrolmentAndCapture}
+                            disabled={running || !cameraReady}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            Start Capture
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              stopCaptureLoop();
+                              setStatus("Stopped.");
+                            }}
+                            disabled={!running}
+                          >
+                            Stop
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {error && (
+                    <div className="text-sm text-red-600">
+                      <b>Error:</b> {error}
+                    </div>
+                  )}
+
+                  <AlertDialogFooter>
+                    <AlertDialogCancel
+                      onClick={() => {
+                        stopCaptureLoop();
+                        stopCamera();
+                        setError(null);
+                        setStatus("Idle");
+                        setPhase(null);
+                        setCount(0);
+                        setRequired(200);
+                        setEnrolmentId(null);
+                        setCameraOn(false);
+                        setRunning(false);
+                        setCameraReady(false);
+                      }}
+                    >
+                      Close
+                    </AlertDialogCancel>
+
+                    <AlertDialogAction
+                      onClick={() => {
+                        if (enrolmentId && count >= required) finishEnrolment(enrolmentId);
+                      }}
+                      disabled={!enrolmentId || count < required || running}
+                      className="bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                      Finish
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </CardContent>
         </Card>

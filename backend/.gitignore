@@ -225,3 +225,5 @@ samples/
 #Test tables
 database/fakerdatetime
 test.py
+
+dataset

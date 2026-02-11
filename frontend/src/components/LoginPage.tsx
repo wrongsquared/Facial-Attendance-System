@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -18,6 +18,7 @@ import {
 import { ArrowLeft } from "lucide-react";
 import logoImage from "../assets/Logo.png";
 import { LoginCredentials } from "../types/auth";
+import { useNavigate } from "react-router-dom";
 
 interface LoginPageProps {
   onLogin: (creds: LoginCredentials, selectedRole: string) => void;
@@ -28,7 +29,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState("");
   const [userType, setUserType] = useState<"student" | "lecturer" | "admin" | "platformManager">("student");
   const [error, setError] = useState("");
-
+  const navigate = useNavigate();
   const handleLogin = () => {
     // Basic validation
     if (!email.trim()) {
@@ -57,11 +58,18 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   };
 
   const handleBackToHome = () => {
-    if ((window as any).navigateTo) {
-      (window as any).navigateTo("home");
-    }
+    navigate("/");
   };
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorType = params.get('error');
 
+    if (errorType === 'session_expired') {
+      setError("Your session has expired. Please log in again.");
+
+      window.history.replaceState({}, document.title, "/login");
+    }
+  }, [setError]);
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 relative">
       {/* Back Button */}

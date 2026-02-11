@@ -34,8 +34,12 @@ export const fetchProtected = async (endpoint: string, token: string, options: R
   });
 
   if (!response.ok) {
+
     if (response.status === 401) throw new Error("Unauthorized");
-    throw new Error("Request failed");
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login?error=session_expired';
+      throw new Error("Session expired. Please login again.");
   }
   if (response.status === 204) {
     return {};
@@ -43,9 +47,7 @@ export const fetchProtected = async (endpoint: string, token: string, options: R
   return response.json();
 };
 
-// Logout Function
 export const logoutUser = async (token: string) => {
-  // We don't really care about the response data, just the status
   await fetch(`${API_URL}/logout`, {
     method: "POST",
     headers: {
@@ -90,17 +92,9 @@ export const getStudentProfile = async (token: string) => {
   return await fetchProtected('/student/my-profile', token);
 }
 
-export const getStudentTimetable = async (token: string) => {
-  return await fetchProtected("/student/timetable", token);
-};
-
-
-
 export const getOverallLessons = async (token: string) => {
   return await fetchProtected("/student/overrall", token);
 };
-
-
 
 export const getTodaysLessons = async (token: string) => {
   return await fetchProtected("/student/todayslesson", token);

@@ -20,13 +20,6 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-#Local PGDB on Docker Container
-# db_user = os.getenv("PGDB_USER")
-# db_pass = os.getenv("PGDB_PASSWORD")
-# db_host = os.getenv("PGDB_HOST")
-# db_port = os.getenv("PGDB_PORT", "5432") # Use 5432 as a default port if not set
-# db_name = os.getenv("PGDB_NAME")
-# db_url = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
 
 
 #Do not change unless required - db link

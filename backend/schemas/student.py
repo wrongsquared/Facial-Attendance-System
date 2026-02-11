@@ -104,7 +104,6 @@ class StudentProfileDetails(BaseModel):
         from_attributes = True
 
 #Notifications
-
 class NotificationItem(BaseModel):
     notificationID: int
     title: str

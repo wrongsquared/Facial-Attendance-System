@@ -285,7 +285,6 @@ export function StudentTimetable({ onBack, onNavigateToProfile, onOpenNotificati
 
                       return lessonDateStr === columnDateStr;
                     });
-                    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
                     const dayAbbr = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
 
                     return (
@@ -314,7 +313,7 @@ export function StudentTimetable({ onBack, onNavigateToProfile, onOpenNotificati
                           ) : (
                             <div className="p-4 border rounded-lg bg-gray-50">
                               <p className="text-sm text-gray-600">
-                                {dayName === "Sunday" ? "No school on Sunday" : "No Classes Scheduled"}
+                                No Classes Scheduled
                               </p>
                             </div>
                           )}

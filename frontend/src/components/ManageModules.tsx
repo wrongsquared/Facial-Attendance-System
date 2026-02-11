@@ -50,7 +50,8 @@ export function ManageModules({
   const [searchTerm, setSearchTerm] = useState("");
   const [moduleFilter, setModuleFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+
+  const itemsPerPage = 30;
   const [moduleToDelete, setModuleToDelete] = useState<ModuleData | null>(null);
 
   const { token } = useAuth();
@@ -79,6 +80,11 @@ export function ManageModules({
 
     fetchModules();
   }, [token, refreshTrigger]); // Add refreshTrigger to dependency array
+
+  // Reset to first page when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, moduleFilter]);
 
   // Filter modules based on search and module filter
   const filteredModules = modules.filter(module => {
@@ -319,7 +325,7 @@ export function ManageModules({
             </div>
 
             {/* Pagination Controls */}
-            {totalPages > 1 && (
+            {totalPages > 0 && (
               <div className="flex items-center justify-center gap-4 py-4">
                 <Button
                   variant="outline"

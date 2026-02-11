@@ -7,7 +7,6 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
 import {
   Search,
   Building2,
@@ -37,16 +36,19 @@ export function PlatformManagerDashboard({
 }: PlatformManagerDashboardProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [platformManagerData, setPlatforManagerData] = useState<PlatformManagerDash | null>(null);
-
+  const [loading, setLoading] = useState(true);
   const { token } = useAuth();
 
   useEffect(() => {
     const fetchDashboardData = async (): Promise<void> => {
       try {
+        setLoading(true);
         const data = await getPlatforManagerDashboard(token || "");
         setPlatforManagerData(data);
       } catch (e) {
         console.error("Error while fetching platform manager dashboard: ", e);
+      } finally{
+        setLoading(false);
       }
     };
 
@@ -63,10 +65,13 @@ export function PlatformManagerDashboard({
       <Navbar title="Platform Manager Portal" />
 
       <main className="container mx-auto px-4 py-8 flex-1">
-        {/* Top Header - Stats and Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {/* Total Number of Institutions */}
-          <Card>
+          <Card className= "flex flex-col h-full overflow-hidden">
+            {loading ? (
+              <div className="animate-hard-pulse w-full bg-gray-200"
+              style={{ height: '160px' }}  />
+              ) : (
+              <>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm">
                 Total Number of Campuses
@@ -78,10 +83,15 @@ export function PlatformManagerDashboard({
                 {platformManagerData?.stats.total_institutions}
               </div>
             </CardContent>
+            </>)}
           </Card>
 
-          {/* Quick Actions */}
-          <Card>
+          <Card className="flex flex-col h-full overflow-hidden">
+            {loading ? (
+              <div className="animate-hard-pulse w-full bg-gray-200" 
+              style={{ height: '160px' }} />
+                ) : (
+                <>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm">Quick Actions</CardTitle>
             </CardHeader>
@@ -95,33 +105,24 @@ export function PlatformManagerDashboard({
                 View and Manage All Campuses
               </Button>
             </CardContent>
+            </>)}
           </Card>
         </div>
 
-        {/* Recently Joined Campuses */}
-        <Card>
+        <Card className="overflow-hidden">
+           {loading ? (
+              <div className="animate-hard-pulse w-full bg-gray-200" 
+              style={{ height: '450px' }} />
+              ) : (
+                <>
           <CardHeader>
-            {/* FIX 1: Corrected Grammar */}
             <CardTitle>Recently Joined Campuses</CardTitle>
             <CardDescription>
               Campuses that have recently been added to the platform
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Search Bar ...
-                <div className="mb-6">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Search campuses..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div> */}
 
-            {/* Table */}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -129,7 +130,6 @@ export function PlatformManagerDashboard({
                   <TableHead>Campus Name</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead className="text-center">Joined Date</TableHead>
-                  {/* NOTE: No "Action" header here, which is correct */}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -137,13 +137,9 @@ export function PlatformManagerDashboard({
                   filteredSubscriptions.map((subscription) => (
                     <TableRow
                       key={subscription.campusID}
-                      // FIX 2: Added styling to show it's clickable
                       className="cursor-pointer hover:bg-gray-100 transition-colors"
-                      // FIX 3: Added the click handler to the ROW
                       onClick={() => {
                         console.log(`Navigating to campus ${subscription.campusName}`);
-                        // Add your navigation logic here, e.g.:
-                        // navigate(`/institution/${subscription.campusID}`);
                       }}
                     >
                       <TableCell className="text-gray-600 font-medium">#{subscription.campusID}</TableCell>
@@ -167,14 +163,10 @@ export function PlatformManagerDashboard({
                         })()}
                       </TableCell>
 
-                      {/* FIX 4: REMOVED THE BUTTON CELL ENTIRELY 
-                              It was causing the alignment issue. 
-                          */}
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    {/* FIX 5: Updated colSpan to 5 (matching header count) */}
                     <TableCell colSpan={5} className="text-center text-gray-500">
                       No campuses found
                     </TableCell>
@@ -183,6 +175,7 @@ export function PlatformManagerDashboard({
               </TableBody>
             </Table>
           </CardContent>
+          </>)}
         </Card>
       </main>
     </div>

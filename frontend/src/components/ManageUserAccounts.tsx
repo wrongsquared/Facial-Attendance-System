@@ -17,6 +17,8 @@ import {
   ArrowLeft,
   Search,
   UserPlus,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   Table,
@@ -60,30 +62,74 @@ export function ManageUserAccounts({
   onNavigateToProfile,
   onUpdateUser
 }: ManageUserAccountsProps) {
-  const {token} = useAuth()
+  const { token } = useAuth()
   const [users, setUsers] = useState<AdminUserAccount[]>([]);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [userToDelete, setUserToDelete] = useState<AdminUserAccount | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+
+  const itemsPerPage = 30;
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 500);
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Reset to first page when search or filters change
   useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, roleFilter, statusFilter]);
+
+  useEffect(() => {
+    if (!token) return;
     const fetchData = async () => {
-      if (!token) return;
       try {
         const data = await getManageUsers(token, debouncedSearch, roleFilter, statusFilter);
         setUsers(data);
       } catch (err) {
         console.error(err);
+      } finally{
+        setLoading(false);
       }
     };
     fetchData();
   }, [token, debouncedSearch, roleFilter, statusFilter]);
+
+  // Filter users based on search and filters (client-side filtering for pagination)
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      user.uuid.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      user.name.toLowerCase().includes(debouncedSearch.toLowerCase());
+
+    const matchesRole =
+      roleFilter === "all" || user.role.toLowerCase() === roleFilter.toLowerCase();
+
+    const matchesStatus =
+      statusFilter === "all" || user.status.toLowerCase() === statusFilter.toLowerCase();
+
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentUsers = filteredUsers.slice(startIndex, endIndex);
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
   const handleDeleteClick = (user: AdminUserAccount) => {
     setUserToDelete(user); // This opens the dialog because userToDelete is not null
   };
@@ -98,7 +144,7 @@ export function ManageUserAccounts({
 
       // Close
       setUserToDelete(null);
-      
+
     } catch (err) {
       console.error("Failed to delete user", err);
       alert("Failed to delete user.");
@@ -115,23 +161,10 @@ export function ManageUserAccounts({
     }
   };
 
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case "Admin":
-        return "bg-purple-100 text-purple-700 hover:bg-purple-100";
-      case "Lecturer":
-        return "bg-blue-100 text-blue-700 hover:bg-blue-100";
-      case "Student":
-        return "bg-orange-100 text-orange-700 hover:bg-orange-100";
-      default:
-        return "bg-gray-100 text-gray-700 hover:bg-gray-100";
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile}/>
+      <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -208,13 +241,21 @@ export function ManageUserAccounts({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.length > 0 ? (
-                    users.map((user, index) => (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-20">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <span className="text-gray-500 font-medium">Loading Users...</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) :currentUsers.length > 0 ? (
+                    currentUsers.map((user, index) => (
                       <TableRow key={`${user.uuid}-${index}`}>
                         <TableCell>{user.uuid}</TableCell>
                         <TableCell>{user.name}</TableCell>
                         <TableCell>
-                            {user.role}
+                          {user.role}
                         </TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(user.status)}>
@@ -252,7 +293,7 @@ export function ManageUserAccounts({
                                 <AlertDialogFooter>
                                   <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancel</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={confirmDelete} 
+                                    onClick={confirmDelete}
                                     className="bg-red-600 hover:bg-red-700"
                                   >
                                     Delete
@@ -277,6 +318,31 @@ export function ManageUserAccounts({
                 </TableBody>
               </Table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 0 && (
+              <div className="flex items-center justify-center gap-4 py-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

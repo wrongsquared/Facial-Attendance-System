@@ -38,7 +38,8 @@ export function ManageLessons({
   const [lessonTypeFilter, setLessonTypeFilter] = useState<string>("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(20);
+
+  const itemsPerPage = 30;
 
 
   const { token } = useAuth();
@@ -75,6 +76,11 @@ export function ManageLessons({
 
     fetchLessons();
   }, [token, refreshTrigger, selectedDate]);
+
+  // Reset to first page when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, moduleFilter, lessonTypeFilter, selectedDate]);
 
   // Filter lessons based on search, module filter, and lesson type filter
   const filteredLessons = lessons.filter(lesson => {
@@ -351,7 +357,7 @@ export function ManageLessons({
             </div>
 
             {/* Pagination Controls */}
-            {totalPages > 1 && (
+            {totalPages > 0 && (
               <div className="flex items-center justify-center gap-4 py-4">
                 <Button
                   variant="outline"

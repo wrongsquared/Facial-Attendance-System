@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Save, Calendar } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Navbar } from "./Navbar";
 import { useAuth } from "../cont/AuthContext";
 import { getAdminModuleList, createLesson, getManageUsers } from "../services/api";
-import { CreateLessonRequest } from "../types/adminlesson";
 
 interface LecturerData {
   uuid: string;
