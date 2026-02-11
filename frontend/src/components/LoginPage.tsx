@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -60,7 +60,16 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const handleBackToHome = () => {
     navigate("/");
   };
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorType = params.get('error');
 
+    if (errorType === 'session_expired') {
+      setError("Your session has expired. Please log in again.");
+
+      window.history.replaceState({}, document.title, "/login");
+    }
+  }, [setError]);
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 relative">
       {/* Back Button */}

@@ -85,25 +85,6 @@ const validateAddress = (address: string): { isValid: boolean; error: string } =
 
   return { isValid: true, error: "" };
 };
-
-// Attendance validation function
-const validateAttendance = (attendance: string): { isValid: boolean; error: string } => {
-  if (!attendance.trim()) {
-    return { isValid: false, error: "Attendance percentage is required" };
-  }
-
-  const attendanceNum = parseFloat(attendance);
-  if (isNaN(attendanceNum)) {
-    return { isValid: false, error: "Attendance must be a valid number" };
-  }
-
-  if (attendanceNum < 0 || attendanceNum > 100) {
-    return { isValid: false, error: "Attendance must be between 0 and 100" };
-  }
-
-  return { isValid: true, error: "" };
-};
-
 interface AdminUpdateUserProfileProps {
   onLogout: () => void;
   onBack: () => void;

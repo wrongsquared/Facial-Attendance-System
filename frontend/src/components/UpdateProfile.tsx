@@ -31,6 +31,7 @@ export function UpdateProfile({
   onNavigateToProfile
 }: UpdateProfileProps) {
   // Edit mode state
+  const [loading,setLoading] = useState(true);
   const { token, user } = useAuth();
   const [formData, setFormData] = useState<LecturerProfileData>({
     name: "",
@@ -124,12 +125,11 @@ export function UpdateProfile({
   };
   // Fetch Data on Mount
   useEffect(() => {
+    if (!token) return;
     const fetchData = async () => {
-      if (!token) return;
       try {
+        setLoading(true);
         const data = await getLecturerFullProfile(token);
-        // Populate Form
-        // We use || "" to ensure inputs don't become uncontrolled if value is null
         const profileData = {
           name: data.name || "",
           email: data.email || "",
@@ -144,6 +144,8 @@ export function UpdateProfile({
         setOriginalData(profileData); // Store original data for cancel functionality
       } catch (err) {
         console.error("Failed to load profile", err);
+      } finally{
+        setLoading(false);
       }
     };
     fetchData();
@@ -186,6 +188,9 @@ export function UpdateProfile({
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Name:</Label>
+                {loading ? (
+                <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
+                ) : (
                 <Input
                   id="name"
                   type="text"
@@ -194,10 +199,14 @@ export function UpdateProfile({
                   className="h-12"
                   disabled={!isEditMode}
                 />
+                )} 
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email:</Label>
+                {loading ? (
+                  <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
+                ) : (
                 <Input
                   id="email"
                   type="email"
@@ -205,13 +214,16 @@ export function UpdateProfile({
                   onChange={handleChange}
                   className="h-12"
                   disabled={!isEditMode}
-                />
+                />)}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="contactNumber">
                   Contact Number:
                 </Label>
+                {loading ? (
+                  <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
+                ) : (
                 <Input
                   id="contactNumber"
                   type="tel"
@@ -219,18 +231,21 @@ export function UpdateProfile({
                   onChange={handleChange}
                   className="h-12"
                   disabled={!isEditMode}
-                />
+                />)}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="address">Address:</Label>
+              {loading ? (
+                <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
+                ) : (
                 <Textarea
                   id="address"
                   value={formData.address}
                   onChange={handleChange}
                   className="h-12"
                   disabled={!isEditMode}
-                />
+                />)}
               </div>
             </CardContent>
           </Card>
@@ -248,6 +263,9 @@ export function UpdateProfile({
                 <Label htmlFor="emergencyContactName">
                   Contact Name:
                 </Label>
+                {loading ? (
+                <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
+                ) : (
                 <Input
                   id="emergencyContactName"
                   type="text"
@@ -255,13 +273,16 @@ export function UpdateProfile({
                   onChange={handleChange}
                   className="h-12"
                   disabled={!isEditMode}
-                />
+                />)}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="emergencyContactRelationship">
                   Relationship:
                 </Label>
+                        {loading ? (
+          <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
+        ) : (
                 <Input
                   id="emergencyContactRelationship"
                   type="text"
@@ -269,13 +290,16 @@ export function UpdateProfile({
                   onChange={handleChange}
                   className="h-12"
                   disabled={!isEditMode}
-                />
+                />)}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="emergencyContactNumber">
                   Contact Number:
                 </Label>
+                {loading ? (
+                  <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
+                ) : (
                 <Input
                   id="emergencyContactNumber"
                   type="tel"
@@ -283,7 +307,7 @@ export function UpdateProfile({
                   onChange={handleChange}
                   className="h-12"
                   disabled={!isEditMode}
-                />
+                />)}
               </div>
             </CardContent>
           </Card>

@@ -67,6 +67,7 @@ export function ManageInstitutionsProfile({
   onCreateProfile,
   onViewProfile,
 }: ManageInstitutionsProfileProps) {
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   // CHANGED: Initialized to empty string to allow placeholder to show
   const [sortOption, setSortOption] = useState<string>("");
@@ -80,6 +81,7 @@ export function ManageInstitutionsProfile({
   useEffect(() => {
     const fetchAllInstitutions = async () => {
       try {
+        setLoading(true);
         const response = await fetch("http://localhost:8000/platform-manager/institutions", {
           headers: {
             "Content-Type": "application/json",
@@ -91,6 +93,8 @@ export function ManageInstitutionsProfile({
       } catch (err) {
         console.error("Error while fetching:", err);
         toast.error("Failed to load institutions");
+      } finally{
+        setLoading(false);
       }
     };
     fetchAllInstitutions();
@@ -237,7 +241,17 @@ export function ManageInstitutionsProfile({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentInstitutions.length > 0 ? (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-20">
+                        <div className="flex flex-col items-center justify-center gap-3">
+                          <span className="font-medium text-gray-500">
+                            Loading Table Data...
+                          </span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) :currentInstitutions.length > 0 ? (
                     currentInstitutions.map((institution) => (
                       <TableRow key={institution.campusID}>
                         <TableCell className="text-gray-600 font-medium">

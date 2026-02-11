@@ -222,8 +222,9 @@ export function StudentProfile({
 
   // Fetch Data on Mount
   useEffect(() => {
+    if (!token) return;
     const fetchData = async () => {
-      if (!token) return;
+      setLoading(true);
       try {
         const data = await getStudentFullProfile(token);
 
@@ -493,7 +494,6 @@ export function StudentProfile({
         method: "POST",
         headers: { "Content-Type": "application/json" },
 
-        // ✅ MINIMAL CHANGE: send these fields so backend can name correctly + insert studentangles
         body: JSON.stringify({
           student_label: studentLabel,
           student_name: formData.name,
@@ -668,8 +668,6 @@ export function StudentProfile({
     ? new Date(biometricLastUpdated).toLocaleString()
     : "—";
 
-  if (loading) return <div className="p-10 text-center">Loading profile...</div>;
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar title="Student Profile"
@@ -784,23 +782,38 @@ export function StudentProfile({
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Name:</Label>
+                {loading ? (
+                  <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
+                  ) : (
                 <Input id="name" type="text" value={formData.name} className="h-12" disabled />
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="studentId">Student ID:</Label>
+                {loading ? (
+                  <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
+                  ) : (
                 <Input id="studentId" type="text" value={formData.studentNum} className="h-12" disabled />
+                  )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email:</Label>
+                {loading ? (
+                  <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
+                  ) : (
                 <Input id="email" type="email" value={formData.email} onChange={handleChange} className="h-12" disabled />
+                  )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="contactNumber">
                   Contact Number: <span className="text-red-500">*</span>
                 </Label>
+                {loading ? (
+                  <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
+                  ) : (
                 <Input
                   id="contactNumber"
                   type="tel"
@@ -809,6 +822,7 @@ export function StudentProfile({
                   className={`h-12 ${validationErrors.contactNumber ? 'border-red-500' : ''}`}
                   disabled={!isEditMode}
                 />
+                  )}
                 {validationErrors.contactNumber && (
                   <p className="text-sm text-red-500">{validationErrors.contactNumber}</p>
                 )}
@@ -818,13 +832,16 @@ export function StudentProfile({
                 <Label htmlFor="address">
                   Address: <span className="text-red-500">*</span>
                 </Label>
+                {loading ? (
+                  <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
+                  ) : (
                 <Textarea
                   id="address"
                   value={formData.address}
                   onChange={handleChange}
                   className={`h-12 ${validationErrors.address ? 'border-red-500' : ''}`}
                   disabled={!isEditMode}
-                />
+                />)}
                 {validationErrors.address && (
                   <p className="text-sm text-red-500">{validationErrors.address}</p>
                 )}
@@ -843,6 +860,9 @@ export function StudentProfile({
                 <Label htmlFor="emergencyContactName">
                   Contact Name: <span className="text-red-500">*</span>
                 </Label>
+                {loading ? (
+                  <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
+                  ) : (
                 <Input
                   id="emergencyContactName"
                   type="text"
@@ -851,6 +871,7 @@ export function StudentProfile({
                   className={`h-12 ${validationErrors.emergencyContactName ? 'border-red-500' : ''}`}
                   disabled={!isEditMode}
                 />
+                  )}
                 {validationErrors.emergencyContactName && (
                   <p className="text-sm text-red-500">{validationErrors.emergencyContactName}</p>
                 )}
@@ -860,6 +881,9 @@ export function StudentProfile({
                 <Label htmlFor="emergencyContactRelationship">
                   Relationship: <span className="text-red-500">*</span>
                 </Label>
+                {loading ? (
+                  <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
+                  ) : (
                 <Input
                   id="emergencyContactRelationship"
                   type="text"
@@ -868,6 +892,7 @@ export function StudentProfile({
                   className={`h-12 ${validationErrors.emergencyContactRelationship ? 'border-red-500' : ''}`}
                   disabled={!isEditMode}
                 />
+                  )}
                 {validationErrors.emergencyContactRelationship && (
                   <p className="text-sm text-red-500">{validationErrors.emergencyContactRelationship}</p>
                 )}
@@ -877,6 +902,9 @@ export function StudentProfile({
                 <Label htmlFor="emergencyContactNumber">
                   Contact Number: <span className="text-red-500">*</span>
                 </Label>
+                {loading ? (
+                  <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
+                  ) : (
                 <Input
                   id="emergencyContactNumber"
                   type="tel"
@@ -885,6 +913,7 @@ export function StudentProfile({
                   className={`h-12 ${validationErrors.emergencyContactNumber ? 'border-red-500' : ''}`}
                   disabled={!isEditMode}
                 />
+                )}
                 {validationErrors.emergencyContactNumber && (
                   <p className="text-sm text-red-500">{validationErrors.emergencyContactNumber}</p>
                 )}

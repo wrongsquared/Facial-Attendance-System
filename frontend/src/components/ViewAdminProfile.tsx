@@ -58,9 +58,10 @@ export function ViewAdminProfile({
 
   // Fetch Admin Profile
   useEffect(() => {
+    if (!token) return;
     const fetchProfile = async () => {
-      if (!token) return;
       try {
+        setLoading(true);
         const data = await getAdminProfile(token);
         const profileData = {
           name: data.name || "",
