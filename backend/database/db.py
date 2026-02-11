@@ -203,7 +203,7 @@ class Module(Base): #Modules
     startDate: Mapped[datetime.datetime|None]
     endDate: Mapped[datetime.datetime|None]
 
-class Lesson(Base): # Lessons by Lecturers, belongs to Modules
+class Lesson(Base): 
     __tablename__ = "lessons"
     lessonID: Mapped[int] = mapped_column(primary_key=True)
 
@@ -309,6 +309,7 @@ class TutorialsGroup(Base):
     tutorialGroupsID: Mapped[int] = mapped_column(primary_key=True)
     lecModID: Mapped[int] = mapped_column(ForeignKey("lecmods.lecModID"))
     lecMod: Mapped["LecMod"] = relationship(back_populates="tutorial_groups")
+    groupName: Mapped[str] = mapped_column(String(50))
     student_assignments: Mapped[list["StudentTutorialGroup"]] = relationship(back_populates="group", cascade="all, delete-orphan")
     lessons: Mapped[list[Lesson]]= relationship(back_populates="tutorialGroup")
 

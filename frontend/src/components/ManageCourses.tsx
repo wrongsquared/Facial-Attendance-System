@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Search, ArrowLeft, Plus, Edit, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, ArrowLeft, Plus} from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Badge } from "./ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -136,17 +135,6 @@ export function ManageCourses({
       alert('Failed to delete course. Please try again.');
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading courses data...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

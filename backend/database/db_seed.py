@@ -575,20 +575,22 @@ def lecModSeed(dbSessionLocalInstance: Session, spbase: Client):
 def studentModulesSeed(dbSessionLocalInstance: Session, spbase: Client): 
     print(f"Seeding studentModules: \n")
     studentobjs = dbSessionLocalInstance.query(Student).all()
-    moduleobjs = dbSessionLocalInstance.query(Module).all()
-
-    existing_enrollments = set()
 
     for student in studentobjs:
+        campus_modules = (
+            dbSessionLocalInstance.query(Module)
+            .filter(Module.campusID == student.campusID)
+            .all()
+        )
 
-        num_courses = random.randint(1, min(2, len(moduleobjs)))
-        
-        picked_modules = random.sample(moduleobjs, num_courses)
+        if not campus_modules:
+            continue
+
+        num_to_enroll = random.randint(1, min(2, len(campus_modules)))
+        picked_modules = random.sample(campus_modules, num_to_enroll)
 
         for module in picked_modules:
             dbSessionLocalInstance.add(StudentModules(student=student, modules=module))
-            existing_enrollments.add((student.studentID, module.moduleID))
-
     dbSessionLocalInstance.commit()
     return None
 
@@ -647,7 +649,7 @@ def lessonsSeed(dbSessionLocalInstance: Session, spbase: Client):
     dbSessionLocalInstance.commit()
 
 def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client): 
-    print(f"Seeding Detections \n")
+    print(f"Seeding Detections (EntLeave) \n")
     
     now = datetime.now()
     lessons = dbSessionLocalInstance.query(Lesson).filter(
@@ -687,7 +689,6 @@ def entLeaveSeed(dbSessionLocalInstance: Session, spbase: Client):
             ))
 
     if detections:
-        print(f"   + Marking {len(detections)} past logical attendance events...")
         dbSessionLocalInstance.bulk_save_objects(detections)
         dbSessionLocalInstance.commit()
     
@@ -753,7 +754,6 @@ def attdCheckSeed(dbSessionLocalInstance: Session, spbase: Client):
     if new_checks:
         dbSessionLocalInstance.bulk_save_objects(new_checks)
         dbSessionLocalInstance.commit()
-        print(f"   + Successfully processed {len(new_checks)} records.")
     
     return None
 
@@ -790,13 +790,18 @@ def seedLazyStudent(db: Session, spbase: Client, defphotopath: str):
         return lazy_uuid
 
     #  Get Dependencies
-    target_module = db.query(Module).filter_by(moduleCode="CSIT420").first()
-    lec_mod = db.query(LecMod).filter_by(moduleID=target_module.moduleID).first()
-    albert_group = db.query(TutorialsGroup).filter_by(lecModID=lec_mod.lecModID).first()
+
     
     student_profile = db.query(UserProfile).filter_by(profileTypeName='Student').first()
     random_course = db.query(Courses).first()
-    random_campus = db.query(Campus).first()
+    target_campus = db.query(Campus).first()
+    target_module = db.query(Module).filter_by(
+        moduleCode="CSIT420", 
+        campusID=target_campus.campusID
+    ).first()
+    lec_mod = db.query(LecMod).filter_by(moduleID=target_module.moduleID).first()
+    albert_group = db.query(TutorialsGroup).filter_by(lecModID=lec_mod.lecModID).first()
+    
 
     # Create Student Profile
     lazy_student = Student(
@@ -807,7 +812,7 @@ def seedLazyStudent(db: Session, spbase: Client, defphotopath: str):
         studentNum="000000",
         attendanceMinimum=80.0, 
         courseID=random_course.courseID,
-        campusID=random_campus.campusID,
+        campusID=target_campus.campusID,
         photo=defphotopath,
         creationDate= datetime.today(),
         # New required fields
@@ -870,46 +875,43 @@ def tutorialGroupsSeed(dbSessionLocalInstance: Session):
     lec_mods = dbSessionLocalInstance.query(LecMod).all()
     
     if not lec_mods:
-        print(" [!] No LecMods found. Seed lecModSeed first.")
+        print(" No LecMods found. Seed lecModSeed first.")
         return
-
     for lm in lec_mods:
-
-        for suffix in ["A", "B"]:
+        
+        for i in range(1, 4):
             new_group = TutorialsGroup(
-                lecModID = lm.lecModID
+                lecModID = lm.lecModID,
+                groupName = f"Tutorial Group {i}"
             )
             dbSessionLocalInstance.add(new_group)
-    
     dbSessionLocalInstance.commit()
     return None
 
 def studentTutorialAssignmentSeed(dbSessionLocalInstance: Session):
     print(f"Assigning Students to Tutorial Groups: \n")
-    
     enrollments = dbSessionLocalInstance.query(StudentModules).all()
     
-    assignments_count = 0
-
     for enrollment in enrollments:
+        student = enrollment.student
+        
         available_groups = (
             dbSessionLocalInstance.query(TutorialsGroup)
             .join(LecMod)
-            .filter(LecMod.moduleID == enrollment.modulesID)
+            .join(Lecturer)
+            .filter(
+                LecMod.moduleID == enrollment.modulesID,
+                Lecturer.campusID == student.campusID
+            )
             .all()
         )
 
-        if not available_groups:
-            continue
-
-        selected_group = random.choice(available_groups)
-
-        new_assignment = StudentTutorialGroup(
-            studentModulesID = enrollment.studentModulesID,
-            tutorialGroupID = selected_group.tutorialGroupsID
-        )
-        dbSessionLocalInstance.add(new_assignment)
-        assignments_count += 1
+        if available_groups:
+            selected_group = random.choice(available_groups)
+            dbSessionLocalInstance.add(StudentTutorialGroup(
+                studentModulesID = enrollment.studentModulesID,
+                tutorialGroupID = selected_group.tutorialGroupsID
+            ))
 
     dbSessionLocalInstance.commit()
     return None

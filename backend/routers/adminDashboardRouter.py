@@ -25,6 +25,7 @@ def get_admin_dashboard_stats(
     current_user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
+    # 1. Verification and Setup
     current_admin = db.query(Admin).filter(Admin.adminID == current_user_id).first()
     if not current_admin:
         raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
@@ -34,12 +35,14 @@ def get_admin_dashboard_stats(
     current_month = now.month
     current_year = now.year
 
+    # 2. Total Active Users (Campus Isolated)
     s_count = db.query(func.count(Student.studentID)).filter(Student.campusID == my_campus_id).scalar() or 0
     l_count = db.query(func.count(Lecturer.lecturerID)).filter(Lecturer.campusID == my_campus_id).scalar() or 0
     a_count = db.query(func.count(Admin.adminID)).filter(Admin.campusID == my_campus_id).scalar() or 0
     total_users = s_count + l_count + a_count
 
-
+    # 3. Overall Attendance Rate (Denominator: Expected sessions)
+    # Using 'distinct' on a combination of Student and Lesson ensures accuracy
     total_possible_slots = (
         db.query(func.count(Lesson.lessonID))
         .join(LecMod, Lesson.lecModID == LecMod.lecModID)
@@ -57,6 +60,8 @@ def get_admin_dashboard_stats(
         .scalar()
     ) or 0
 
+    # 4. Overall Attendance Rate (Numerator: Actual sessions)
+    # We count attendance checks for the same criteria as above
     total_records = (
         db.query(func.count(AttdCheck.AttdCheckID))
         .join(Student, AttdCheck.studentID == Student.studentID)
@@ -72,7 +77,9 @@ def get_admin_dashboard_stats(
     if total_possible_slots > 0:
         attendance_rate = round((min(total_records, total_possible_slots) / total_possible_slots) * 100, 1)
 
-    possible_month = (
+    # 5. Monthly Trend Calculation (Optional but recommended for Admins)
+    # Total expected this month
+    possible_this_month = (
         db.query(func.count(Lesson.lessonID))
         .join(LecMod, Lesson.lecModID == LecMod.lecModID)
         .join(StudentModules, LecMod.moduleID == StudentModules.modulesID)
@@ -91,102 +98,115 @@ def get_admin_dashboard_stats(
         .scalar()
     ) or 0
 
+    # Total attended this month
+    attended_this_month = (
+        db.query(func.count(AttdCheck.AttdCheckID))
+        .join(Student, AttdCheck.studentID == Student.studentID)
+        .join(Lesson, AttdCheck.lessonID == Lesson.lessonID)
+        .filter(
+            Student.campusID == my_campus_id,
+            extract('month', Lesson.startDateTime) == current_month,
+            extract('year', Lesson.startDateTime) == current_year,
+            Lesson.endDateTime < now
+        )
+        .scalar()
+    ) or 0
+
+    monthly_rate = 0.0
+    if possible_this_month > 0:
+        monthly_rate = round((min(attended_this_month, possible_this_month) / possible_this_month) * 100, 1)
+
     return {
         "overall_attendance_rate": attendance_rate,
         "total_active_users": total_users,
+        "monthly_attendance_rate": monthly_rate # Now actually returning the monthly trend
     }
-
 @router.get("/admin/courses/attention", response_model=list[CourseAttentionItem])
 def get_courses_requiring_attention(
     current_user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    try:
-        admin_uuid = uuid.UUID(current_user_id) if isinstance(current_user_id, str) else current_user_id
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid User ID format")
-
-    current_admin = db.query(Admin).filter(Admin.adminID == admin_uuid).first()
+    # 1. Verify Admin and Get Campus
+    current_admin = db.query(Admin).filter(Admin.adminID == current_user_id).first()
     if not current_admin:
         raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
-    
     my_campus_id = current_admin.campusID
+    
     now = datetime.now()
 
-    # 2. CREATE ALIASES
-    # Because Lecturer and Student both use the 'users' table, 
-    # we must alias them to avoid "DuplicateAlias" errors.
-    LecUser = aliased(User) 
-    StudUser = aliased(User)
+    # --- FIX: Create an Alias for the User table to avoid duplicate alias error ---
+    LecUser = aliased(User)
 
-    # 3. THE OPTIMIZED QUERY
-    query = (
+    # 2. Get all Modules at this Campus with their Lecturer Names
+    modules_query = (
         db.query(
-            Module.moduleCode,
-            Module.moduleName,
-            LecUser.name.label("lecturer_name"),
-            func.count(func.distinct(Student.studentID)).label("student_count"),
-            func.count(func.distinct(Lesson.lessonID)).label("past_lessons_count"),
-            func.count(func.distinct(
-                case(
-                    (AttdCheck.status.in_(['Present', 'Late']), AttdCheck.AttdCheckID),
-                    else_=None
-                )
-            )).label("actual_attendance_count")
+            Module,
+            LecUser.name.label("lecturer_name")
         )
-        # Join Module to LecMod to Lecturer to User (LecUser)
         .join(LecMod, Module.moduleID == LecMod.moduleID)
         .join(Lecturer, LecMod.lecturerID == Lecturer.lecturerID)
+        # Use the alias here
         .join(LecUser, Lecturer.lecturerID == LecUser.userID)
-        
-        # Join Lessons
-        .join(Lesson, LecMod.lecModID == Lesson.lecModID)
-        
-        # Outer Join Students (via StudentModules)
-        .outerjoin(StudentModules, Module.moduleID == StudentModules.modulesID)
-        .outerjoin(Student, StudentModules.studentID == Student.studentID)
-        
-        # Outer Join Attendance records linked to both Lesson and Student
-        .outerjoin(AttdCheck, and_(
-            Lesson.lessonID == AttdCheck.lessonID,
-            Student.studentID == AttdCheck.studentID
-        ))
-        
-        # FILTERS
-        .filter(Lecturer.campusID == my_campus_id) # Lecturer must be from this campus
-        .filter(Student.campusID == my_campus_id)  # Only count students from this campus
-        .filter(Lesson.endDateTime < now)          # Only look at finished classes
-        
-        # GROUP BY
-        .group_by(Module.moduleID, LecUser.name)
-    )
+        .filter(Module.campusID == my_campus_id)
+        .distinct()
+    ).all()
 
-    raw_results = query.all()
-    final_results = []
-
-    for row in raw_results:
-        student_count = row.student_count or 0
-        past_lessons = row.past_lessons_count or 0
-        actual_attd = row.actual_attendance_count or 0
-
-        # total_possible = students enrolled * classes held
-        total_possible = student_count * past_lessons
+    results = []
+    
+    for mod, lecturer_name in modules_query:
         
-        if total_possible == 0:
+        # 3. CALCULATE TRUE CAPACITY (The precise Denominator)
+        # We only count classes for the student's assigned group
+        total_expected = (
+            db.query(func.count(Lesson.lessonID))
+            .join(LecMod, Lesson.lecModID == LecMod.lecModID)
+            .join(StudentModules, LecMod.moduleID == StudentModules.modulesID)
+            .outerjoin(StudentTutorialGroup, StudentModules.studentModulesID == StudentTutorialGroup.studentModulesID)
+            .filter(
+                LecMod.moduleID == mod.moduleID,
+                Lesson.endDateTime < now,
+                or_(
+                    Lesson.tutorialGroupID == None, 
+                    Lesson.tutorialGroupID == StudentTutorialGroup.tutorialGroupID 
+                )
+            )
+            .scalar()
+        ) or 0
+
+        if total_expected == 0:
             continue
 
-        rate = round((actual_attd / total_possible) * 100)
+        # 4. CALCULATE ACTUAL ATTENDANCE (The precise Numerator)
+        actual_attended = (
+            db.query(func.count(AttdCheck.AttdCheckID))
+            .join(Lesson, AttdCheck.lessonID == Lesson.lessonID)
+            .join(LecMod, Lesson.lecModID == LecMod.lecModID)
+            .filter(
+                LecMod.moduleID == mod.moduleID,
+                Lesson.endDateTime < now
+            )
+            .scalar()
+        ) or 0
 
+        # 5. Get Student Count
+        student_count = db.query(func.count(StudentModules.studentModulesID)).filter(
+            StudentModules.modulesID == mod.moduleID
+        ).scalar() or 0
+
+        # 6. Calculate Final Rate
+        rate = round((min(actual_attended, total_expected) / total_expected) * 100)
+
+        # 7. Filter for modules below 80%
         if rate < 80:
-            final_results.append({
-                "module_code": row.moduleCode,
-                "module_name": row.moduleName,
-                "lecturer_name": row.lecturer_name,
+            results.append({
+                "module_code": mod.moduleCode,
+                "module_name": mod.moduleName,
+                "lecturer_name": lecturer_name,
                 "student_count": student_count,
                 "attendance_rate": rate
             })
 
-    return final_results
+    return sorted(results, key=lambda x: x['attendance_rate'])
 
 
 @router.get("/admin/users/recent", response_model=list[UserManagementItem])
