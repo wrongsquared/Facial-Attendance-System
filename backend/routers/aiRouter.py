@@ -146,24 +146,25 @@ def post_attendance(payload: AttendanceSnapshot, db: Session = Depends(get_db)):
 
     created_logs = 0
     marked_present = 0
+    updated_present = 0
     unknown_students = []
 
     try:
         for det in payload.detections:
             student = db.query(Student).filter(Student.studentNum == det.student_num).first()
-
             if not student:
                 unknown_students.append(det.student_num)
                 continue
 
+            # --- 1) entleave: log scans (cooldown 1 min) ---
             last_scan = (
                 db.query(EntLeave)
-                .filter(and_(EntLeave.lessonID == payload.lesson_id, EntLeave.studentID == student.studentID))
+                .filter(and_(EntLeave.lessonID == payload.lesson_id,
+                             EntLeave.studentID == student.studentID))
                 .order_by(EntLeave.detectionTime.desc())
                 .first()
             )
 
-            # 1-minute cooldown
             should_log = True
             if last_scan and (payload.captured_at - last_scan.detectionTime) < timedelta(minutes=1):
                 should_log = False
@@ -176,20 +177,34 @@ def post_attendance(payload: AttendanceSnapshot, db: Session = Depends(get_db)):
                 ))
                 created_logs += 1
 
+            # --- 2) attdcheck: insert/update seeded columns ---
             attendance_record = (
                 db.query(AttdCheck)
-                .filter(and_(AttdCheck.lessonID == payload.lesson_id, AttdCheck.studentID == student.studentID))
+                .filter(and_(AttdCheck.lessonID == payload.lesson_id,
+                             AttdCheck.studentID == student.studentID))
                 .first()
             )
 
             if not attendance_record:
+                # Create new record: firstDetection + lastDetection
                 db.add(AttdCheck(
                     lessonID=payload.lesson_id,
                     studentID=student.studentID,
                     status="Present",
-                    remarks="Camera AI"
+                    remarks="Camera Capture",
+                    firstDetection=payload.captured_at,
+                    lastDetection=payload.captured_at
                 ))
                 marked_present += 1
+            else:
+                # Update lastDetection every time we see them
+                attendance_record.status = "Present"
+                attendance_record.remarks = attendance_record.remarks or "Camera Capture"
+                attendance_record.lastDetection = payload.captured_at
+                # Keep firstDetection if already exists; if it's null, set it once
+                if getattr(attendance_record, "firstDetection", None) is None:
+                    attendance_record.firstDetection = payload.captured_at
+                updated_present += 1
 
         db.commit()
 
@@ -204,8 +219,10 @@ def post_attendance(payload: AttendanceSnapshot, db: Session = Depends(get_db)):
         "captured_at": payload.captured_at.isoformat(),
         "logs_created": created_logs,
         "marked_present_count": marked_present,
+        "updated_present_count": updated_present,
         "unknown_students": unknown_students,
     }
+
 
 
 # =========================================================

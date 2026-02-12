@@ -260,7 +260,7 @@ def collect_training_items(sb: Client):
             end = start + page_size - 1
             resp = (
                 sb.table("studentangles")
-                .select("studentid,photoangle,imagepath,updatedat")
+                .select("studentID,photoangle,imagepath,updatedat")
                 .range(start, end)
                 .execute()
             )
@@ -273,7 +273,7 @@ def collect_training_items(sb: Client):
         # Use student UUID as label for these
         usable = 0
         for r in rows:
-            sid = r.get("studentid")
+            sid = r.get("studentID")
             path = r.get("imagepath")
             if not sid or not path:
                 continue

@@ -6,6 +6,7 @@ import time
 import os
 from datetime import datetime
 import requests
+import re
 
 # Optional: antispoof (won't crash if missing)
 try:
@@ -18,7 +19,7 @@ except Exception:
 # ==============================
 # CONFIG
 # ==============================
-BACKEND_URL = "http://localhost:8000/ai/attendance"
+BACKEND_URL = "http://localhost:8000/attendance"
 
 # For now you can hardcode (testing). Later: fetch from /student/todayslesson or lecturer endpoint.
 LESSON_ID = 1
@@ -74,9 +75,25 @@ def clamp_box(x1, y1, x2, y2, w, h):
     return x1, y1, x2, y2
 
 def extract_student_num(label: str) -> str:
-    # label like "8220967_Din"
-    first = label.split("_")[0].strip()
-    return first if first.isdigit() else label
+    """
+    Extracts a student number from a label.
+    Works for:
+      - "8220967_Din" -> "8220967"
+      - "allison_lang_190036" -> "190036"
+      - "190036" -> "190036"
+    If no digits found, returns the original label.
+    """
+    s = (label or "").strip()
+
+    # Prefer the last numeric chunk (most common in names like xxx_190036)
+    parts = s.split("_")
+    for part in reversed(parts):
+        if part.isdigit():
+            return part
+
+    # Fallback: any digit sequence in the string
+    m = re.search(r"(\d+)", s)
+    return m.group(1) if m else s
 
 def face_chip_embedding(frame_bgr, rect):
     """
