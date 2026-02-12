@@ -1137,6 +1137,7 @@ def get_all_lessons_for_admin(
                         "moduleCode": module.moduleCode,
                         "moduleName": module.moduleName,
                         "lessonType": lesson.lessontype or "Unknown",
+                        "tutorialGroupID": str(lesson.tutorialGroupID) if lesson.tutorialGroupID else None,
                         "startDateTime": lesson.startDateTime.isoformat() if lesson.startDateTime else None,
                         "endDateTime": lesson.endDateTime.isoformat() if lesson.endDateTime else None,
                         "building": lesson.building or "",
@@ -1222,12 +1223,54 @@ def create_lesson(
             db.commit()
             db.refresh(lecmod)
         
+        # Validate required fields
+        if not lesson_data.get("startDateTime") or not lesson_data.get("endDateTime"):
+            raise HTTPException(status_code=400, detail="Start date/time and end date/time are required")
+        
         # Create the lesson
+        tutorial_group_id = None
+        if lesson_data.get("tutorialGroupID"):
+            try:
+                tutorial_group_id = int(lesson_data["tutorialGroupID"])
+                
+                # Debug: Check what tutorial groups exist for this module
+                print(f"Looking for tutorial group {tutorial_group_id}")
+                print(f"Current lecModID: {lecmod.lecModID}")
+                
+                # Check all tutorial groups for this module
+                all_module_groups = (
+                    db.query(TutorialsGroup)
+                    .join(LecMod, TutorialsGroup.lecModID == LecMod.lecModID)
+                    .filter(LecMod.moduleID == module.moduleID)
+                    .all()
+                )
+                print(f"All tutorial groups for module {module.moduleCode}:")
+                for group in all_module_groups:
+                    print(f"  Group ID: {group.tutorialGroupsID}, Name: {group.groupName}, LecModID: {group.lecModID}")
+                
+                # Find tutorial group for this module (any lecmod for this module)
+                tutorial_group = (
+                    db.query(TutorialsGroup)
+                    .join(LecMod, TutorialsGroup.lecModID == LecMod.lecModID)
+                    .filter(
+                        TutorialsGroup.tutorialGroupsID == tutorial_group_id,
+                        LecMod.moduleID == module.moduleID
+                    )
+                    .first()
+                )
+                
+                if not tutorial_group:
+                    raise HTTPException(status_code=400, detail="Invalid tutorial group for this module")
+                    
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid tutorial group ID format")
+        
         new_lesson = Lesson(
             lecModID=lecmod.lecModID,
             lessontype=lesson_data["lessonType"],
-            startDateTime=datetime.fromisoformat(lesson_data["startDateTime"]) if lesson_data.get("startDateTime") else None,
-            endDateTime=datetime.fromisoformat(lesson_data["endDateTime"]) if lesson_data.get("endDateTime") else None,
+            tutorialGroupID=tutorial_group_id,
+            startDateTime=datetime.fromisoformat(lesson_data["startDateTime"]),
+            endDateTime=datetime.fromisoformat(lesson_data["endDateTime"]),
             building=lesson_data.get("building", ""),
             room=lesson_data.get("room", "")
         )
@@ -1294,61 +1337,29 @@ def update_lesson(
         if not lesson:
             raise HTTPException(status_code=404, detail="Lesson not found or access denied")
         
-        # Find the module and verify it exists
-        module = db.query(Module).filter(Module.moduleCode == lesson_data["moduleCode"]).first()
-        if not module:
-            raise HTTPException(status_code=404, detail="Module not found")
-        
-        # Find the lecturer and verify they belong to admin's campus
-        lecturer_uuid = uuid.UUID(lesson_data["lecturerID"])
-        lecturer = (
-            db.query(Lecturer)
-            .filter(
-                Lecturer.lecturerID == lecturer_uuid,
-                Lecturer.campusID == admin_campus_id
-            )
-            .first()
-        )
-        
-        if not lecturer:
-            raise HTTPException(status_code=404, detail="Lecturer not found or access denied for your campus")
-        
-        # Find or create LecMod entry for this lecturer-module combination
-        lecmod = (
-            db.query(LecMod)
-            .filter(
-                LecMod.moduleID == module.moduleID,
-                LecMod.lecturerID == lecturer_uuid
-            )
-            .first()
-        )
-        
-        if not lecmod:
-            # Create new LecMod entry
-            lecmod = LecMod(
-                moduleID=module.moduleID,
-                lecturerID=lecturer_uuid
-            )
-            db.add(lecmod)
-            db.commit()
-            db.refresh(lecmod)
-        
-        # Update the lesson
-        lesson.lecModID = lecmod.lecModID
-        lesson.lessontype = lesson_data["lessonType"]
-        lesson.startDateTime = datetime.fromisoformat(lesson_data["startDateTime"]) if lesson_data.get("startDateTime") else None
-        lesson.endDateTime = datetime.fromisoformat(lesson_data["endDateTime"]) if lesson_data.get("endDateTime") else None
-        lesson.building = lesson_data.get("building", "")
-        lesson.room = lesson_data.get("room", "")
+        # Update only the editable fields (time and location)
+        if lesson_data.get("startDateTime"):
+            lesson.startDateTime = datetime.fromisoformat(lesson_data["startDateTime"])
+        if lesson_data.get("endDateTime"):
+            lesson.endDateTime = datetime.fromisoformat(lesson_data["endDateTime"])
+        if "building" in lesson_data:
+            lesson.building = lesson_data["building"]
+        if "room" in lesson_data:
+            lesson.room = lesson_data["room"]
         
         db.commit()
         db.refresh(lesson)
         
+        # Get module and lecturer info for response
+        lecmod = db.query(LecMod).filter(LecMod.lecModID == lesson.lecModID).first()
+        module = db.query(Module).filter(Module.moduleID == lecmod.moduleID).first()
+        lecturer = db.query(Lecturer).filter(Lecturer.lecturerID == lecmod.lecturerID).first()
+        
         return {
             "message": "Lesson updated successfully",
             "lessonID": lesson.lessonID,
-            "moduleCode": module.moduleCode,
-            "lecturerName": lecturer.name,
+            "moduleCode": module.moduleCode if module else None,
+            "lecturerName": lecturer.name if lecturer else None,
             "lessonType": lesson.lessontype,
             "building": lesson.building,
             "room": lesson.room

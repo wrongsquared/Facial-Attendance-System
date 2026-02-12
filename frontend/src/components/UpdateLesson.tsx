@@ -7,7 +7,7 @@ import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Navbar } from "./Navbar";
 import { useAuth } from "../cont/AuthContext";
-import { getAdminModuleList, getManageUsers, updateLesson } from "../services/api";
+import { getAdminModuleList, getManageUsers, updateLesson, getTutorialGroupsForModule } from "../services/api";
 import { LessonData } from "../types/adminlesson";
 
 interface LecturerData {
@@ -17,6 +17,12 @@ interface LecturerData {
   role: string;
   studentNum: string;
   status: string;
+}
+
+interface TutorialGroup {
+  tutorialGroupsID: number;
+  groupName: string;
+  studentCount: number;
 }
 
 interface ModuleData {
@@ -48,6 +54,7 @@ export function UpdateLesson({
     moduleCode: lessonData.moduleCode || "",
     lecturerID: "", // Will be populated from backend
     lessonType: lessonData.lessonType || "",
+    tutorialGroupName: "", // Will be populated for practical lessons
     startDateTime: lessonData.startDateTime ? lessonData.startDateTime.slice(0, 16) : "",
     endDateTime: lessonData.endDateTime ? lessonData.endDateTime.slice(0, 16) : "",
     building: lessonData.building || "",
@@ -56,6 +63,7 @@ export function UpdateLesson({
 
   const [modules, setModules] = useState<ModuleData[]>([]);
   const [lecturers, setLecturers] = useState<LecturerData[]>([]);
+  const [tutorialGroups, setTutorialGroups] = useState<TutorialGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -79,6 +87,37 @@ export function UpdateLesson({
 
         setModules(moduleData || []);
         setLecturers(lecturerData || []);
+        
+        // If lesson is practical, fetch tutorial groups to get the group name
+        if (lessonData.lessonType === 'Practical') {
+          try {
+            const moduleInfo = moduleData?.find(m => m.moduleCode === lessonData.moduleCode);
+            if (moduleInfo) {
+              const tutorialGroupsData = await getTutorialGroupsForModule(moduleInfo.moduleID, token);
+              setTutorialGroups(tutorialGroupsData || []);
+              
+              // Find and set the tutorial group name
+              if (lessonData.tutorialGroupID && tutorialGroupsData) {
+                const currentGroup = tutorialGroupsData.find(g => 
+                  g.tutorialGroupsID === parseInt(lessonData.tutorialGroupID) || 
+                  g.tutorialGroupsID.toString() === lessonData.tutorialGroupID
+                );
+                if (currentGroup) {
+                  setFormData(prev => ({ ...prev, tutorialGroupName: currentGroup.groupName }));
+                } else {
+                  setFormData(prev => ({ ...prev, tutorialGroupName: 'Not assigned' }));
+                }
+              } else {
+                setFormData(prev => ({ ...prev, tutorialGroupName: 'Not assigned' }));
+              }
+            } else {
+              setFormData(prev => ({ ...prev, tutorialGroupName: 'Module not found' }));
+            }
+          } catch (error) {
+            console.error('Error fetching tutorial groups:', error);
+            setFormData(prev => ({ ...prev, tutorialGroupName: 'Error loading group' }));
+          }
+        }
         setLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -98,11 +137,8 @@ export function UpdateLesson({
   };
 
   const handleSave = async () => {
-    // Validate required fields
+    // Validate required fields (only editable fields)
     const requiredFields = [
-      { field: 'moduleCode', label: 'Module' },
-      { field: 'lecturerID', label: 'Lecturer' },
-      { field: 'lessonType', label: 'Lesson Type' },
       { field: 'startDateTime', label: 'Start Date & Time' },
       { field: 'endDateTime', label: 'End Date & Time' },
       { field: 'building', label: 'Building' },
@@ -134,11 +170,8 @@ export function UpdateLesson({
         return;
       }
 
-      // Call the API to update the lesson
+      // Call the API to update the lesson (only send editable fields)
       const updateData = {
-        moduleCode: formData.moduleCode,
-        lecturerID: formData.lecturerID,
-        lessonType: formData.lessonType,
         startDateTime: formData.startDateTime,
         endDateTime: formData.endDateTime,
         building: formData.building,
@@ -168,11 +201,7 @@ export function UpdateLesson({
 
   const lessonTypes = [
     "Lecture",
-    "Tutorial",
-    "Lab",
-    "Practical",
-    "Workshop",
-    "Seminar"
+    "Practical"
   ];
 
   if (loading) {
@@ -227,73 +256,55 @@ export function UpdateLesson({
               <p className="text-sm text-gray-500">Lesson ID cannot be changed</p>
             </div>
 
-            {/* Module Selection */}
+            {/* Module Selection (Read-only) */}
             <div className="space-y-2">
               <Label htmlFor="module">Module</Label>
-              <Select value={formData.moduleCode} onValueChange={(value: string) => handleInputChange("moduleCode", value)}>
-                <SelectTrigger className={errors.moduleCode ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select a module" />
-                </SelectTrigger>
-                <SelectContent>
-                  {modules.map((module) => (
-                    <SelectItem key={module.moduleCode} value={module.moduleCode}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{module.moduleCode} - {module.moduleName}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.moduleCode && (
-                <p className="text-red-500 text-sm">{errors.moduleCode}</p>
-              )}
+              <Input
+                id="module"
+                value={`${formData.moduleCode} - ${modules.find(m => m.moduleCode === formData.moduleCode)?.moduleName || ''}`}
+                disabled
+                className="bg-gray-100 cursor-not-allowed"
+              />
+              <p className="text-sm text-gray-500">Module cannot be changed</p>
             </div>
 
-            {/* Lecturer Selection */}
+            {/* Lecturer Selection (Read-only) */}
             <div className="space-y-2">
               <Label htmlFor="lecturer">Lecturer</Label>
-              <Select value={formData.lecturerID} onValueChange={(value: string) => handleInputChange("lecturerID", value)}>
-                <SelectTrigger className={errors.lecturerID ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select a lecturer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {lecturers.map((lecturer) => (
-                    <SelectItem key={lecturer.uuid} value={lecturer.uuid}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{lecturer.name}</span>
-                        <span className="text-sm text-gray-600">{lecturer.email}</span>
-                        {lecturer.studentNum !== "-" && (
-                          <span className="text-xs text-gray-500">Specialist: {lecturer.studentNum}</span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.lecturerID && (
-                <p className="text-red-500 text-sm">{errors.lecturerID}</p>
-              )}
+              <Input
+                id="lecturer"
+                value={lessonData.lecturerName || 'Loading...'}
+                disabled
+                className="bg-gray-100 cursor-not-allowed"
+              />
+              <p className="text-sm text-gray-500">Lecturer cannot be changed</p>
             </div>
 
-            {/* Lesson Type */}
+            {/* Lesson Type (Read-only) */}
             <div className="space-y-2">
               <Label htmlFor="lessonType">Lesson Type</Label>
-              <Select value={formData.lessonType} onValueChange={(value: string) => handleInputChange("lessonType", value)}>
-                <SelectTrigger className={errors.lessonType ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select lesson type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {lessonTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.lessonType && (
-                <p className="text-red-500 text-sm">{errors.lessonType}</p>
-              )}
+              <Input
+                id="lessonType"
+                value={formData.lessonType}
+                disabled
+                className="bg-gray-100 cursor-not-allowed"
+              />
+              <p className="text-sm text-gray-500">Lesson type cannot be changed</p>
             </div>
+
+            {/* Tutorial Group (Read-only, only for Practical lessons) */}
+            {formData.lessonType === 'Practical' && (
+              <div className="space-y-2">
+                <Label htmlFor="tutorialGroup">Tutorial Group</Label>
+                <Input
+                  id="tutorialGroup"
+                  value={formData.tutorialGroupName || 'Not assigned'}
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+                <p className="text-sm text-gray-500">Tutorial group cannot be changed</p>
+              </div>
+            )}
 
             {/* Date and Time Range */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
