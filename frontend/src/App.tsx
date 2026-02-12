@@ -29,6 +29,7 @@ import { Toast } from './components/Toast';
 import { ManageModules } from './components/ManageModules';
 import { CreateModule } from './components/CreateModule';
 import { UpdateModule } from './components/UpdateModule';
+import { EnrollStudent } from './components/EnrollStudent';
 import { ManageLessons } from './components/ManageLessons';
 import { CreateLesson } from './components/CreateLesson';
 import { UpdateLesson } from './components/UpdateLesson';
@@ -117,6 +118,7 @@ function AppContent() {
 
   const [selectedInstitutionData, setSelectedInstitutionData] = useState<any>(null);
   const [moduleToUpdate, setModuleToUpdate] = useState<any>(null);
+  const [moduleToEnroll, setModuleToEnroll] = useState<any>(null);
   const [selectedStudentData, setSelectedStudentData] = useState<{
     userId: string;
     studentName: string;
@@ -602,7 +604,8 @@ function AppContent() {
             onBack={() => navigate('/admin')}
             onNavigateToProfile={() => navigate('/admin/profile')}
             onNavigateToCreateModule={() => navigate('/admin/modules/create')}
-            onNavigateToUpdateModule={(data) => { setModuleToUpdate(data); navigate('/admin/modules/update'); }} />
+            onNavigateToUpdateModule={(data) => { setModuleToUpdate(data); navigate('/admin/modules/update'); }}
+            onNavigateToEnrollStudent={(data) => { setModuleToEnroll(data); navigate('/admin/modules/enroll'); }} />
         </ProtectedRoute>} />
         <Route path="/admin/modules/create" element={<ProtectedRoute allowedRoles={['admin']}>
           <CreateModule
@@ -615,6 +618,16 @@ function AppContent() {
             moduleData={moduleToUpdate}
             onBack={() => navigate('/admin/modules')}
             onNavigateToProfile={() => navigate('/admin/profile')} />
+        </ProtectedRoute>} />
+        <Route path="/admin/modules/enroll" element={<ProtectedRoute allowedRoles={['admin']}>
+          {moduleToEnroll ? (
+            <EnrollStudent
+              moduleData={moduleToEnroll}
+              onBack={() => navigate('/admin/modules')}
+              onNavigateToProfile={() => navigate('/admin/profile')} />
+          ) : (
+            <Navigate to="/admin/modules" replace />
+          )}
         </ProtectedRoute>} />
         <Route path="/admin/goals" element={<ProtectedRoute allowedRoles={['admin']}>
           <ManageCustomGoals

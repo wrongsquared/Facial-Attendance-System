@@ -34,6 +34,7 @@ interface ManageModulesProps {
   onNavigateToProfile?: () => void;
   onNavigateToCreateModule?: () => void;
   onNavigateToUpdateModule?: (moduleData: ModuleData) => void;
+  onNavigateToEnrollStudent?: (moduleData: ModuleData) => void;
   refreshTrigger?: number; // Add refresh trigger prop
 }
 
@@ -42,6 +43,7 @@ export function ManageModules({
   onNavigateToProfile,
   onNavigateToCreateModule,
   onNavigateToUpdateModule,
+  onNavigateToEnrollStudent,
   refreshTrigger,
 }: ManageModulesProps) {
   const [modules, setModules] = useState<ModuleData[]>([]);
@@ -110,6 +112,13 @@ export function ManageModules({
     const module = modules.find(m => m.moduleID === moduleId);
     if (module && onNavigateToUpdateModule) {
       onNavigateToUpdateModule(module);
+    }
+  };
+
+  const handleEnrollStudent = (moduleId: string) => {
+    const module = modules.find(m => m.moduleID === moduleId);
+    if (module && onNavigateToEnrollStudent) {
+      onNavigateToEnrollStudent(module);
     }
   };
 
@@ -258,8 +267,16 @@ export function ManageModules({
                         </TableCell>
                         <TableCell>{module.startDate ? new Date(module.startDate).toLocaleDateString() : 'N/A'}</TableCell>
                         <TableCell>{module.endDate ? new Date(module.endDate).toLocaleDateString() : 'N/A'}</TableCell>
+                        
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEnrollStudent(module.moduleID)}
+                              className="border-green-600 text-green-600 hover:bg-green-50 hover:text-green-700">
+                              Enroll 
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
