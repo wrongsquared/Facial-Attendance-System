@@ -226,7 +226,6 @@ export function ManageModules({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-center">Module ID</TableHead>
                     <TableHead className="text-center">Module Code</TableHead>
                     <TableHead className="text-center">Module Name</TableHead>
                     <TableHead>Start Date</TableHead>
@@ -253,7 +252,6 @@ export function ManageModules({
                   ) : (
                     paginatedModules.map((module) => (
                       <TableRow key={module.moduleID}>
-                        <TableCell className="font-medium text-center">{module.moduleID}</TableCell>
                         <TableCell className="font-medium text-center">{module.moduleCode}</TableCell>
                         <TableCell className="text-center">
                           <div className="font-medium">{module.moduleName}</div>
@@ -267,7 +265,7 @@ export function ManageModules({
                               size="sm"
                               onClick={() => handleEditModule(module.moduleID)}
                             >
-                              Update Module
+                              Update
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -276,7 +274,7 @@ export function ManageModules({
                                   size="sm"
                                   onClick={() => handleDeleteClick(module.moduleID)}
                                 >
-                                  Delete Module
+                                  Delete
                                 </Button>
                               </AlertDialogTrigger>
 

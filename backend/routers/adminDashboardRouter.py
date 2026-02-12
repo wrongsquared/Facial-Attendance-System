@@ -5,13 +5,13 @@ import traceback
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session, aliased, joinedload
 from sqlalchemy import func, extract, and_, or_ , case
 from database.db_config import get_db
-from schemas import AdminDashboardStats, CourseAttentionItem, UserManagementItem,ReportHistoryEntry
-from schemas.admin import AdminReportRequest, AdminProfileUpdateRequest, ModuleUpdateSchema
+from schemas import AdminDashboardStats, CourseAttentionItem, UserManagementItem
+from schemas.admin import AdminReportRequest, AdminProfileUpdateRequest
 from dependencies.deps import get_current_user_id
-from database.db import Lesson, StudentTutorialGroup, AttdCheck, User, Student, StudentModules, Module, LecMod, Lecturer, UserProfile, GeneratedReport, Admin, Courses
+from database.db import TutorialsGroup, Lesson, StudentTutorialGroup, AttdCheck, User, Student, StudentModules, Module, LecMod, Lecturer, UserProfile, GeneratedReport, Admin, Courses
 from datetime import datetime, timedelta, time
 import os
 import csv
@@ -25,7 +25,6 @@ def get_admin_dashboard_stats(
     current_user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    # 1. Verification and Setup
     current_admin = db.query(Admin).filter(Admin.adminID == current_user_id).first()
     if not current_admin:
         raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
@@ -35,14 +34,12 @@ def get_admin_dashboard_stats(
     current_month = now.month
     current_year = now.year
 
-    # 2. Total Active Users (Campus Isolated)
     s_count = db.query(func.count(Student.studentID)).filter(Student.campusID == my_campus_id).scalar() or 0
     l_count = db.query(func.count(Lecturer.lecturerID)).filter(Lecturer.campusID == my_campus_id).scalar() or 0
     a_count = db.query(func.count(Admin.adminID)).filter(Admin.campusID == my_campus_id).scalar() or 0
     total_users = s_count + l_count + a_count
 
-    # 3. Overall Attendance Rate (Denominator: Expected sessions)
-    # Using 'distinct' on a combination of Student and Lesson ensures accuracy
+
     total_possible_slots = (
         db.query(func.count(Lesson.lessonID))
         .join(LecMod, Lesson.lecModID == LecMod.lecModID)
@@ -281,32 +278,44 @@ def get_all_modules_for_admin(
     my_campus_id = current_admin.campusID
 
 
-    LecUser = aliased(User)
 
-    modules_data = (
-        db.query(Module, LecUser.name.label("lecturerName"))
-        .outerjoin(LecMod, Module.moduleID == LecMod.moduleID)
-        .outerjoin(Lecturer, LecMod.lecturerID == Lecturer.lecturerID)
-        .outerjoin(LecUser, Lecturer.lecturerID == LecUser.userID)
+    modules = (
+        db.query(Module)
+        .options(
+            joinedload(Module.lecMod)
+            .joinedload(LecMod.lecturers)
+        )
         .filter(Module.campusID == my_campus_id)
         .all()
     )
 
     result = []
     
-    for module, lecturer_name in modules_data:
+    for module in modules:
+        lecturer_names = []
+        lecturer_assignments = []
         group_headers = []
-        if module.lecMod:
 
+        if module.lecMod:
             for lm in module.lecMod:
-                group_headers.extend([g.groupName for g in lm.tutorial_groups])
+                if lm.lecturers:
+                    lecturer_names.append(lm.lecturers.name)
+                
+
+                lecturer_assignments.append({
+                    "lecModID": lm.lecModID,
+                    "lecturerID": str(lm.lecturerID)
+                })
+                for g in lm.tutorial_groups:
+                    group_headers.append(g.groupName)
 
         result.append({
             "moduleID": module.moduleID,
             "moduleCode": module.moduleCode, 
             "moduleName": module.moduleName,
-            "lecturerName": lecturer_name or "Unassigned",
-            "tutorialGroups": group_headers, # ["Tutorial Group 1", "Tutorial Group 2"]
+            "lecturerName": ", ".join(lecturer_names) if lecturer_names else "Unassigned",
+            "lecMod": lecturer_assignments, 
+            "tutorialGroups": list(set(group_headers)),
             "startDate": module.startDate.isoformat() if module.startDate else None,
             "endDate": module.endDate.isoformat() if module.endDate else None,
         })
@@ -319,36 +328,43 @@ def create_module(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    """
-    Creates a new module and assigns it to a lecturer.
-    """
-    from datetime import datetime
-    
     try:
-        # Create the module
+        current_admin = db.query(Admin).filter(Admin.adminID == user_id).first()
+        if not current_admin:
+            raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+        my_campus_id = current_admin.campusID
         new_module = Module(
             moduleName=module_data["moduleName"],
             moduleCode=module_data["moduleCode"],
             startDate=datetime.fromisoformat(module_data["startDate"]) if module_data.get("startDate") else None,
-            endDate=datetime.fromisoformat(module_data["endDate"]) if module_data.get("endDate") else None
+            endDate=datetime.fromisoformat(module_data["endDate"]) if module_data.get("endDate") else None,
+            campusID = my_campus_id
         )
         
         db.add(new_module)
-        db.flush()  # Get the module ID
-        
-        # Create lecturer-module relationship
-        if module_data.get("lecturerID"):
+        db.flush() 
+        lecturer_ids = module_data.get("lecturerIDs", [])
+        if not isinstance(lecturer_ids, list):
+            if isinstance(lecturer_ids, str) and lecturer_ids:
+                lecturer_ids = [lecturer_ids]
+            else:
+                lecturer_ids = []
+
+        for lec_id_str in lecturer_ids:
             try:
-                # Convert string to UUID
-                lecturer_uuid = uuid.UUID(module_data["lecturerID"])
+                lecturer_uuid = uuid.UUID(lec_id_str)
                 lecturer_module = LecMod(
                     lecturerID=lecturer_uuid,
                     moduleID=new_module.moduleID
                 )
                 db.add(lecturer_module)
-            except ValueError as e:
+                
+            except ValueError:
+                # If one UUID is invalid, we rollback the whole creation
                 db.rollback()
-                raise HTTPException(status_code=400, detail=f"Invalid lecturerID format: {str(e)}")
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Invalid lecturer ID format: {lec_id_str}. Expected a valid UUID.")
         
         db.commit()
         
@@ -400,105 +416,67 @@ def delete_module(
 
 @router.put("/admin/modules/{module_id}")
 def update_module(
-    module_id: str,
-    module_data: ModuleUpdateSchema,
+    module_id: int, 
+    module_data: dict, 
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
-    """
-    Update an existing module
-    """
     try:
-        # Convert module_id to integer since database expects int
-        try:
-            module_id_int = int(module_id)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid module ID format")
-        
-        # Check if the module exists
-        module = db.query(Module).filter(Module.moduleID == module_id_int).first()
+        module = db.query(Module).filter(Module.moduleID == module_id).first()
         if not module:
             raise HTTPException(status_code=404, detail="Module not found")
         
-        # Update module fields
-        module.moduleName = module_data.moduleName
-        module.moduleCode = module_data.moduleCode
+        module.moduleName = module_data.get("moduleName", module.moduleName)
+        module.moduleCode = module_data.get("moduleCode", module.moduleCode)
         
-        try:
-            module.startDate = datetime.fromisoformat(module_data.startDate)
-            module.endDate = datetime.fromisoformat(module_data.endDate)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
-        
-        # Handle lecturer assignment
-        # Get existing lecturer-module relationship
-        existing_lecmod = db.query(LecMod).filter(LecMod.moduleID == module_id_int).first()
-        
-        if module_data.lecturerID:
-            # Convert lecturer ID to UUID
-            try:
-                lecturer_uuid = uuid.UUID(module_data.lecturerID)
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Invalid lecturer ID format")
+        if "startDate" in module_data:
+            module.startDate = datetime.fromisoformat(module_data["startDate"])
+        if "endDate" in module_data:
+            module.endDate = datetime.fromisoformat(module_data["endDate"])
+
+        incoming_lec_ids_raw = module_data.get("lecturerIDs") or module_data.get("lecturerids") or []
+        incoming_lec_ids = set(str(lid) for lid in incoming_lec_ids_raw)
+        current_assignments = db.query(LecMod).filter(LecMod.moduleID == module_id).all()
+        current_lec_map = {str(a.lecturerID): a for a in current_assignments}
+        current_lec_ids = set(current_lec_map.keys())
+
+        to_add = incoming_lec_ids - current_lec_ids
+        for lec_id in to_add:
+            new_lecmod = LecMod(
+                lecturerID=uuid.UUID(lec_id),
+                moduleID=module_id
+            )
+            db.add(new_lecmod)
+
+        to_remove = current_lec_ids - incoming_lec_ids
+        for lec_id in to_remove:
+            lecmod_to_del = current_lec_map[lec_id]
             
-            if existing_lecmod:
-                # Update existing LecMod record instead of deleting/creating
-                existing_lecmod.lecturerID = lecturer_uuid
-            else:
-                # Create new LecMod record if none exists
-                new_lecmod = LecMod(
-                    lecturerID=lecturer_uuid,
-                    moduleID=module_id_int
+            lesson_count = db.query(Lesson).filter(Lesson.lecModID == lecmod_to_del.lecModID).count()
+            group_count = db.query(TutorialsGroup).filter(TutorialsGroup.lecModID == lecmod_to_del.lecModID).count()
+
+            if lesson_count > 0 or group_count > 0:
+                lec_name = db.query(User.name).filter(User.userID == uuid.UUID(lec_id)).scalar()
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Cannot remove {lec_name}. They have {lesson_count} lessons and {group_count} groups assigned. Delete those first."
                 )
-                db.add(new_lecmod)
-        else:
-            # If no lecturer assigned and there's an existing LecMod, we need to handle lessons
-            if existing_lecmod:
-                # Check if there are lessons referencing this LecMod
-                lesson_count = db.query(Lesson).filter(Lesson.lecModID == existing_lecmod.lecModID).count()
-                if lesson_count > 0:
-                    # Don't allow removing lecturer if there are lessons
-                    raise HTTPException(
-                        status_code=400, 
-                        detail=f"Cannot remove lecturer assignment. There are {lesson_count} lessons that depend on this lecturer-module relationship."
-                    )
-                else:
-                    # Safe to delete since no lessons depend on it
-                    db.delete(existing_lecmod)
-        
-        # Handle course assignments
-        if hasattr(module_data, 'courseIDs') and module_data.courseIDs is not None:
-            # Remove existing course assignments
-            existing_course_modules = db.query(CourseModules).filter(CourseModules.moduleID == module_id_int).all()
-            for cm in existing_course_modules:
-                db.delete(cm)
-                
-            # Add new course assignments
-            for course_id in module_data.courseIDs:
-                course_module = CourseModules(
-                    courseID=course_id,
-                    moduleID=module_id_int
-                )
-                db.add(course_module)
-        
+            
+            db.delete(lecmod_to_del)
+
         db.commit()
         
         return {
-            "message": "Module updated successfully",
+            "message": "Module and assignments updated successfully",
             "moduleID": module.moduleID,
-            "moduleCode": module.moduleCode,
-            "moduleName": module.moduleName,
-            "startDate": module.startDate.isoformat() if module.startDate else None,
-            "endDate": module.endDate.isoformat() if module.endDate else None,
-            "courseIDs": module_data.courseIDs if hasattr(module_data, 'courseIDs') and module_data.courseIDs is not None else []
+            "assigned_count": len(incoming_lec_ids)
         }
         
     except Exception as e:
         db.rollback()
-        print(f"Error updating module {module_id}: {str(e)}")
         if isinstance(e, HTTPException):
-            raise
-        raise HTTPException(status_code=400, detail=f"Error updating module: {str(e)}")
+            raise e
+        raise HTTPException(status_code=400, detail=f"Update failed: {str(e)}")
 
 @router.get("/admin/reports/history")
 def get_report_history(

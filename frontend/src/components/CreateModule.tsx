@@ -4,10 +4,14 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Navbar } from "./Navbar";
 import { useAuth } from "../cont/AuthContext";
 import { getManageUsers, createModule } from "../services/api";
+import { Check, ChevronsUpDown, X } from "lucide-react";
+import { Badge } from "./ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
+import { cn } from "../lib/utils"; 
 
 interface LecturerData {
   uuid: string;
@@ -58,12 +62,11 @@ export function CreateModule({
   onSave,
 }: CreateModuleProps) {
   const [formData, setFormData] = useState({
-    moduleID: "",
     moduleCode: "",
     moduleName: "",
     startDate: "",
     endDate: "",
-    lecturerID: "",
+    lecturerIDs: [] as string[],
     courseIDs: [] as number[]
   });
 
@@ -75,30 +78,36 @@ export function CreateModule({
   const { token } = useAuth();
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        if (!token) {
-          setLoading(false);
-          return;
-        }
-
-        // Get lecturers and courses in parallel
-        const [lecturerData] = await Promise.all([
-          getManageUsers(token, "", "Lecturer", ""),
-        ]);
-        setLecturers(lecturerData);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      if (!token) {
+        console.warn("No token found");
         setLoading(false);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        setLoading(false);
+        return;
       }
-    };
+      const response = await getManageUsers(token, "", "Lecturer", "");
+      
+      if (Array.isArray(response)) {
+        setLecturers(response);
+      } 
+      else if (response && typeof response === 'object' && 'users' in response) {
+        setLecturers(response.users);
+      } else {
+        console.error("API returned unexpected format:", response);
+      }
 
-    fetchData();
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setLoading(false);
+    }
+  };
+
+  fetchData();
   }, [token]);
 
-  const handleInputChange = (field: string, value: string | number[]) => {
+  const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
 
     // Real-time validation for moduleID
@@ -116,33 +125,36 @@ export function CreateModule({
       }
     }
   };
-
+  const toggleLecturer = (lecturerId: string) => {
+    const current = [...formData.lecturerIDs];
+    const index = current.indexOf(lecturerId);
+    if (index > -1) {
+      current.splice(index, 1);
+    } else {
+      current.push(lecturerId);
+    }
+    handleInputChange("lecturerIDs", current);
+  };
   const handleSave = async () => {
     // Validate required fields
+    if (formData.lecturerIDs.length === 0) {
+      alert("Please assign at least one lecturer.");
+      return;
+    }
     const requiredFields = [
-      { field: 'moduleID', label: 'Module ID' },
       { field: 'moduleCode', label: 'Module Code' },
       { field: 'moduleName', label: 'Module Name' },
       { field: 'startDate', label: 'Start Date' },
       { field: 'endDate', label: 'End Date' },
-      { field: 'lecturerID', label: 'Lecturer' }
     ];
 
-    const missingFields = requiredFields.filter(({ field }) =>
-      !formData[field as keyof typeof formData]?.toString().trim()
-    );
-
+    const missingFields = requiredFields.filter(({ field }) => {
+      if (field === 'lecturerIDs') return formData.lecturerIDs.length === 0; 
+    return !formData[field as keyof typeof formData]?.toString().trim();
+    });
     if (missingFields.length > 0) {
       const missingLabels = missingFields.map(({ label }) => label).join(', ');
       alert(`Missing data cannot be saved. Please fill in: ${missingLabels}`);
-      return;
-    }
-
-    // Validate module ID
-    const moduleIDValidation = validateModuleID(formData.moduleID);
-    if (!moduleIDValidation.isValid) {
-      setErrors(prev => ({ ...prev, moduleID: moduleIDValidation.error }));
-      alert(moduleIDValidation.error);
       return;
     }
 
@@ -157,18 +169,16 @@ export function CreateModule({
     setSaving(true);
     try {
       if (!token) {
-        alert("Authentication error. Please login again.");
         return;
       }
 
       // Call the API to create the module
       const result = await createModule(token, {
-        moduleID: parseInt(formData.moduleID),
         moduleName: formData.moduleName,
         moduleCode: formData.moduleCode,
         startDate: formData.startDate,
         endDate: formData.endDate,
-        lecturerID: formData.lecturerID
+        lecturerIDs: formData.lecturerIDs
       });
 
       console.log("Module created successfully:", result);
@@ -183,23 +193,11 @@ export function CreateModule({
       onBack();
     } catch (error) {
       console.error('Error creating module:', error);
-      alert("Failed to create module. Please try again.");
+      alert("Failed to create module.  Please try again.");
     } finally {
       setSaving(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading form data...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
@@ -228,22 +226,6 @@ export function CreateModule({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Module ID */}
-            <div className="space-y-2">
-              <Label htmlFor="moduleID">Module ID</Label>
-              <Input
-                id="moduleID"
-                type="text"
-                placeholder="Enter module ID (e.g., 1, 2, 3...)"
-                value={formData.moduleID}
-                onChange={(e) => handleInputChange("moduleID", e.target.value)}
-                className={errors.moduleID ? "border-red-500" : ""}
-              />
-              {errors.moduleID && (
-                <p className="text-red-500 text-sm">{errors.moduleID}</p>
-              )}
-            </div>
-
             {/* Module Code */}
             <div className="space-y-2">
               <Label htmlFor="moduleCode">Module Code</Label>
@@ -312,27 +294,81 @@ export function CreateModule({
             </div>
 
             {/* Lecturer Assignment */}
-            <div className="space-y-2">
-              <Label htmlFor="lecturer">Assign Lecturer</Label>
-              <Select value={formData.lecturerID} onValueChange={(value: string) => handleInputChange("lecturerID", value)}>
-                <SelectTrigger className={errors.lecturerID ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select a lecturer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {lecturers.map((lecturer) => (
-                    <SelectItem key={lecturer.uuid} value={lecturer.uuid}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{lecturer.name} - {lecturer.email} </span>
-                        {lecturer.studentNum !== "-" && (
-                          <span className="text-xs ">Specialist: {lecturer.studentNum}</span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.lecturerID && (
-                <p className="text-red-500 text-sm">{errors.lecturerID}</p>
+             <div className="space-y-2">
+              <Label>Assign Lecturers</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className={cn(
+                      "w-full justify-between h-auto min-h-10 px-3",
+                      errors.lecturerIDs ? "border-red-500" : ""
+                    )}
+                  >
+                    <div className="flex flex-wrap gap-1">
+                      {formData.lecturerIDs.length > 0 ? (
+                        formData.lecturerIDs.map((id) => {
+                          const lecturer = lecturers.find((l) => l.uuid === id);
+                          return (
+                            <Badge key={id} variant="secondary" className="mr-1 py-1">
+                              {lecturer?.name}
+                              <button
+                                className="ml-1 ring-offset-background rounded-full outline-none"
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent opening popover
+                                  toggleLecturer(id);
+                                }}
+                              >
+                                <X className="h-3 w-3 text-muted-foreground" />
+                              </button>
+                            </Badge>
+                          );
+                        })
+                      ) : (
+                        <span className="text-muted-foreground">Select lecturers...</span>
+                      )}
+                    </div>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }}  align="start" side="bottom" sideOffset={4}>
+                  <Command className="w-full border-none shadow-none">
+                    <CommandInput placeholder="Search lecturer..." />
+                    <CommandList className="w-full">
+                      <CommandEmpty>No lecturer found.</CommandEmpty>
+                      <CommandGroup>
+                        {lecturers.map((lecturer) => (
+                          <CommandItem
+                            key={lecturer.uuid}
+                            value={`${lecturer.name} ${lecturer.email}`}
+                            onSelect={() => toggleLecturer(lecturer.uuid)}
+                            className = "w-full"
+                          >
+                            <div
+                              className={cn(
+                                "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                formData.lecturerIDs.includes(lecturer.uuid)
+                                  ? "bg-primary text-primary-foreground"
+                                  : "opacity-50 [&_svg]:invisible"
+                              )}
+                            >
+                              <Check className="h-4 w-4" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{lecturer.name} - {lecturer.email}</span>
+                              {/* studentNum actually represents their Specialization for the Lecturer's case */}
+                              <span className="text-xs text-muted-foreground">{lecturer.studentNum}</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {errors.lecturerIDs && (
+                <p className="text-red-500 text-sm">{errors.lecturerIDs}</p>
               )}
             </div>
 
@@ -349,8 +385,6 @@ export function CreateModule({
               >
                 {saving ? "Creating..." : "Create Module"}
               </Button>
-
-
             </div>
           </CardContent>
         </Card>
