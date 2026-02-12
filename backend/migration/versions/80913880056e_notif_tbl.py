@@ -41,7 +41,6 @@ def upgrade() -> None:
         USING (auth.uid() = "studentID");
     """)
 
-    # 4. Policy: Student updates "isRead"
     op.execute("""
         CREATE POLICY "Students update own notifications"
         ON studentnotifications
