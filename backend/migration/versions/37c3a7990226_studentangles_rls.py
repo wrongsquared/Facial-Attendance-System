@@ -19,15 +19,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # 1. Ensure RLS is enabled
     op.execute('ALTER TABLE studentangles ENABLE ROW LEVEL SECURITY;')
 
-    # 2. Drop the existing restricted policy
     op.execute('DROP POLICY IF EXISTS "Angle Access" ON studentangles;')
 
-    # 3. Create the robust "FOR ALL" policy
-    # USING: Filters what you can see (SELECT/UPDATE/DELETE)
-    # WITH CHECK: Filters what you can put in (INSERT/UPDATE)
     op.execute("""
         CREATE POLICY "Angle Access" ON studentangles
         FOR ALL
@@ -37,7 +32,6 @@ def upgrade() -> None:
     """)
 
 def downgrade() -> None:
-    # Revert to a basic SELECT-only policy if we roll back
     op.execute('DROP POLICY IF EXISTS "Angle Access" ON studentangles;')
     op.execute("""
         CREATE POLICY "Angle Access" ON studentangles
