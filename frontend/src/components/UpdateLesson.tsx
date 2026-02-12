@@ -87,7 +87,7 @@ export function UpdateLesson({
 
         setModules(moduleData || []);
         setLecturers(lecturerData || []);
-        
+
         // If lesson is practical, fetch tutorial groups to get the group name
         if (lessonData.lessonType === 'Practical') {
           try {
@@ -95,11 +95,11 @@ export function UpdateLesson({
             if (moduleInfo) {
               const tutorialGroupsData = await getTutorialGroupsForModule(moduleInfo.moduleID, token);
               setTutorialGroups(tutorialGroupsData || []);
-              
+
               // Find and set the tutorial group name
               if (lessonData.tutorialGroupID && tutorialGroupsData) {
-                const currentGroup = tutorialGroupsData.find(g => 
-                  g.tutorialGroupsID === parseInt(lessonData.tutorialGroupID) || 
+                const currentGroup = tutorialGroupsData.find(g =>
+                  g.tutorialGroupsID === parseInt(lessonData.tutorialGroupID) ||
                   g.tutorialGroupsID.toString() === lessonData.tutorialGroupID
                 );
                 if (currentGroup) {
