@@ -234,7 +234,7 @@ class LecMod(Base): #Lecture-Modules Connection
 
     moduleID: Mapped[int] = mapped_column(ForeignKey("modules.moduleID"))
     modules: Mapped[Module] = relationship(back_populates="lecMod")
-    tutorial_groups: Mapped[list["TutorialsGroup"]] = relationship(back_populates="lecMod")
+    tutorial_groups: Mapped[list["TutorialsGroup"]] = relationship(back_populates="lecMod", cascade="all, delete-orphan")
 
 class StudentModules(Base): #Student Modules
     __tablename__ = "studentmodules"

@@ -6,12 +6,12 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Navbar } from "./Navbar";
 import { useAuth } from "../cont/AuthContext";
-import { getManageUsers, updateModule } from "../services/api";
+import { getManageUsers, updateModule, getTutorialGroupsForModule } from "../services/api";
 import { Check, ChevronsUpDown, X } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
-import { cn } from "../lib/utils"; 
+import { cn } from "../lib/utils";
 
 interface LecturerData {
   uuid: string;
@@ -20,6 +20,12 @@ interface LecturerData {
   role: string;
   studentNum: string;
   status: string;
+}
+
+interface TutorialGroup {
+  tutorialGroupsID: number;
+  groupName: string;
+  studentCount: number;
 }
 
 interface ModuleData {
@@ -50,13 +56,14 @@ export function UpdateModule({
     moduleName: moduleData.moduleName || "",
     startDate: moduleData.startDate ? moduleData.startDate.slice(0, 16) : "",
     endDate: moduleData.endDate ? moduleData.endDate.slice(0, 16) : "",
-    lecturerIDs: (moduleData as any).lecMod 
-    ? (moduleData as any).lecMod.map((lm: any) => String(lm.lecturerID)) 
-    : [] as string[],
+    lecturerIDs: (moduleData as any).lecMod
+      ? (moduleData as any).lecMod.map((lm: any) => String(lm.lecturerID))
+      : [] as string[],
     courseIDs: [] as number[]
-    });
+  });
 
   const [lecturers, setLecturers] = useState<LecturerData[]>([]);
+  const [tutorialGroups, setTutorialGroups] = useState<TutorialGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -72,12 +79,13 @@ export function UpdateModule({
           return;
         }
 
-        const [lecturerData] = await Promise.all([
-          getManageUsers(token, "", "Lecturer", "")
+        const [lecturerData, tutorialGroupsData] = await Promise.all([
+          getManageUsers(token, "", "Lecturer", ""),
+          getTutorialGroupsForModule(moduleData.moduleID, token)
         ]);
 
-
         setLecturers(lecturerData);
+        setTutorialGroups(tutorialGroupsData);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -94,7 +102,7 @@ export function UpdateModule({
       setErrors(prev => ({ ...prev, [field]: "" }));
     }
   };
-    const toggleLecturer = (lecturerId: string) => {
+  const toggleLecturer = (lecturerId: string) => {
     const current = [...formData.lecturerIDs];
     const index = current.indexOf(lecturerId);
     if (index > -1) {
@@ -148,7 +156,7 @@ export function UpdateModule({
         moduleCode: formData.moduleCode,
         startDate: formData.startDate,
         endDate: formData.endDate,
-        lecturerIDs: formData.lecturerIDs || null 
+        lecturerIDs: formData.lecturerIDs || null
       };
       const result = await updateModule(moduleData.moduleID, updateData, token);
 
@@ -240,6 +248,17 @@ export function UpdateModule({
               )}
             </div>
 
+            {/* Tutorial Groups (Read-only) */}
+            <div className="space-y-2">
+              <Label htmlFor="tutorialGroups">Number of Tutorial Groups</Label>
+              <Input
+                id="tutorialGroups"
+                value={tutorialGroups.length || 0}
+                disabled
+                className="bg-gray-100 text-gray-600"
+              />
+            </div>
+
             {/* Date Range */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Start Date */}
@@ -278,7 +297,7 @@ export function UpdateModule({
             </div>
 
             {/* Lecturer Assignment */}
-             <div className="space-y-2">
+            <div className="space-y-2">
               <Label>Assign Lecturers</Label>
               <Popover>
                 <PopoverTrigger asChild>
@@ -316,7 +335,7 @@ export function UpdateModule({
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }}  align="start" side="bottom" sideOffset={4}>
+                <PopoverContent className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }} align="start" side="bottom" sideOffset={4}>
                   <Command className="w-full border-none shadow-none">
                     <CommandInput placeholder="Search lecturer..." />
                     <CommandList className="w-full">
@@ -327,7 +346,7 @@ export function UpdateModule({
                             key={lecturer.uuid}
                             value={`${lecturer.name} ${lecturer.email}`}
                             onSelect={() => toggleLecturer(lecturer.uuid)}
-                            className = "w-full"
+                            className="w-full"
                           >
                             <div
                               className={cn(

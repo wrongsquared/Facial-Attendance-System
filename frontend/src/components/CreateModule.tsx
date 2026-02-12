@@ -11,7 +11,7 @@ import { Check, ChevronsUpDown, X } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
-import { cn } from "../lib/utils"; 
+import { cn } from "../lib/utils";
 
 interface LecturerData {
   uuid: string;
@@ -67,7 +67,8 @@ export function CreateModule({
     startDate: "",
     endDate: "",
     lecturerIDs: [] as string[],
-    courseIDs: [] as number[]
+    courseIDs: [] as number[],
+    // tutorialGroupsCount: 3
   });
 
   const [lecturers, setLecturers] = useState<LecturerData[]>([]);
@@ -78,33 +79,33 @@ export function CreateModule({
   const { token } = useAuth();
 
   useEffect(() => {
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      if (!token) {
-        console.warn("No token found");
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        if (!token) {
+          console.warn("No token found");
+          setLoading(false);
+          return;
+        }
+        const response = await getManageUsers(token, "", "Lecturer", "");
+
+        if (Array.isArray(response)) {
+          setLecturers(response);
+        }
+        else if (response && typeof response === 'object' && 'users' in response) {
+          setLecturers(response.users);
+        } else {
+          console.error("API returned unexpected format:", response);
+        }
+
         setLoading(false);
-        return;
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setLoading(false);
       }
-      const response = await getManageUsers(token, "", "Lecturer", "");
-      
-      if (Array.isArray(response)) {
-        setLecturers(response);
-      } 
-      else if (response && typeof response === 'object' && 'users' in response) {
-        setLecturers(response.users);
-      } else {
-        console.error("API returned unexpected format:", response);
-      }
+    };
 
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      setLoading(false);
-    }
-  };
-
-  fetchData();
+    fetchData();
   }, [token]);
 
   const handleInputChange = (field: string, value: any) => {
@@ -149,8 +150,8 @@ export function CreateModule({
     ];
 
     const missingFields = requiredFields.filter(({ field }) => {
-      if (field === 'lecturerIDs') return formData.lecturerIDs.length === 0; 
-    return !formData[field as keyof typeof formData]?.toString().trim();
+      if (field === 'lecturerIDs') return formData.lecturerIDs.length === 0;
+      return !formData[field as keyof typeof formData]?.toString().trim();
     });
     if (missingFields.length > 0) {
       const missingLabels = missingFields.map(({ label }) => label).join(', ');
@@ -166,6 +167,12 @@ export function CreateModule({
       }
     }
 
+    // Validate tutorial groups count
+    if (!formData.tutorialGroupsCount || formData.tutorialGroupsCount < 1 || formData.tutorialGroupsCount > 10) {
+      alert("Number of tutorial groups must be between 1 and 10");
+      return;
+    }
+
     setSaving(true);
     try {
       if (!token) {
@@ -178,7 +185,8 @@ export function CreateModule({
         moduleCode: formData.moduleCode,
         startDate: formData.startDate,
         endDate: formData.endDate,
-        lecturerIDs: formData.lecturerIDs
+        lecturerIDs: formData.lecturerIDs,
+        tutorialGroupsCount: formData.tutorialGroupsCount
       });
 
       console.log("Module created successfully:", result);
@@ -256,6 +264,24 @@ export function CreateModule({
               )}
             </div>
 
+            {/* Tutorial Groups Count */}
+            <div className="space-y-2">
+              <Label htmlFor="tutorialGroupsCount">Number of Tutorial Groups</Label>
+              <Input
+                id="tutorialGroupsCount"
+                type="number"
+                min="1"
+                max="10"
+                placeholder="Enter number of tutorial groups (1-10)"
+                value={formData.tutorialGroupsCount}
+                onChange={(e) => handleInputChange("tutorialGroupsCount", parseInt(e.target.value))}
+                className={errors.tutorialGroupsCount ? "border-red-500" : ""}
+              />
+              {errors.tutorialGroupsCount && (
+                <p className="text-red-500 text-sm">{errors.tutorialGroupsCount}</p>
+              )}
+            </div>
+
             {/* Date Range */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Start Date */}
@@ -294,7 +320,7 @@ export function CreateModule({
             </div>
 
             {/* Lecturer Assignment */}
-             <div className="space-y-2">
+            <div className="space-y-2">
               <Label>Assign Lecturers</Label>
               <Popover>
                 <PopoverTrigger asChild>
@@ -332,7 +358,7 @@ export function CreateModule({
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }}  align="start" side="bottom" sideOffset={4}>
+                <PopoverContent className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }} align="start" side="bottom" sideOffset={4}>
                   <Command className="w-full border-none shadow-none">
                     <CommandInput placeholder="Search lecturer..." />
                     <CommandList className="w-full">
@@ -343,7 +369,7 @@ export function CreateModule({
                             key={lecturer.uuid}
                             value={`${lecturer.name} ${lecturer.email}`}
                             onSelect={() => toggleLecturer(lecturer.uuid)}
-                            className = "w-full"
+                            className="w-full"
                           >
                             <div
                               className={cn(

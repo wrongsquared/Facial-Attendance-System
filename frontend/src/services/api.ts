@@ -34,13 +34,24 @@ export const fetchProtected = async (endpoint: string, token: string, options: R
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      const errorData = await response.json().catch(() => ({}));
+      // Only auto-logout for actual token expiration, not permission issues
+      if (errorData.detail && errorData.detail.toLowerCase().includes('expire')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login?error=session_expired';
+        throw new Error("Session expired. Please login again.");
+      } else {
+        // For other 401 errors (like permission issues), just throw without auto-logout
+        throw new Error(errorData.detail || "Unauthorized access");
+      }
+    }
 
-    if (response.status === 401) throw new Error("Unauthorized");
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login?error=session_expired';
-      throw new Error("Session expired. Please login again.");
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
   }
+
   if (response.status === 204) {
     return {};
   }
@@ -328,6 +339,34 @@ export const getStudentsForCustomGoals = async (
   if (status && status !== "All Status") params.append("status_filter", status);
 
   return await fetchProtected(`/admin/users/manage/custom-goals?${params.toString()}`, token);
+};
+
+// Enroll students in a module (campus-filtered automatically by admin)
+export const enrollStudentsInModule = async (
+  moduleID: string,
+  studentIDs: string[],
+  token: string
+) => {
+  return await sendCreate("/admin/enroll-students", token, {
+    moduleID,
+    studentIDs
+  });
+};
+
+// Get tutorial groups for a module with student counts
+export const getTutorialGroupsForModule = async (
+  moduleID: string,
+  token: string
+) => {
+  return await fetchProtected(`/admin/modules/${moduleID}/tutorial-groups`, token);
+};
+
+// Get students with enrollment status for a specific module
+export const getStudentsWithEnrollmentStatus = async (
+  moduleID: string,
+  token: string
+) => {
+  return await fetchProtected(`/admin/modules/${moduleID}/students`, token);
 };
 
 // services/api.ts

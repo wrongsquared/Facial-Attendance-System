@@ -350,6 +350,8 @@ def create_module(
             else:
                 lecturer_ids = []
 
+        # Create LecMod relationships first
+        lec_mods = []
         for lec_id_str in lecturer_ids:
             try:
                 lecturer_uuid = uuid.UUID(lec_id_str)
@@ -358,6 +360,8 @@ def create_module(
                     moduleID=new_module.moduleID
                 )
                 db.add(lecturer_module)
+                db.flush()  # Get the lecModID
+                lec_mods.append(lecturer_module)
                 
             except ValueError:
                 # If one UUID is invalid, we rollback the whole creation
@@ -365,6 +369,28 @@ def create_module(
                 raise HTTPException(
                     status_code=400, 
                     detail=f"Invalid lecturer ID format: {lec_id_str}. Expected a valid UUID.")
+
+        # Create tutorial groups distributed evenly across lecturers
+        tutorial_groups_count = module_data.get("tutorialGroupsCount", 3)  # Default to 3 if not specified
+        if tutorial_groups_count and tutorial_groups_count > 0 and lec_mods:
+            groups_per_lecturer = tutorial_groups_count // len(lec_mods)
+            extra_groups = tutorial_groups_count % len(lec_mods)
+            
+            group_number = 1
+            for i, lec_mod in enumerate(lec_mods):
+                # Calculate how many groups this lecturer gets
+                groups_for_this_lecturer = groups_per_lecturer
+                if i < extra_groups:  # Distribute remaining groups to first lecturers
+                    groups_for_this_lecturer += 1
+                
+                # Create tutorial groups for this lecturer
+                for j in range(groups_for_this_lecturer):
+                    tutorial_group = TutorialsGroup(
+                        lecModID=lec_mod.lecModID,
+                        groupName=f"Tutorial Group {group_number}"
+                    )
+                    db.add(tutorial_group)
+                    group_number += 1
         
         db.commit()
         
@@ -402,7 +428,26 @@ def delete_module(
         if not module:
             raise HTTPException(status_code=404, detail="Module not found")
         
-        # Delete the module (related records will be deleted automatically due to cascade)
+        # Get all LecMod records for this module
+        lecmods = db.query(LecMod).filter(LecMod.moduleID == module_id_int).all()
+        
+        # Delete tutorial groups first (they reference LecMod)
+        for lecmod in lecmods:
+            # Delete StudentTutorialGroup records first (they reference TutorialsGroup)
+            tutorial_groups = db.query(TutorialsGroup).filter(TutorialsGroup.lecModID == lecmod.lecModID).all()
+            for group in tutorial_groups:
+                # Delete student assignments to tutorial groups
+                db.query(StudentTutorialGroup).filter(StudentTutorialGroup.tutorialGroupID == group.tutorialGroupsID).delete()
+                # Delete the tutorial group itself
+                db.delete(group)
+            
+            # Delete the LecMod record (this will cascade delete lessons)
+            db.delete(lecmod)
+        
+        # Delete student module enrollments
+        db.query(StudentModules).filter(StudentModules.modulesID == module_id_int).delete()
+        
+        # Finally delete the module itself
         db.delete(module)
         db.commit()
         
@@ -477,6 +522,230 @@ def update_module(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=400, detail=f"Update failed: {str(e)}")
+
+@router.post("/admin/enroll-students")
+def enroll_students_in_module(
+    request: dict,  # {"moduleID": str, "studentIDs": List[str]}
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Enroll students in a module with automatic assignment to tutorial groups.
+    Distributes students evenly across available tutorial groups for the module.
+    """
+    try:
+        # Verify admin access
+        current_admin = db.query(Admin).filter(Admin.adminID == current_user_id).first()
+        if not current_admin:
+            raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+
+        module_id = request.get("moduleID")
+        student_ids = request.get("studentIDs", [])
+        
+        if not module_id or not student_ids:
+            raise HTTPException(status_code=400, detail="moduleID and studentIDs are required")
+
+        # Verify module exists and is on admin's campus
+        module = db.query(Module).filter(
+            Module.moduleID == module_id,
+            Module.campusID == current_admin.campusID
+        ).first()
+        
+        if not module:
+            raise HTTPException(status_code=404, detail="Module not found or access denied")
+
+        # Get available tutorial groups for this module
+        tutorial_groups = db.query(TutorialsGroup).join(
+            LecMod, TutorialsGroup.lecModID == LecMod.lecModID
+        ).filter(LecMod.moduleID == module_id).all()
+
+        enrolled_count = 0
+        tutorial_assignments = []
+
+        for student_id in student_ids:
+            # Verify student exists and is on same campus
+            student = db.query(Student).filter(
+                Student.studentID == student_id,
+                Student.campusID == current_admin.campusID
+            ).first()
+            
+            if not student:
+                continue  # Skip invalid students
+
+            # Check if already enrolled
+            existing_enrollment = db.query(StudentModules).filter(
+                StudentModules.studentID == student_id,
+                StudentModules.modulesID == module_id
+            ).first()
+
+            if existing_enrollment:
+                continue  # Skip already enrolled students
+
+            # Create student module enrollment
+            new_enrollment = StudentModules(
+                studentID=student_id,
+                modulesID=module_id
+            )
+            db.add(new_enrollment)
+            db.flush()  # Get the studentModulesID
+            
+            enrolled_count += 1
+
+            # Auto-assign to tutorial group if available
+            if tutorial_groups:
+                # Round-robin assignment based on current student count
+                group_assignments = {}
+                for group in tutorial_groups:
+                    count = db.query(StudentTutorialGroup).filter(
+                        StudentTutorialGroup.tutorialGroupID == group.tutorialGroupsID
+                    ).count()
+                    group_assignments[group.tutorialGroupsID] = count
+
+                # Find group with least students
+                min_count = min(group_assignments.values())
+                target_groups = [gid for gid, count in group_assignments.items() if count == min_count]
+                
+                # Use modulo for consistent assignment
+                selected_group_id = target_groups[enrolled_count % len(target_groups)]
+                
+                # Create tutorial group assignment
+                tutorial_assignment = StudentTutorialGroup(
+                    studentModulesID=new_enrollment.studentModulesID,
+                    tutorialGroupID=selected_group_id
+                )
+                db.add(tutorial_assignment)
+                tutorial_assignments.append({
+                    "studentID": student_id,
+                    "tutorialGroupID": selected_group_id
+                })
+
+        db.commit()
+
+        return {
+            "message": f"Successfully enrolled {enrolled_count} students",
+            "enrolled_count": enrolled_count,
+            "total_requested": len(student_ids),
+            "tutorial_assignments": tutorial_assignments
+        }
+
+    except Exception as e:
+        db.rollback()
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Enrollment failed: {str(e)}")
+
+@router.get("/admin/modules/{module_id}/tutorial-groups")
+def get_tutorial_groups_for_module(
+    module_id: int,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Get tutorial groups for a specific module with student counts.
+    """
+    try:
+        # Verify admin access
+        current_admin = db.query(Admin).filter(Admin.adminID == current_user_id).first()
+        if not current_admin:
+            raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+
+        # Verify module exists and is on admin's campus
+        module = db.query(Module).filter(
+            Module.moduleID == module_id,
+            Module.campusID == current_admin.campusID
+        ).first()
+        
+        if not module:
+            raise HTTPException(status_code=404, detail="Module not found or access denied")
+
+        # Get tutorial groups with student counts
+        tutorial_groups = db.query(TutorialsGroup).join(
+            LecMod, TutorialsGroup.lecModID == LecMod.lecModID
+        ).filter(LecMod.moduleID == module_id).all()
+
+        result = []
+        for group in tutorial_groups:
+            student_count = db.query(StudentTutorialGroup).filter(
+                StudentTutorialGroup.tutorialGroupID == group.tutorialGroupsID
+            ).count()
+            
+            result.append({
+                "tutorialGroupsID": group.tutorialGroupsID,
+                "groupName": group.groupName,
+                "studentCount": student_count
+            })
+
+        return result
+
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Failed to fetch tutorial groups: {str(e)}")
+
+@router.get("/admin/modules/{module_id}/students")
+def get_students_with_enrollment_status(
+    module_id: int,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Get all campus students with their enrollment status for a specific module.
+    """
+    try:
+        # Verify admin access
+        current_admin = db.query(Admin).filter(Admin.adminID == current_user_id).first()
+        if not current_admin:
+            raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
+
+        # Verify module exists and is on admin's campus
+        module = db.query(Module).filter(
+            Module.moduleID == module_id,
+            Module.campusID == current_admin.campusID
+        ).first()
+        
+        if not module:
+            raise HTTPException(status_code=404, detail="Module not found or access denied")
+
+        # Get all students from the same campus with enrollment status for THIS SPECIFIC MODULE
+        students_query = db.query(
+            Student.studentID,
+            Student.studentNum,
+            Student.name,
+            Student.active,
+            StudentModules.studentModulesID.label("enrollment_record_id")  # More explicit than isnot(None)
+        ).select_from(Student)\
+        .outerjoin(
+            StudentModules, 
+            (StudentModules.studentID == Student.studentID) & 
+            (StudentModules.modulesID == module_id)  # Only for THIS specific module
+        ).filter(
+            Student.campusID == current_admin.campusID
+        )
+
+        students = students_query.all()
+
+        result = []
+        for student in students:
+            # Convert active boolean to status string 
+            status = "Active" if student.active else "Inactive"
+            # Student is enrolled in THIS module if they have an enrollment record
+            is_enrolled_in_this_module = student.enrollment_record_id is not None
+            
+            result.append({
+                "uuid": str(student.studentID),
+                "user_display_id": student.studentNum,
+                "name": student.name,
+                "role": "Student",
+                "status": status,
+                "isEnrolled": is_enrolled_in_this_module
+            })
+
+        return result
+
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Failed to fetch students: {str(e)}")
 
 @router.get("/admin/reports/history")
 def get_report_history(

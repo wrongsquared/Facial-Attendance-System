@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Search, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, Search, UserPlus, Users, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
@@ -8,14 +8,15 @@ import { Checkbox } from "./ui/checkbox";
 import { Badge } from "./ui/badge";
 import { Navbar } from "./Navbar";
 import { useAuth } from "../cont/AuthContext";
-// import { getStudentList, enrollStudentsInModule } from "../services/api"; // Uncomment when API is ready
+import { getStudentsForCustomGoals, enrollStudentsInModule, getTutorialGroupsForModule, getStudentsWithEnrollmentStatus } from "../services/api"; // Use existing campus-filtered API
 
 interface StudentData {
-  studentID: string;
-  studentNumber: string;
-  firstName: string;
-  lastName: string;
-  email: string;
+  uuid: string;
+  user_display_id: string;
+  name: string;
+  role: string;
+  status: string;
+  attendanceMinimum?: number;
   isEnrolled?: boolean;
 }
 
@@ -26,6 +27,12 @@ interface ModuleData {
   startDate: string | null;
   endDate: string | null;
   lecturerID?: string | null;
+}
+
+interface TutorialGroup {
+  tutorialGroupsID: number;
+  groupName: string;
+  studentCount: number;
 }
 
 interface EnrollStudentProps {
@@ -40,16 +47,20 @@ export function EnrollStudent({
   onNavigateToProfile,
 }: EnrollStudentProps) {
   const [students, setStudents] = useState<StudentData[]>([]);
+  const [tutorialGroups, setTutorialGroups] = useState<TutorialGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [enrolling, setEnrolling] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const itemsPerPage = 30;
 
   const { token } = useAuth();
 
   useEffect(() => {
-    const fetchStudents = async () => {
+    const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
@@ -58,59 +69,68 @@ export function EnrollStudent({
           return;
         }
 
-        // TODO: Replace with actual API call
-        // const data = await getStudentList(token);
-        
-        // Mock data for now - replace with actual API call
-        const mockStudents: StudentData[] = [
-          {
-            studentID: "1",
-            studentNumber: "S001234",
-            firstName: "John",
-            lastName: "Doe",
-            email: "john.doe@student.edu",
-            isEnrolled: false,
-          },
-          {
-            studentID: "2",
-            studentNumber: "S001235",
-            firstName: "Jane",
-            lastName: "Smith",
-            email: "jane.smith@student.edu",
-            isEnrolled: true,
-          },
-          {
-            studentID: "3",
-            studentNumber: "S001236",
-            firstName: "Mike",
-            lastName: "Johnson",
-            email: "mike.johnson@student.edu",
-            isEnrolled: false,
-          },
-        ];
+        console.log('Fetching students for module:', moduleData.moduleCode);
 
-        setStudents(mockStudents);
+        // Fetch both students with enrollment status and tutorial groups in parallel
+        const [studentsData, tutorialGroupsData] = await Promise.all([
+          getStudentsWithEnrollmentStatus(moduleData.moduleID, token),
+          getTutorialGroupsForModule(moduleData.moduleID, token)
+        ]);
+
+        console.log('Students with enrollment status received:', studentsData);
+        console.log('Tutorial groups data received:', tutorialGroupsData);
+
+        setStudents(studentsData);
+        setTutorialGroups(tutorialGroupsData);
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching students:', error);
-        setError(error instanceof Error ? error.message : 'Failed to fetch students');
+        console.error('Error fetching data:', error);
+        // If the new endpoint fails, fall back to the old method
+        try {
+          console.log('Falling back to basic student data...');
+          const [studentsData, tutorialGroupsData] = await Promise.all([
+            getStudentsForCustomGoals(token, "", "All Status"),
+            getTutorialGroupsForModule(moduleData.moduleID, token)
+          ]);
+
+          // Add isEnrolled: false as fallback
+          const studentsWithEnrollment = studentsData.map((student: any) => ({
+            ...student,
+            isEnrolled: false // Fallback to false, user can still enroll
+          }));
+
+          setStudents(studentsWithEnrollment);
+          setTutorialGroups(tutorialGroupsData);
+          setError('Note: Unable to determine enrollment status. All students shown as not enrolled.');
+        } catch (fallbackError) {
+          console.error('Fallback also failed:', fallbackError);
+          setError(fallbackError instanceof Error ? fallbackError.message : 'Failed to fetch data');
+        }
         setLoading(false);
       }
     };
 
-    fetchStudents();
-  }, [token]);
+    fetchData();
+  }, [token, moduleData.moduleID]);
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   // Filter students based on search
   const filteredStudents = students.filter(student => {
-    const matchesSearch = 
-      student.studentNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
+    const matchesSearch =
+      student.user_display_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.name.toLowerCase().includes(searchTerm.toLowerCase());
+
     return matchesSearch;
   });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedStudents = filteredStudents.slice(startIndex, startIndex + itemsPerPage);
 
   const handleStudentSelect = (studentId: string, isSelected: boolean) => {
     const newSelected = new Set(selectedStudents);
@@ -124,12 +144,15 @@ export function EnrollStudent({
 
   const handleSelectAll = (isSelected: boolean) => {
     if (isSelected) {
-      const allUnenrolledStudents = filteredStudents
+      const allUnenrolledStudents = paginatedStudents
         .filter(student => !student.isEnrolled)
-        .map(student => student.studentID);
-      setSelectedStudents(new Set(allUnenrolledStudents));
+        .map(student => student.uuid);
+      setSelectedStudents(new Set([...selectedStudents, ...allUnenrolledStudents]));
     } else {
-      setSelectedStudents(new Set());
+      // Only deselect students from current page
+      const currentPageStudentIds = new Set(paginatedStudents.map(student => student.uuid));
+      const newSelected = new Set([...selectedStudents].filter(id => !currentPageStudentIds.has(id)));
+      setSelectedStudents(newSelected);
     }
   };
 
@@ -141,20 +164,26 @@ export function EnrollStudent({
 
     setEnrolling(true);
     try {
-      // TODO: Replace with actual API call
-      // await enrollStudentsInModule(moduleData.moduleID, Array.from(selectedStudents), token);
+      // Call the actual enrollment API with auto-assignment to tutorial groups
+      const result = await enrollStudentsInModule(moduleData.moduleID, Array.from(selectedStudents), token);
+      console.log('Enrollment result:', result);
 
-      // Mock success - update local state
-      setStudents(prevStudents =>
-        prevStudents.map(student =>
-          selectedStudents.has(student.studentID)
-            ? { ...student, isEnrolled: true }
-            : student
-        )
-      );
+      // Refresh both student enrollment status and tutorial groups from database
+      const [updatedStudents, updatedTutorialGroups] = await Promise.all([
+        getStudentsWithEnrollmentStatus(moduleData.moduleID, token),
+        getTutorialGroupsForModule(moduleData.moduleID, token)
+      ]);
 
+      setStudents(updatedStudents);
+      setTutorialGroups(updatedTutorialGroups);
       setSelectedStudents(new Set());
-      alert(`Successfully enrolled ${selectedStudents.size} student(s) in ${moduleData.moduleCode}`);
+
+      // Show success message with tutorial group assignment info
+      const message = tutorialGroups.length > 0
+        ? `Successfully enrolled ${result.enrolled_count} student(s) in ${moduleData.moduleCode}.\nStudents have been automatically distributed across ${tutorialGroups.length} tutorial groups.`
+        : `Successfully enrolled ${result.enrolled_count} student(s) in ${moduleData.moduleCode}.`;
+
+      alert(message);
     } catch (error) {
       console.error('Error enrolling students:', error);
       alert('Failed to enroll students. Please try again.');
@@ -165,21 +194,25 @@ export function EnrollStudent({
 
   const unenrolledCount = filteredStudents.filter(student => !student.isEnrolled).length;
   const enrolledCount = filteredStudents.filter(student => student.isEnrolled).length;
+  const currentPageUnenrolledCount = paginatedStudents.filter(student => !student.isEnrolled).length;
+  const currentPageSelectedCount = paginatedStudents.filter(student =>
+    !student.isEnrolled && selectedStudents.has(student.uuid)
+  ).length;
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-600 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Students</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700">
-            Retry
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  // if (error) {
+  //   return (
+  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+  //       <div className="text-center">
+  //         <div className="text-red-600 text-6xl mb-4">⚠️</div>
+  //         <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Students</h2>
+  //         <p className="text-gray-600 mb-4">{error}</p>
+  //         <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700">
+  //           Retry
+  //         </Button>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -198,7 +231,7 @@ export function EnrollStudent({
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Enroll Students</h1>
           <p className="text-gray-600 mt-1">
-            Enroll students in <span className="font-semibold">{moduleData.moduleCode} - {moduleData.moduleName}</span>
+            Enroll students from your campus in <span className="font-semibold">{moduleData.moduleCode} - {moduleData.moduleName}</span>
           </p>
         </div>
 
@@ -236,40 +269,45 @@ export function EnrollStudent({
           </CardContent>
         </Card>
 
-        {/* Enrollment Statistics */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{enrolledCount}</div>
-                <div className="text-sm text-gray-600">Already Enrolled</div>
+        {/* Tutorial Groups Info Card */}
+        {tutorialGroups.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Tutorial Groups
+              </CardTitle>
+              <CardDescription>
+                Students will be automatically distributed across available tutorial groups
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {tutorialGroups.map((group) => (
+                  <div key={group.tutorialGroupsID} className="p-4 border rounded-lg">
+                    <p className="font-semibold text-gray-900">{group.groupName}</p>
+                    <p className="text-sm text-gray-600">
+                      {group.studentCount} student{group.studentCount !== 1 ? 's' : ''} enrolled
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Auto-Assignment:</strong> New students will be evenly distributed across these {tutorialGroups.length} tutorial groups to maintain balanced enrollment.
+                </p>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{unenrolledCount}</div>
-                <div className="text-sm text-gray-600">Available to Enroll</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">{selectedStudents.size}</div>
-                <div className="text-sm text-gray-600">Selected</div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        )}
+
 
         {/* Students Table */}
         <Card>
           <CardHeader>
             <CardTitle>Student List</CardTitle>
             <CardDescription>
-              Select students to enroll in this module
+              Select students from your campus to enroll in this module
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -279,7 +317,7 @@ export function EnrollStudent({
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search by student number, name, or email..."
+                  placeholder="Search campus students by number or name..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -287,7 +325,7 @@ export function EnrollStudent({
               </div>
 
               {/* Enroll Selected Button */}
-              <Button 
+              <Button
                 onClick={handleEnrollSelected}
                 disabled={selectedStudents.size === 0 || enrolling}
                 className="bg-green-600 hover:bg-green-700"
@@ -305,16 +343,16 @@ export function EnrollStudent({
                     <TableHead className="w-12">
                       <Checkbox
                         checked={
-                          unenrolledCount > 0 && 
-                          selectedStudents.size === unenrolledCount
+                          currentPageUnenrolledCount > 0 &&
+                          currentPageSelectedCount === currentPageUnenrolledCount
                         }
                         onCheckedChange={handleSelectAll}
                       />
                     </TableHead>
                     <TableHead>Student Number</TableHead>
                     <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Enrollment Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -331,26 +369,33 @@ export function EnrollStudent({
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredStudents.map((student) => (
-                      <TableRow key={student.studentID}>
+                    paginatedStudents.map((student) => (
+                      <TableRow key={student.uuid}>
                         <TableCell>
                           <Checkbox
-                            checked={selectedStudents.has(student.studentID)}
+                            checked={selectedStudents.has(student.uuid)}
                             disabled={student.isEnrolled}
-                            onCheckedChange={(checked) => 
-                              handleStudentSelect(student.studentID, checked as boolean)
+                            onCheckedChange={(checked) =>
+                              handleStudentSelect(student.uuid, checked as boolean)
                             }
                           />
                         </TableCell>
-                        <TableCell className="font-medium">{student.studentNumber}</TableCell>
+                        <TableCell className="font-medium">{student.user_display_id}</TableCell>
                         <TableCell>
                           <div className="font-medium">
-                            {student.firstName} {student.lastName}
+                            {student.name}
                           </div>
                         </TableCell>
-                        <TableCell>{student.email}</TableCell>
                         <TableCell>
-                          <Badge 
+                          <Badge
+                            variant={student.status === "Active" ? "default" : "secondary"}
+                            className={student.status === "Active" ? "bg-blue-100 text-blue-800" : ""}
+                          >
+                            {student.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
                             variant={student.isEnrolled ? "default" : "secondary"}
                             className={student.isEnrolled ? "bg-green-100 text-green-800" : ""}
                           >
@@ -363,6 +408,31 @@ export function EnrollStudent({
                 </TableBody>
               </Table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 0 && (
+              <div className="flex items-center justify-center gap-4 py-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>
