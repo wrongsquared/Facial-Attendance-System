@@ -2,9 +2,11 @@ import './index.css';
 import { useEffect, useState, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './cont/AuthContext';
-import { loginUser, 
-  getNotifications, 
-  updateAttendanceRecord as updateAttendanceRecordAPI, getStudentsForCustomGoals } from './services/api';
+import {
+  loginUser,
+  getNotifications,
+  updateAttendanceRecord as updateAttendanceRecordAPI, getStudentsForCustomGoals
+} from './services/api';
 import { LoginCredentials } from './types/auth';
 import { LoginPage } from './components/LoginPage';
 import { StudentDashboard } from './components/StudentDashboard';
@@ -57,10 +59,10 @@ import { ManualOverride } from './components/ManualOverride';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) => {
   const { user, token, loading } = useAuth();
-  
+
   if (loading) return <div className="flex min-h-screen justify-center items-center">Loading...</div>;
   if (!token || !user) return <Navigate to="/login" replace />;
-  
+
   if (allowedRoles && !allowedRoles.includes(user.role_name.toLowerCase())) {
     return <Navigate to="/" replace />;
   }
@@ -112,16 +114,16 @@ function AppContent() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notificationAlerts, setNotificationAlerts] = useState<any[]>([]);
-  
+
   const [selectedInstitutionData, setSelectedInstitutionData] = useState<any>(null);
   const [moduleToUpdate, setModuleToUpdate] = useState<any>(null);
   const [selectedStudentData, setSelectedStudentData] = useState<{
-  userId: string;
-  studentName: string;
-  date: string;
-  status: string;
-  lessonId: number;
-} | null>(null);
+    userId: string;
+    studentName: string;
+    date: string;
+    status: string;
+    lessonId: number;
+  } | null>(null);
   const showToast = (msg: string) => setToastMessage(msg);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
@@ -139,7 +141,7 @@ function AppContent() {
     role: string;
     currentGoal: number | null;
   } | null>(null);
-    const [adminProfileData, setAdminProfileData] = useState({
+  const [adminProfileData, setAdminProfileData] = useState({
     name: "",
     email: "",
     contactNumber: "",
@@ -166,11 +168,11 @@ function AppContent() {
     status: string;
   } | null>(null);
   const updateAttendanceRecord = async (
-    userId: string, 
-    date: string, 
-    newStatus: string, 
-    reason?: string, 
-    adminNotes?: string, 
+    userId: string,
+    date: string,
+    newStatus: string,
+    reason?: string,
+    adminNotes?: string,
     lessonId?: number
   ) => {
     try {
@@ -196,7 +198,7 @@ function AppContent() {
 
     } catch (error) {
       console.error("Failed to update attendance record:", error);
-      throw error; 
+      throw error;
     }
   };
   const handleLogout = () => {
@@ -209,7 +211,7 @@ function AppContent() {
       [userId]: {
         ...prev[userId],
         ...profileData,
-        userId, 
+        userId,
       }
     }));
     showToast("Profile updated successfully");
@@ -228,10 +230,10 @@ function AppContent() {
       alert(err.message || "Login failed");
     }
   };
-const handleUpdateUserGoal = async (userId: string, goal: number) => {
+  const handleUpdateUserGoal = async (userId: string, goal: number) => {
     try {
       if (!token) return;
-      
+
       // 1. Call the API (ensure updateStudentAttendanceMinimum is imported)
       await updateStudentAttendanceMinimum(token, userId, goal);
 
@@ -289,6 +291,51 @@ const handleUpdateUserGoal = async (userId: string, goal: number) => {
       showToast('Failed to remove goal.');
     }
   };
+
+  // Load students data for custom goals management
+  useEffect(() => {
+    const loadStudentsForCustomGoals = async () => {
+      if (!token || !user || user.role_name.toLowerCase() !== 'admin') return;
+
+      try {
+        setIsLoadingStudents(true);
+        const studentsData = await getStudentsForCustomGoals(token, "", "");
+
+        // Transform the data into userProfiles and userGoals format
+        const profilesMap: Record<string, any> = {};
+        const goalsMap: Record<string, number | null> = {};
+
+        studentsData.forEach((student: any) => {
+          profilesMap[student.uuid] = {
+            userId: student.uuid,
+            name: student.name,
+            role: student.role,
+            status: student.status,
+            email: '', // Not provided by the API
+            dateOfBirth: '',
+            contactNumber: '',
+            address: '',
+            enrollmentDate: '',
+            associatedModules: '',
+            biometricStatus: '',
+            biometricLastUpdated: ''
+          };
+          goalsMap[student.uuid] = student.attendanceMinimum || null;
+        });
+
+        setUserProfiles(profilesMap);
+        setUserGoals(goalsMap);
+      } catch (error) {
+        console.error('Failed to load students for custom goals:', error);
+        showToast('Failed to load students data');
+      } finally {
+        setIsLoadingStudents(false);
+      }
+    };
+
+    loadStudentsForCustomGoals();
+  }, [token, user]);
+
   return (
     <div className="flex flex-col min-h-screen">
       <Routes>
@@ -299,330 +346,332 @@ const handleUpdateUserGoal = async (userId: string, goal: number) => {
         <Route path="/registration" element={<RegistrationPage />} />
         <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
 
-                {/* --- STUDENT ROUTES --- */}
+        {/* --- STUDENT ROUTES --- */}
         <Route path="/student" element={<ProtectedRoute allowedRoles={['student']}>
-                                        <StudentDashboard 
-                                        onLogout={handleLogout} 
-                                        onNavigateToAttendanceHistory={() => navigate('/student/history')} 
-                                        onNavigateToTimetable={() => navigate('/student/timetable')} 
-                                        onNavigateToProfile={() => navigate('/student/profile')} 
-                                        onNavigateToProgress={() => navigate('/student/progress')} 
-                                        onOpenNotifications={() => setIsNotificationOpen(true)} />
-                                        </ProtectedRoute>} />
+          <StudentDashboard
+            onLogout={handleLogout}
+            onNavigateToAttendanceHistory={() => navigate('/student/history')}
+            onNavigateToTimetable={() => navigate('/student/timetable')}
+            onNavigateToProfile={() => navigate('/student/profile')}
+            onNavigateToProgress={() => navigate('/student/progress')}
+            onOpenNotifications={() => setIsNotificationOpen(true)} />
+        </ProtectedRoute>} />
         <Route path="/student/history" element={<ProtectedRoute allowedRoles={['student']}>
-                                                <StudentAttendanceHistory 
-                                                onLogout={handleLogout} 
-                                                onBack={() => navigate('/student')} 
-                                                onNavigateToProfile={() => navigate('/student/profile')} 
-                                                onOpenNotifications={() => setIsNotificationOpen(true)} />
-                                                </ProtectedRoute>} />
+          <StudentAttendanceHistory
+            onLogout={handleLogout}
+            onBack={() => navigate('/student')}
+            onNavigateToProfile={() => navigate('/student/profile')}
+            onOpenNotifications={() => setIsNotificationOpen(true)} />
+        </ProtectedRoute>} />
         <Route path="/student/timetable" element={<ProtectedRoute allowedRoles={['student']}>
-                                                  <StudentTimetable 
-                                                  onLogout={handleLogout} 
-                                                  onBack={() => navigate('/student')} 
-                                                  onNavigateToProfile={() => navigate('/student/profile')} 
-                                                  onOpenNotifications={() => setIsNotificationOpen(true)} />
-                                                  </ProtectedRoute>} />
+          <StudentTimetable
+            onLogout={handleLogout}
+            onBack={() => navigate('/student')}
+            onNavigateToProfile={() => navigate('/student/profile')}
+            onOpenNotifications={() => setIsNotificationOpen(true)} />
+        </ProtectedRoute>} />
         <Route path="/student/progress" element={<ProtectedRoute allowedRoles={['student']}>
-                                                  <StudentProgressTracker 
-                                                  onLogout={handleLogout} 
-                                                  onBack={() => navigate('/student')} 
-                                                  onNavigateToProfile={() => navigate('/student/profile')} 
-                                                  onOpenNotifications={() => setIsNotificationOpen(true)} />
-                                                  </ProtectedRoute>} />
+          <StudentProgressTracker
+            onLogout={handleLogout}
+            onBack={() => navigate('/student')}
+            onNavigateToProfile={() => navigate('/student/profile')}
+            onOpenNotifications={() => setIsNotificationOpen(true)} />
+        </ProtectedRoute>} />
         <Route path="/student/profile" element={<ProtectedRoute allowedRoles={['student']}><StudentProfile onLogout={handleLogout} onBack={() => navigate('/student')} onNavigateToProfile={() => navigate('/student/profile')} onOpenNotifications={() => setIsNotificationOpen(true)} /></ProtectedRoute>} />
         {/* Lecturer Routes */}
         <Route path="/lecturer" element={<ProtectedRoute allowedRoles={['lecturer']}>
-                                                  <LecturerDashboard 
-                                                  onLogout={handleLogout} 
-                                                  onNavigateToReports={() => navigate('/lecturer/reports')} 
-                                                  onNavigateToProfile={() => navigate('/lecturer/profile')} 
-                                                  onNavigateToTimetable={() => navigate('/lecturer/timetable')} 
-                                                  onNavigateToRecords={() => navigate('/lecturer/records')} />
-                                                  </ProtectedRoute>} />
+          <LecturerDashboard
+            onLogout={handleLogout}
+            onNavigateToReports={() => navigate('/lecturer/reports')}
+            onNavigateToProfile={() => navigate('/lecturer/profile')}
+            onNavigateToTimetable={() => navigate('/lecturer/timetable')}
+            onNavigateToRecords={() => navigate('/lecturer/records')} />
+        </ProtectedRoute>} />
         <Route path="/lecturer/reports" element={<ProtectedRoute allowedRoles={['lecturer']}>
-                                                  <AttendanceReports 
-                                                  onLogout={handleLogout} 
-                                                  onBack={() => navigate('/lecturer')} 
-                                                  onNavigateToProfile={() => navigate('/lecturer/profile')} />
-                                                  </ProtectedRoute>} />
+          <AttendanceReports
+            onLogout={handleLogout}
+            onBack={() => navigate('/lecturer')}
+            onNavigateToProfile={() => navigate('/lecturer/profile')} />
+        </ProtectedRoute>} />
         <Route path="/lecturer/profile" element={<ProtectedRoute allowedRoles={['lecturer']}>
-                                                  <UpdateProfile 
-                                                    onLogout={handleLogout} 
-                                                    onBack={() => navigate('/lecturer')} 
-                                                    onNavigateToProfile={() => navigate('/lecturer/profile')} />
-                                                  </ProtectedRoute>} />
+          <UpdateProfile
+            onLogout={handleLogout}
+            onBack={() => navigate('/lecturer')}
+            onNavigateToProfile={() => navigate('/lecturer/profile')} />
+        </ProtectedRoute>} />
         <Route path="/lecturer/timetable" element={<ProtectedRoute allowedRoles={['lecturer']}>
-                                                    <LecturerTimetable 
-                                                      onLogout={handleLogout} 
-                                                      onBack={() => navigate('/lecturer')} 
-                                                      onNavigateToProfile={() => navigate('/lecturer/profile')}/>
-                                                    </ProtectedRoute>}/>
-          <Route path="/lecturer/records" element={<ProtectedRoute allowedRoles={['lecturer']}>
-                                                  <LecturerAttendanceRecords 
-                                                    onLogout={handleLogout} 
-                                                    onBack={() => navigate('/lecturer')} 
-                                                    onNavigateToProfile={() => navigate('/lecturer/profile')} 
-                                                  />
-                                                </ProtectedRoute>
-                                              } 
-                                            />
+          <LecturerTimetable
+            onLogout={handleLogout}
+            onBack={() => navigate('/lecturer')}
+            onNavigateToProfile={() => navigate('/lecturer/profile')} />
+        </ProtectedRoute>} />
+        <Route path="/lecturer/records" element={<ProtectedRoute allowedRoles={['lecturer']}>
+          <LecturerAttendanceRecords
+            onLogout={handleLogout}
+            onBack={() => navigate('/lecturer')}
+            onNavigateToProfile={() => navigate('/lecturer/profile')}
+          />
+        </ProtectedRoute>
+        }
+        />
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}>
-                                      <AdminDashboard 
-                                      onLogout={handleLogout} 
-                                      onNavigateToManageUsers={() => navigate('/admin/users')} 
-                                      onNavigateToManageModules={() => navigate('/admin/modules')} 
-                                      onNavigateToManageLessons={() => navigate('/admin/lessons')}
-                                      onNavigateToManageUserProfile={() => navigate('/admin/user-profiles')} 
-                                      onNavigateToManageCustomGoals={() => navigate('/admin/goals')} 
-                                      onNavigateToBiometricProfile={() => navigate('/admin/biometrics')}
-                                      onNavigateToManageCourses={() => navigate('/admin/courses')} 
-                                      onNavigateToAttendanceRecords={() => navigate('/admin/records')} 
-                                      onNavigateToReports={() => navigate('/admin/reports')} 
-                                      onNavigateToProfile={() => navigate('/admin/profile')} />
-                                      </ProtectedRoute>} />
+          <AdminDashboard
+            onLogout={handleLogout}
+            onNavigateToManageUsers={() => navigate('/admin/users')}
+            onNavigateToManageModules={() => navigate('/admin/modules')}
+            onNavigateToManageLessons={() => navigate('/admin/lessons')}
+            onNavigateToManageUserProfile={() => navigate('/admin/user-profiles')}
+            onNavigateToManageCustomGoals={() => navigate('/admin/goals')}
+            onNavigateToBiometricProfile={() => navigate('/admin/biometrics')}
+            onNavigateToManageCourses={() => navigate('/admin/courses')}
+            onNavigateToAttendanceRecords={() => navigate('/admin/records')}
+            onNavigateToReports={() => navigate('/admin/reports')}
+            onNavigateToProfile={() => navigate('/admin/profile')} />
+        </ProtectedRoute>} />
         <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}>
-                                            <ManageUserAccounts 
-                                            onLogout={handleLogout} 
-                                            onBack={() => navigate('/admin')} 
-                                            onCreateUser={() => navigate('/admin/users/create')} 
-                                            onUpdateUser={(data) => { setSelectedUserData(data); navigate('/admin/users/update'); }} 
-                                            onNavigateToProfile={() => navigate('/admin/profile')} />
-                                            </ProtectedRoute>} />
+          <ManageUserAccounts
+            onLogout={handleLogout}
+            onBack={() => navigate('/admin')}
+            onCreateUser={() => navigate('/admin/users/create')}
+            onUpdateUser={(data) => { setSelectedUserData(data); navigate('/admin/users/update'); }}
+            onNavigateToProfile={() => navigate('/admin/profile')} />
+        </ProtectedRoute>} />
         <Route path="/admin/users/create" element={<ProtectedRoute allowedRoles={['admin']}>
-                                                  <CreateUser 
-                                                  onLogout={handleLogout} 
-                                                  onBack={() => navigate('/admin/users')} 
-                                                  onCreateSuccess={() => navigate('/admin/users')} 
-                                                  onNavigateToProfile={() => navigate('/admin/profile')} />
-                                                  </ProtectedRoute>} />
+          <CreateUser
+            onLogout={handleLogout}
+            onBack={() => navigate('/admin/users')}
+            onCreateSuccess={() => navigate('/admin/users')}
+            onNavigateToProfile={() => navigate('/admin/profile')} />
+        </ProtectedRoute>} />
         <Route path="/admin/users/update" element={<ProtectedRoute allowedRoles={['admin']}>
-                                                  {selectedUserData ? (
-                                                    <UpdateUser
-                                                      userData={selectedUserData}
-                                                      onLogout={handleLogout}
-                                                      onBack={() => navigate('/admin/users')}
-                                                      onUpdateSuccess={() => navigate('/admin/users')}
-                                                      onNavigateToProfile={() => navigate('/admin/profile')}
-                                                      showToast={showToast}
-                                                    />
-                                                  ) : (
-                                                    <Navigate to="/admin/users" replace />
-                                                  )}
-                                                </ProtectedRoute>
-                                              } 
-                                            />
+          {selectedUserData ? (
+            <UpdateUser
+              userData={selectedUserData}
+              onLogout={handleLogout}
+              onBack={() => navigate('/admin/users')}
+              onUpdateSuccess={() => navigate('/admin/users')}
+              onNavigateToProfile={() => navigate('/admin/profile')}
+              showToast={showToast}
+            />
+          ) : (
+            <Navigate to="/admin/users" replace />
+          )}
+        </ProtectedRoute>
+        }
+        />
 
         <Route path="/admin/records" element={<ProtectedRoute allowedRoles={['admin']}>
-                                                <AdminAttendanceRecords onLogout={handleLogout} onBack={() => navigate('/admin')} 
-                                                  onNavigateToProfile={() => navigate('/admin/profile')} 
-                                                  onNavigateToManualOverride={(data) => { setSelectedStudentData(data); navigate('/admin/records/override'); }}
-                                                  attendanceRecords={attendanceRecords} 
-                                                  updateAttendanceRecord={updateAttendanceRecord} 
-                                                  refreshTrigger={attendanceRefreshTrigger} />
-                                                </ProtectedRoute>} />
-        
+          <AdminAttendanceRecords onLogout={handleLogout} onBack={() => navigate('/admin')}
+            onNavigateToProfile={() => navigate('/admin/profile')}
+            onNavigateToManualOverride={(data) => { setSelectedStudentData(data); navigate('/admin/records/override'); }}
+            attendanceRecords={attendanceRecords}
+            updateAttendanceRecord={updateAttendanceRecord}
+            refreshTrigger={attendanceRefreshTrigger} />
+        </ProtectedRoute>} />
+
         <Route path="/admin/records/override" element={<ProtectedRoute allowedRoles={['admin']}>
-                                                    {selectedStudentData ? (
-                                                      <ManualOverride 
-                                                        onLogout={handleLogout} 
-                                                        onBack={() => navigate('/admin/records')} 
-                                                        studentData={selectedStudentData} 
-                                                        showToast={showToast} 
-                                                        updateAttendanceRecord={updateAttendanceRecord} 
-                                                      />
-                                                    ) : (
-                                                      /* If someone refreshes and the state is gone, redirect them back */
-                                                      <Navigate to="/admin/records" replace />
-                                                    )}
-                                                  </ProtectedRoute>
-                                                } 
-                                              />
+          {selectedStudentData ? (
+            <ManualOverride
+              onLogout={handleLogout}
+              onBack={() => navigate('/admin/records')}
+              studentData={selectedStudentData}
+              showToast={showToast}
+              updateAttendanceRecord={updateAttendanceRecord}
+            />
+          ) : (
+            /* If someone refreshes and the state is gone, redirect them back */
+            <Navigate to="/admin/records" replace />
+          )}
+        </ProtectedRoute>
+        }
+        />
         <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}>
-                                              <AdminAttendanceReports
-                                              onNavigateToProfile={() => navigate('/admin/profile')} 
-                                              onLogout={handleLogout} 
-                                              onBack={() => navigate('/admin')} />
-                                              </ProtectedRoute>} />
+          <AdminAttendanceReports
+            onNavigateToProfile={() => navigate('/admin/profile')}
+            onLogout={handleLogout}
+            onBack={() => navigate('/admin')} />
+        </ProtectedRoute>} />
         <Route path="/admin/user-profiles" element={<ProtectedRoute allowedRoles={['admin']}>
-                                                    <ManageUserProfile 
-                                                    onLogout={handleLogout} 
-                                                    onBack={() => navigate('/admin')} 
-                                                    onNavigateToCreateCustomGoal={(data) => { setSelectedCustomGoalUserData(data); navigate('/admin/goals/create'); }} 
-                                                    onNavigateToUpdateUserProfile={(data) => { setSelectedBiometricUserData({userId: data.uuid, name: data.name, role: data.role}); navigate('/admin/user-profiles/update'); }} 
-                                                    userGoals={userGoals} 
-                                                    userProfiles={userProfiles} />
-                                                    </ProtectedRoute>} />
+          <ManageUserProfile
+            onLogout={handleLogout}
+            onBack={() => navigate('/admin')}
+            onNavigateToCreateCustomGoal={(data) => { setSelectedCustomGoalUserData(data); navigate('/admin/goals/create'); }}
+            onNavigateToUpdateUserProfile={(data) => { setSelectedBiometricUserData({ userId: data.uuid, name: data.name, role: data.role }); navigate('/admin/user-profiles/update'); }}
+            userGoals={userGoals}
+            userProfiles={userProfiles} />
+        </ProtectedRoute>} />
         <Route path="/admin/user-profiles/update" element={<ProtectedRoute allowedRoles={['admin']}>
-                                                            {selectedBiometricUserData ? (
-                                                            <AdminUpdateUserProfile 
-                                                            onLogout={handleLogout} 
-                                                            onBack={() => navigate('/admin/user-profiles')} 
-                                                            onNavigateToBiometricProfile={() => navigate('/admin/biometrics')} 
-                                                            userData={{
-                                                                        uuid: selectedBiometricUserData.userId,
-                                                                        name: selectedBiometricUserData.name,
-                                                                        role: selectedBiometricUserData.role
-                                                                      }}
-                                                            userProfileData={userProfiles[selectedBiometricUserData.userId]}
-                                                            onUpdateProfile={handleUpdateUserProfile} 
-                                                            showToast={showToast} />
-                                                            ) : (
-                                                              <Navigate to="/admin/user-profiles" replace />
-                                                              )}
-                                                            </ProtectedRoute>} />
-            
+          {selectedBiometricUserData ? (
+            <AdminUpdateUserProfile
+              onLogout={handleLogout}
+              onBack={() => navigate('/admin/user-profiles')}
+              onNavigateToBiometricProfile={() => navigate('/admin/biometrics')}
+              userData={{
+                uuid: selectedBiometricUserData.userId,
+                name: selectedBiometricUserData.name,
+                role: selectedBiometricUserData.role
+              }}
+              userProfileData={userProfiles[selectedBiometricUserData.userId]}
+              onUpdateProfile={handleUpdateUserProfile}
+              showToast={showToast} />
+          ) : (
+            <Navigate to="/admin/user-profiles" replace />
+          )}
+        </ProtectedRoute>} />
+
         <Route path="/admin/users/create" element={<ProtectedRoute allowedRoles={['admin']}>
-                                                    <CreateUser 
-                                                    onLogout={handleLogout} 
-                                                    onBack={() => navigate('/admin/users')} 
-                                                    onCreateSuccess={() => navigate('/admin/users')} 
-                                                    onNavigateToProfile={() => navigate('/admin/profile')} />
-                                                    </ProtectedRoute>} />
+          <CreateUser
+            onLogout={handleLogout}
+            onBack={() => navigate('/admin/users')}
+            onCreateSuccess={() => navigate('/admin/users')}
+            onNavigateToProfile={() => navigate('/admin/profile')} />
+        </ProtectedRoute>} />
         <Route path="/admin/users/update" element={<ProtectedRoute allowedRoles={['admin']}>
-                                                    {selectedBiometricUserData ? (
-                                                      <AdminUpdateUserProfile
-                                                        onLogout={handleLogout}
-                                                        onBack={() => navigate('/admin/user-profiles')}
-                                                        onNavigateToBiometricProfile={() => navigate('/admin/biometrics')}
-                                                        userData={{
-                                                          uuid: selectedBiometricUserData.userId,
-                                                          name: selectedBiometricUserData.name,
-                                                          role: selectedBiometricUserData.role
-                                                        }}
-                                                        userProfileData={userProfiles[selectedBiometricUserData.userId]}
-                                                        onUpdateProfile={handleUpdateUserProfile}
-                                                        showToast={showToast}
-                                                      />
-                                                    ) : (
-                                                      <Navigate to="/admin/user-profiles" replace />
-                                                    )}
-                                                    </ProtectedRoute>} />
+          {selectedBiometricUserData ? (
+            <AdminUpdateUserProfile
+              onLogout={handleLogout}
+              onBack={() => navigate('/admin/user-profiles')}
+              onNavigateToBiometricProfile={() => navigate('/admin/biometrics')}
+              userData={{
+                uuid: selectedBiometricUserData.userId,
+                name: selectedBiometricUserData.name,
+                role: selectedBiometricUserData.role
+              }}
+              userProfileData={userProfiles[selectedBiometricUserData.userId]}
+              onUpdateProfile={handleUpdateUserProfile}
+              showToast={showToast}
+            />
+          ) : (
+            <Navigate to="/admin/user-profiles" replace />
+          )}
+        </ProtectedRoute>} />
         <Route path="/admin/lessons" element={<ProtectedRoute allowedRoles={['admin']}>
-                                              <ManageLessons 
-                                              onBack={() => navigate('/admin')} 
-                                              onLogout={handleLogout} 
-                                              onNavigateToProfile={() => navigate('/admin/profile')}
-                                              onNavigateToCreateLesson={() => navigate('/admin/lessons/create')} 
-                                              onNavigateToUpdateLesson={(data) => { setLessonToUpdate(data); navigate('/admin/lessons/update'); }} 
-                                              refreshTrigger={lessonRefreshTrigger} />
-                                              </ProtectedRoute>} />
+          <ManageLessons
+            onBack={() => navigate('/admin')}
+            onLogout={handleLogout}
+            onNavigateToProfile={() => navigate('/admin/profile')}
+            onNavigateToCreateLesson={() => navigate('/admin/lessons/create')}
+            onNavigateToUpdateLesson={(data) => { setLessonToUpdate(data); navigate('/admin/lessons/update'); }}
+            refreshTrigger={lessonRefreshTrigger} />
+        </ProtectedRoute>} />
         <Route path="/admin/lessons/create" element={<ProtectedRoute allowedRoles={['admin']}>
-                                            <CreateLesson 
-                                            onBack={() => {setLessonRefreshTrigger(prev => prev + 1);
-                                                          navigate('/admin/lessons')
-                                                        }} 
-                                            onLogout={handleLogout} 
-                                            
-                                            onNavigateToProfile={() => navigate('/admin/profile')} />
-                                            </ProtectedRoute>} />
+          <CreateLesson
+            onBack={() => {
+              setLessonRefreshTrigger(prev => prev + 1);
+              navigate('/admin/lessons')
+            }}
+            onLogout={handleLogout}
+
+            onNavigateToProfile={() => navigate('/admin/profile')} />
+        </ProtectedRoute>} />
         <Route path="/admin/lessons/update" element={<ProtectedRoute allowedRoles={['admin']}>
-                                          <UpdateLesson 
-                                          lessonData={lessonToUpdate} 
-                                          onBack={() => {
-                                            setLessonRefreshTrigger(prev => prev + 1);
-                                            setLessonToUpdate(null);
-                                            navigate('/admin/lessons')}} 
-                                          onLogout={handleLogout} 
-                                          onNavigateToProfile={() => navigate('/admin/profile')} />
-                                          </ProtectedRoute>} />
+          <UpdateLesson
+            lessonData={lessonToUpdate}
+            onBack={() => {
+              setLessonRefreshTrigger(prev => prev + 1);
+              setLessonToUpdate(null);
+              navigate('/admin/lessons')
+            }}
+            onLogout={handleLogout}
+            onNavigateToProfile={() => navigate('/admin/profile')} />
+        </ProtectedRoute>} />
 
         <Route path="/admin/courses" element={<ProtectedRoute allowedRoles={['admin']}>
-                                          <ManageCourses onBack={() => navigate('/admin')} 
-                                          onLogout={handleLogout} 
-                                          onNavigateToProfile={() => navigate('/admin/profile')} 
-                                          onNavigateToCreateCourse={() => navigate('/admin/courses/create')} 
-                                          onNavigateToUpdateCourse={(data) => { setCourseToUpdate(data); navigate('/admin/courses/update'); }} 
-                                          refreshTrigger={courseRefreshTrigger} />
-                                          </ProtectedRoute>} />
+          <ManageCourses onBack={() => navigate('/admin')}
+            onLogout={handleLogout}
+            onNavigateToProfile={() => navigate('/admin/profile')}
+            onNavigateToCreateCourse={() => navigate('/admin/courses/create')}
+            onNavigateToUpdateCourse={(data) => { setCourseToUpdate(data); navigate('/admin/courses/update'); }}
+            refreshTrigger={courseRefreshTrigger} />
+        </ProtectedRoute>} />
         <Route path="/admin/courses/create" element={<ProtectedRoute allowedRoles={['admin']}>
-                                          <CreateCourse 
-                                          onBack={() => navigate('/admin/courses')} 
-                                          onLogout={handleLogout} 
-                                          onNavigateToProfile={() => navigate('/admin/profile')} />
-                                          </ProtectedRoute>} />
+          <CreateCourse
+            onBack={() => navigate('/admin/courses')}
+            onLogout={handleLogout}
+            onNavigateToProfile={() => navigate('/admin/profile')} />
+        </ProtectedRoute>} />
         <Route path="/admin/courses/update" element={<ProtectedRoute allowedRoles={['admin']}>
-                                            <UpdateCourse 
-                                            courseData={courseToUpdate} 
-                                            onBack={() => navigate('/admin/courses')} 
-                                            onLogout={handleLogout} 
-                                            onNavigateToProfile={() => navigate('/admin/profile')} />
-                                            </ProtectedRoute>} />
+          <UpdateCourse
+            courseData={courseToUpdate}
+            onBack={() => navigate('/admin/courses')}
+            onLogout={handleLogout}
+            onNavigateToProfile={() => navigate('/admin/profile')} />
+        </ProtectedRoute>} />
         <Route path="/admin/modules" element={<ProtectedRoute allowedRoles={['admin']}>
-                                              <ManageModules 
-                                              onBack={() => navigate('/admin')} 
-                                              onNavigateToProfile={() => navigate('/admin/profile')} 
-                                              onNavigateToCreateModule={() => navigate('/admin/modules/create')} 
-                                              onNavigateToUpdateModule={(data) => { setModuleToUpdate(data); navigate('/admin/modules/update'); }} />
-                                              </ProtectedRoute>} />
+          <ManageModules
+            onBack={() => navigate('/admin')}
+            onNavigateToProfile={() => navigate('/admin/profile')}
+            onNavigateToCreateModule={() => navigate('/admin/modules/create')}
+            onNavigateToUpdateModule={(data) => { setModuleToUpdate(data); navigate('/admin/modules/update'); }} />
+        </ProtectedRoute>} />
         <Route path="/admin/modules/create" element={<ProtectedRoute allowedRoles={['admin']}>
-                                              <CreateModule 
-                                              onLogout={handleLogout} 
-                                              onBack={() => navigate('/admin/modules')} 
-                                              onNavigateToProfile={() => navigate('/admin/profile')} />
-                                              </ProtectedRoute>} />
+          <CreateModule
+            onLogout={handleLogout}
+            onBack={() => navigate('/admin/modules')}
+            onNavigateToProfile={() => navigate('/admin/profile')} />
+        </ProtectedRoute>} />
         <Route path="/admin/modules/update" element={<ProtectedRoute allowedRoles={['admin']}>
-                                              <UpdateModule 
-                                              moduleData={moduleToUpdate} 
-                                              onBack={() => navigate('/admin/modules')} 
-                                              onNavigateToProfile={() => navigate('/admin/profile')} />
-                                              </ProtectedRoute>} />
+          <UpdateModule
+            moduleData={moduleToUpdate}
+            onBack={() => navigate('/admin/modules')}
+            onNavigateToProfile={() => navigate('/admin/profile')} />
+        </ProtectedRoute>} />
         <Route path="/admin/goals" element={<ProtectedRoute allowedRoles={['admin']}>
-                                            <ManageCustomGoals
-                                            onBack={() => navigate('/admin')} 
-                                            onNavigateToProfile={() => navigate('/admin/profile')} 
-                                            onCreateGoal={handleUpdateUserGoal} 
-                                            onUpdateGoal={handleUpdateUserGoal} 
-                                            onDeleteGoal={handleDeleteUserGoal} 
-                                            showToast={showToast} 
-                                            userGoals={userGoals} 
-                                            userProfiles={userProfiles} 
-                                            goalMetadata={goalMetadata} 
-                                            loading={isLoadingStudents} />
-                                            </ProtectedRoute>} />
+          <ManageCustomGoals
+            onBack={() => navigate('/admin')}
+            onNavigateToProfile={() => navigate('/admin/profile')}
+            onCreateGoal={handleUpdateUserGoal}
+            onUpdateGoal={handleUpdateUserGoal}
+            onDeleteGoal={handleDeleteUserGoal}
+            showToast={showToast}
+            userGoals={userGoals}
+            userProfiles={userProfiles}
+            goalMetadata={goalMetadata}
+            loading={isLoadingStudents} />
+        </ProtectedRoute>} />
         <Route path="/admin/goals/create" element={<ProtectedRoute allowedRoles={['admin']}>
-                                           {selectedCustomGoalUserData ? (
-                                              <CreateCustomGoal
-                                                onLogout={handleLogout}
-                                                onBack={() => navigate('/admin/goals')}
-                                                userData={selectedCustomGoalUserData}
-                                                onCreateGoal={handleUpdateUserGoal}
-                                                showToast={showToast}
-                                              />
-                                            ) : (
-                                              <Navigate to="/admin/goals" replace />
-                                            )}
-                                          </ProtectedRoute>} />
+          {selectedCustomGoalUserData ? (
+            <CreateCustomGoal
+              onLogout={handleLogout}
+              onBack={() => navigate('/admin/goals')}
+              userData={selectedCustomGoalUserData}
+              onCreateGoal={handleUpdateUserGoal}
+              showToast={showToast}
+            />
+          ) : (
+            <Navigate to="/admin/goals" replace />
+          )}
+        </ProtectedRoute>} />
         <Route path="/admin/profile" element={<ProtectedRoute allowedRoles={['admin']}>
-                                              <ViewAdminProfile 
-                                                onBack={() => navigate('/admin')} 
-                                                onNavigateToProfile={() => navigate('/admin/profile/update')}
-                                                {...({
-                                                  onSave: handleSaveAdminProfile,
-                                                  adminData: adminProfileData
-                                                } as any)} 
-                                              />
-                                            </ProtectedRoute>} />
+          <ViewAdminProfile
+            onBack={() => navigate('/admin')}
+            onNavigateToProfile={() => navigate('/admin/profile/update')}
+            {...({
+              onSave: handleSaveAdminProfile,
+              adminData: adminProfileData
+            } as any)}
+          />
+        </ProtectedRoute>} />
         <Route path="/admin/profile/update" element={<ProtectedRoute allowedRoles={['admin']}>
-                                              <UpdateAdminProfile 
-                                              onLogout={handleLogout} 
-                                              onBack={() => navigate('/admin/profile')} 
-                                              onSave={handleSaveAdminProfile} 
-                                              adminData={adminProfileData} />
-                                              </ProtectedRoute>} />
+          <UpdateAdminProfile
+            onLogout={handleLogout}
+            onBack={() => navigate('/admin/profile')}
+            onSave={handleSaveAdminProfile}
+            adminData={adminProfileData} />
+        </ProtectedRoute>} />
 
 
         <Route path="/pmanager" element={<ProtectedRoute allowedRoles={['pmanager']}>
-          <PlatformManagerDashboard onLogout={handleLogout} 
-          onNavigateToInstitutionsProfile={() => navigate('/pmanager/institutions')} />
-          </ProtectedRoute>} />
+          <PlatformManagerDashboard onLogout={handleLogout}
+            onNavigateToInstitutionsProfile={() => navigate('/pmanager/institutions')} />
+        </ProtectedRoute>} />
         <Route path="/pmanager/institutions" element={<ProtectedRoute allowedRoles={['pmanager']}>
-                                              <ManageInstitutionsProfile 
-                                              onLogout={handleLogout} 
-                                              onBack={() => navigate('/pmanager')} 
-                                              onCreateProfile={() => navigate('/pmanager/institutions/create')} 
-                                              onViewProfile={(data) => { setSelectedInstitutionData(data); navigate('/pmanager/institutions/view'); }} />
-                                              </ProtectedRoute>} />
+          <ManageInstitutionsProfile
+            onLogout={handleLogout}
+            onBack={() => navigate('/pmanager')}
+            onCreateProfile={() => navigate('/pmanager/institutions/create')}
+            onViewProfile={(data) => { setSelectedInstitutionData(data); navigate('/pmanager/institutions/view'); }} />
+        </ProtectedRoute>} />
 
 
         <Route path="*" element={<Navigate to="/" replace />} />
