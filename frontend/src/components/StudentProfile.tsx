@@ -1113,6 +1113,8 @@ export function StudentProfile({
                     if (response.ok) {
                       // Refresh biometric status after deletion
                       await fetchBiometricStatus(formData.studentNum);
+                      // Clear the profile photo from AuthContext
+                      updateUserPhoto("");
                       alert("Biometric profile deleted successfully");
                     } else {
                       throw new Error('Failed to delete biometric profile');

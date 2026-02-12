@@ -550,14 +550,75 @@ def delete_biometric_profile(
         if not existing_records or existing_records[0] == 0:
             raise HTTPException(status_code=404, detail="No biometric profile found")
 
+        # Get all the image paths before deleting from database
+        image_records = db.execute(
+            text('SELECT imagepath FROM public.studentangles WHERE "studentID" = :student_id'),
+            {"student_id": student_uuid},
+        ).fetchall()
+        
+        # Delete the actual image files from Supabase storage
+        sb = _require_supabase()
+        files_deleted = 0
+        deletion_errors = []
+        
+        print(f"[AI] Found {len(image_records)} files to delete from bucket '{SUPABASE_BUCKET}'")
+        
+        for record in image_records:
+            image_path = record[0]
+            if image_path:
+                try:
+                    print(f"[AI] Attempting to delete: {image_path}")
+                    result = sb.storage.from_(SUPABASE_BUCKET).remove([image_path])
+                    print(f"[AI] Delete result: {result}")
+                    files_deleted += 1
+                    print(f"[AI] Successfully deleted storage file: {image_path}")
+                except Exception as e:
+                    error_msg = f"Could not delete storage file {image_path}: {str(e)}"
+                    print(f"[AI] Error: {error_msg}")
+                    deletion_errors.append(error_msg)
+                    # Continue with other files even if one fails
+            else:
+                print(f"[AI] Warning: Empty image path found in record")
+        
+        if deletion_errors:
+            print(f"[AI] Total deletion errors: {len(deletion_errors)}")
+            for error in deletion_errors:
+                print(f"[AI] Deletion error: {error}")
+
         # Delete all biometric records for this student using proper quoted column names
-        db.execute(
+        deleted_count = db.execute(
             text('DELETE FROM public.studentangles WHERE "studentID" = :student_id'),
             {"student_id": student_uuid},
-        )
+        ).rowcount
+        
+        # Also clear the profile photo from the student record (if it exists)
+        try:
+            # Try to update the students table - if the column doesn't exist, this will be skipped
+            if Student:  # Check if Student model is available
+                student = db.query(Student).filter(Student.studentID == student_uuid).first()
+                if student:
+                    student.photo = None
+        except Exception as e:
+            print(f"[AI] Warning: Could not clear student photo: {e}")
+            # Continue anyway, the main deletion was successful
+        
         db.commit()
-
-        return {"message": "Biometric profile deleted successfully"}
+        
+        print(f"[AI] Successfully deleted {deleted_count} biometric records and {files_deleted} storage files for student {student_num}")
+        
+        # Return additional information about deletion process
+        response_data = {
+            "message": "Biometric profile deleted successfully", 
+            "records_deleted": deleted_count,
+            "files_deleted": files_deleted,
+            "bucket": SUPABASE_BUCKET
+        }
+        
+        if deletion_errors:
+            response_data["deletion_errors"] = deletion_errors
+            response_data["message"] = f"Biometric profile deleted with {len(deletion_errors)} file deletion errors"
+            
+        return response_data
 
     except HTTPException:
         raise

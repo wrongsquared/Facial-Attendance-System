@@ -137,7 +137,7 @@ export function NotificationAlerts({
                             <div>
                               <p className="text-sm text-gray-600">Current Attendance:</p>
                               <p className="font-medium">
-                                {alert.meta_data?.current_pct} (Threshold: {alert.meta_data?.threshold}%)
+                                {alert.meta_data?.current_pct}% (Threshold: {alert.meta_data?.threshold}%)
                               </p>
                             </div>
 
