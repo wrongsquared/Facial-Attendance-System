@@ -53,7 +53,7 @@ export function StudentProfile({
   onBack,
   onOpenNotifications
 }: StudentProfileProps) {
-  const { token, user } = useAuth();
+  const { token, user, updateUserPhoto } = useAuth();
   const [loading, setLoading] = useState(true);
 
   // Biometric enrollment state - true if enrolled, false if not
@@ -146,12 +146,16 @@ export function StudentProfile({
 
       if (response.ok) {
         const data = await response.json();
+        console.log('Biometric status response:', data);
         setIsBiometricEnrolled(data.enrolled || false);
         if (data.last_updated) {
           setBiometricLastUpdated(data.last_updated);
         }
         if (data.profile_image_url) {
+          console.log('Setting biometric image URL:', data.profile_image_url);
           setBiometricImageUrl(data.profile_image_url);
+          // Update the user photo in AuthContext so navbar shows the new image
+          updateUserPhoto(data.profile_image_url);
         }
       } else {
         setIsBiometricEnrolled(false);
@@ -585,7 +589,11 @@ export function StudentProfile({
       setBiometricLastUpdated(now.toISOString());
 
       // ✅ if backend returns a stored URL, use it (this updates the profile preview immediately)
-      if (data.profile_image_url) setBiometricImageUrl(data.profile_image_url);
+      if (data.profile_image_url) {
+        setBiometricImageUrl(data.profile_image_url);
+        // Update the user photo in AuthContext so navbar shows the new image
+        updateUserPhoto(data.profile_image_url);
+      }
       if (data.last_updated) setBiometricLastUpdated(data.last_updated);
 
       stopCamera();
@@ -703,6 +711,13 @@ export function StudentProfile({
                           src={biometricImageUrl ?? biometricPreviewImage ?? ""}
                           alt="Biometric profile"
                           className="w-full max-w-md rounded-lg border bg-white"
+                          onError={(e) => {
+                            console.error('Failed to load biometric image:', e.currentTarget.src);
+                            e.currentTarget.style.display = 'none';
+                          }}
+                          onLoad={() => {
+                            console.log('Biometric image loaded successfully');
+                          }}
                         />
                       </div>
                     )}

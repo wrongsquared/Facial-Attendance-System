@@ -384,10 +384,24 @@ async def enrolment_finish(enrolment_id: str, db: Session = Depends(get_db)):
             student.photo = first_image
             db.commit()
 
+    # Generate signed URL for the profile image
+    profile_image_url = None
+    if first_image:
+        try:
+            sb = _require_supabase()
+            res = sb.storage.from_(SUPABASE_BUCKET).create_signed_url(first_image, 3600)
+            url = res.get("signedURL") or res.get("signedUrl") or res.get("signed_url")
+            if url and url.startswith("/") and SUPABASE_URL:
+                url = SUPABASE_URL.rstrip("/") + url
+            profile_image_url = url
+        except Exception as e:
+            print(f"Error generating finish enrollment profile image URL: {e}")
+            profile_image_url = None
+
     return {
         "status": "success",
         "last_updated": datetime.utcnow().isoformat(),
-        "profile_image_url": first_image # Or a signed URL
+        "profile_image_url": profile_image_url
     }
 
 @router.get("/storage/signed-url")
@@ -453,13 +467,27 @@ async def get_biometric_status(student_num: str, db: Session = Depends(get_db)):
         return {
             "enrolled": False, 
             "last_updated": None, 
-            "profile_image_url": student.photo # Might have a generic avatar
+            "profile_image_url": None
         }
+
+    # Generate signed URL for the profile image
+    profile_image_url = None
+    if first_angle.imagepath:
+        try:
+            sb = _require_supabase()
+            res = sb.storage.from_(SUPABASE_BUCKET).create_signed_url(first_angle.imagepath, 3600)
+            url = res.get("signedURL") or res.get("signedUrl") or res.get("signed_url")
+            if url and url.startswith("/") and SUPABASE_URL:
+                url = SUPABASE_URL.rstrip("/") + url
+            profile_image_url = url
+        except Exception as e:
+            print(f"Error generating profile image URL: {e}")
+            profile_image_url = None
 
     return {
         "enrolled": True,
         "last_updated": first_angle.updatedat,
-        "profile_image_url": first_angle.imagepath # Return a sample image path
+        "profile_image_url": profile_image_url
     }
 
 @router.get("/biometric/{student_num}/images")

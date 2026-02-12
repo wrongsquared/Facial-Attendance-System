@@ -1,5 +1,5 @@
 // src/context/AuthContext.tsx
-import  { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { AuthResponse } from "../types/auth";
 import { logoutUser } from "../services/api";
 
@@ -8,8 +8,9 @@ interface AuthContextType {
   token: string | null;
   login: (data: AuthResponse) => void;
   logout: () => void;
+  updateUserPhoto: (photoUrl: string) => void;
   isAuthenticated: boolean;
-  loading:boolean;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,11 +39,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("token", data.access_token);
   };
 
+  const updateUserPhoto = (photoUrl: string) => {
+    if (user) {
+      const updatedUser = { ...user, photo: photoUrl };
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+    }
+  };
 
   const logout = async () => {
     if (token) {
       try {
-        await logoutUser(token); 
+        await logoutUser(token);
       } catch (error) {
         console.warn("Server logout failed, but clearing local state anyway.", error);
       }
@@ -53,13 +61,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(null);
     localStorage.removeItem("user");
     localStorage.removeItem("token");
-    
+
     // Clear any other keys 
     // localStorage.clear(); 
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token, loading}}>
+    <AuthContext.Provider value={{ user, token, login, logout, updateUserPhoto, isAuthenticated: !!token, loading }}>
       {children}
     </AuthContext.Provider>
   );
