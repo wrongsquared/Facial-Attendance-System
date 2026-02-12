@@ -63,8 +63,6 @@ class Campus(Base):
     # Belongs to a University
     universityID: Mapped[int] = mapped_column(ForeignKey("university.universityID"))
     university: Mapped[University] = relationship(back_populates="campus")
-    # Has User Profiles
-    # profiles: Mapped[list["UserProfile"]] = relationship(back_populates="campus")
     student_profiles: Mapped[list["Student"]] = relationship(back_populates="campus")
     lecturer_profiles: Mapped[list["Lecturer"]] = relationship(back_populates="campus")
     admin_profiles: Mapped[list["Admin"]] = relationship(back_populates="campus")
@@ -72,6 +70,7 @@ class Campus(Base):
     courses: Mapped[list["Courses"]] = relationship(back_populates="campus")
     created_at = mapped_column(DateTime, default=datetime.datetime)
     profiles: Mapped[list["UserProfile"]]= relationship(back_populates="campus")
+    modules: Mapped[list["Module"]] = relationship(back_populates="campus", cascade="all, delete-orphan")
 
 class UserProfile(Base): #User Profiles, Student, Lecturer, Admins
     __tablename__ = "userprofiles"
@@ -197,12 +196,14 @@ class Module(Base): #Modules
     moduleID: Mapped[int] = mapped_column(primary_key=True)
     moduleName: Mapped[str] = mapped_column(String(25))
     moduleCode: Mapped[str] = mapped_column(String(8))
+    campusID: Mapped[int] = mapped_column(ForeignKey("campus.campusID"))
+    campus: Mapped["Campus"] = relationship(back_populates="modules")
     lecMod: Mapped[list[LecMod]] = relationship(back_populates="modules", cascade="all, delete-orphan")
     studentModules: Mapped[list[StudentModules]] = relationship(back_populates="modules", cascade="all, delete-orphan")
     startDate: Mapped[datetime.datetime|None]
     endDate: Mapped[datetime.datetime|None]
 
-class Lesson(Base): # Lessons by Lecturers, belongs to Modules
+class Lesson(Base): 
     __tablename__ = "lessons"
     lessonID: Mapped[int] = mapped_column(primary_key=True)
 
@@ -233,7 +234,7 @@ class LecMod(Base): #Lecture-Modules Connection
 
     moduleID: Mapped[int] = mapped_column(ForeignKey("modules.moduleID"))
     modules: Mapped[Module] = relationship(back_populates="lecMod")
-    tutorial_groups: Mapped[list["TutorialsGroup"]] = relationship(back_populates="lecMod")
+    tutorial_groups: Mapped[list["TutorialsGroup"]] = relationship(back_populates="lecMod", cascade="all, delete-orphan")
 
 class StudentModules(Base): #Student Modules
     __tablename__ = "studentmodules"
@@ -259,10 +260,12 @@ class studentAngles(Base):
     __tablename__ = "studentangles"
 
     studentID: Mapped[UUID] = mapped_column(ForeignKey("students.studentID"), primary_key= True)
+    photoangle: Mapped[str] = mapped_column("photoangle", String, primary_key=True)
     student: Mapped[Student] = relationship(back_populates="angles")
-    imagepath: Mapped[str] = mapped_column(String)
-    updatedat: Mapped[datetime.datetime] = mapped_column(server_default=func.now())
-    photoangle: Mapped[str] = mapped_column(String)
+    
+    imagepath: Mapped[str] = mapped_column("imagepath", String)
+    updatedat: Mapped[datetime.datetime] = mapped_column("updatedat", server_default=func.now(), onupdate=func.now())
+
 
 
 class GeneratedReport(Base):
@@ -308,6 +311,7 @@ class TutorialsGroup(Base):
     tutorialGroupsID: Mapped[int] = mapped_column(primary_key=True)
     lecModID: Mapped[int] = mapped_column(ForeignKey("lecmods.lecModID"))
     lecMod: Mapped["LecMod"] = relationship(back_populates="tutorial_groups")
+    groupName: Mapped[str] = mapped_column(String(50))
     student_assignments: Mapped[list["StudentTutorialGroup"]] = relationship(back_populates="group", cascade="all, delete-orphan")
     lessons: Mapped[list[Lesson]]= relationship(back_populates="tutorialGroup")
 

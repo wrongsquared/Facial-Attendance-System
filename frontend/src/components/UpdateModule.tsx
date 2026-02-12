@@ -4,10 +4,14 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Navbar } from "./Navbar";
 import { useAuth } from "../cont/AuthContext";
-import { getManageUsers, updateModule, getCampusCourses } from "../services/api";
+import { getManageUsers, updateModule, getTutorialGroupsForModule } from "../services/api";
+import { Check, ChevronsUpDown, X } from "lucide-react";
+import { Badge } from "./ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
+import { cn } from "../lib/utils";
 
 interface LecturerData {
   uuid: string;
@@ -18,13 +22,11 @@ interface LecturerData {
   status: string;
 }
 
-interface Course {
-  courseID: number;
-  courseCode: string;
-  courseName?: string;
+interface TutorialGroup {
+  tutorialGroupsID: number;
+  groupName: string;
+  studentCount: number;
 }
-
-
 
 interface ModuleData {
   moduleID: string;
@@ -32,7 +34,7 @@ interface ModuleData {
   moduleName: string;
   startDate: string | null;
   endDate: string | null;
-  lecturerID?: string;
+  lecMod?: Array<{ lecturerID: string; lecModID: number }>;
 }
 
 interface UpdateModuleProps {
@@ -54,12 +56,14 @@ export function UpdateModule({
     moduleName: moduleData.moduleName || "",
     startDate: moduleData.startDate ? moduleData.startDate.slice(0, 16) : "",
     endDate: moduleData.endDate ? moduleData.endDate.slice(0, 16) : "",
-    lecturerID: moduleData.lecturerID || "",
+    lecturerIDs: (moduleData as any).lecMod
+      ? (moduleData as any).lecMod.map((lm: any) => String(lm.lecturerID))
+      : [] as string[],
     courseIDs: [] as number[]
   });
 
   const [lecturers, setLecturers] = useState<LecturerData[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [tutorialGroups, setTutorialGroups] = useState<TutorialGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -75,17 +79,13 @@ export function UpdateModule({
           return;
         }
 
-        // Get lecturers and courses in parallel
-        const [lecturerData, courseData] = await Promise.all([
+        const [lecturerData, tutorialGroupsData] = await Promise.all([
           getManageUsers(token, "", "Lecturer", ""),
-          getCampusCourses(token)
+          getTutorialGroupsForModule(moduleData.moduleID, token)
         ]);
 
-        console.log('Lecturer data fetched:', lecturerData);
-        console.log('Course data fetched:', courseData);
-
         setLecturers(lecturerData);
-        setCourses(courseData || []);
+        setTutorialGroups(tutorialGroupsData);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -96,21 +96,33 @@ export function UpdateModule({
     fetchData();
   }, [token]);
 
-  const handleInputChange = (field: string, value: string | number[]) => {
+  const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
     }
   };
-
+  const toggleLecturer = (lecturerId: string) => {
+    const current = [...formData.lecturerIDs];
+    const index = current.indexOf(lecturerId);
+    if (index > -1) {
+      current.splice(index, 1);
+    } else {
+      current.push(lecturerId);
+    }
+    handleInputChange("lecturerIDs", current);
+  };
   const handleSave = async () => {
-    // Validate required fields (lecturer is optional for updates)
+    // Validate required fields
+    if (formData.lecturerIDs.length === 0) {
+      alert("Please assign at least one lecturer.");
+      return;
+    }
     const requiredFields = [
       { field: 'moduleCode', label: 'Module Code' },
       { field: 'moduleName', label: 'Module Name' },
       { field: 'startDate', label: 'Start Date' },
-      { field: 'endDate', label: 'End Date' }
+      { field: 'endDate', label: 'End Date' },
     ];
 
     const missingFields = requiredFields.filter(({ field }) =>
@@ -144,21 +156,14 @@ export function UpdateModule({
         moduleCode: formData.moduleCode,
         startDate: formData.startDate,
         endDate: formData.endDate,
-        lecturerID: formData.lecturerID || null // Send null instead of empty string
+        lecturerIDs: formData.lecturerIDs || null
       };
-
-      console.log("Sending update data:", updateData);
       const result = await updateModule(moduleData.moduleID, updateData, token);
 
-      console.log("Module updated successfully:", result);
-      alert("Module updated successfully!");
-
-      // Call the onSave callback if provided
       if (onSave) {
         onSave(result);
       }
 
-      // Navigate back to manage modules
       onBack();
     } catch (error) {
       console.error('Error updating module:', error);
@@ -167,17 +172,6 @@ export function UpdateModule({
       setSaving(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading form data...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -207,6 +201,10 @@ export function UpdateModule({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+          {loading ?( 
+          <div className = "animate-hard-pulse w-full" style={{ flex: 1, height:'100%' ,minHeight: '600px' }} />
+          ):(
+            <>
             {/* Module ID (Read-only) */}
             <div className="space-y-2">
               <Label htmlFor="moduleID">Module ID</Label>
@@ -250,6 +248,17 @@ export function UpdateModule({
               )}
             </div>
 
+            {/* Tutorial Groups (Read-only) */}
+            <div className="space-y-2">
+              <Label htmlFor="tutorialGroups">Number of Tutorial Groups</Label>
+              <Input
+                id="tutorialGroups"
+                value={tutorialGroups.length || 0}
+                disabled
+                className="bg-gray-100 text-gray-600"
+              />
+            </div>
+
             {/* Date Range */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Start Date */}
@@ -289,59 +298,80 @@ export function UpdateModule({
 
             {/* Lecturer Assignment */}
             <div className="space-y-2">
-              <Label htmlFor="lecturer">Assign Lecturer</Label>
-              <Select value={formData.lecturerID} onValueChange={(value: string) => handleInputChange("lecturerID", value)}>
-                <SelectTrigger className={errors.lecturerID ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select a lecturer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {lecturers.map((lecturer) => (
-                    <SelectItem key={lecturer.uuid} value={lecturer.uuid}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{lecturer.name} - {lecturer.email}</span>
-                        {lecturer.studentNum !== "-" && (
-                          <span className="text-xs ">Specialist: {lecturer.studentNum}</span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.lecturerID && (
-                <p className="text-red-500 text-sm">{errors.lecturerID}</p>
-              )}
-            </div>
-
-            {/* Course Assignment */}
-            <div className="space-y-2">
-              <Label htmlFor="courses">Assign to Courses</Label>
-              <div className="space-y-2 max-h-40 overflow-y-auto border rounded-md p-2">
-                {courses.map((course) => (
-                  <div key={course.courseID} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id={`course-${course.courseID}`}
-                      checked={formData.courseIDs.includes(course.courseID)}
-                      onChange={(e) => {
-                        const isChecked = e.target.checked;
-                        const newCourseIDs = isChecked
-                          ? [...formData.courseIDs, course.courseID]
-                          : formData.courseIDs.filter(id => id !== course.courseID);
-                        handleInputChange("courseIDs", newCourseIDs);
-                      }}
-                      className="rounded border-gray-300"
-                    />
-                    <label htmlFor={`course-${course.courseID}`} className="text-sm flex-1 cursor-pointer">
-                      <span className="font-medium">{course.courseCode}</span> - {course.courseName}
-                    </label>
-                  </div>
-                ))}
-                {courses.length === 0 && (
-                  <p className="text-gray-500 text-sm">No courses available</p>
-                )}
-              </div>
-              {errors.courseIDs && (
-                <p className="text-red-500 text-sm">{errors.courseIDs}</p>
+              <Label>Assign Lecturers</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className={cn(
+                      "w-full justify-between h-auto min-h-10 px-3",
+                      errors.lecturerIDs ? "border-red-500" : ""
+                    )}
+                  >
+                    <div className="flex flex-wrap gap-1">
+                      {formData.lecturerIDs.length > 0 ? (
+                        formData.lecturerIDs.map((id: string) => {
+                          const lecturer = lecturers.find((l) => l.uuid === id);
+                          return (
+                            <Badge key={id} variant="secondary" className="mr-1 py-1">
+                              {lecturer?.name}
+                              <button
+                                className="ml-1 ring-offset-background rounded-full outline-none"
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent opening popover
+                                  toggleLecturer(id);
+                                }}
+                              >
+                                <X className="h-3 w-3 text-muted-foreground" />
+                              </button>
+                            </Badge>
+                          );
+                        })
+                      ) : (
+                        <span className="text-muted-foreground">Select lecturers...</span>
+                      )}
+                    </div>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }} align="start" side="bottom" sideOffset={4}>
+                  <Command className="w-full border-none shadow-none">
+                    <CommandInput placeholder="Search lecturer..." />
+                    <CommandList className="w-full">
+                      <CommandEmpty>No lecturer found.</CommandEmpty>
+                      <CommandGroup>
+                        {lecturers.map((lecturer) => (
+                          <CommandItem
+                            key={lecturer.uuid}
+                            value={`${lecturer.name} ${lecturer.email}`}
+                            onSelect={() => toggleLecturer(lecturer.uuid)}
+                            className="w-full"
+                          >
+                            <div
+                              className={cn(
+                                "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                formData.lecturerIDs.includes(lecturer.uuid)
+                                  ? "bg-primary text-primary-foreground"
+                                  : "opacity-50 [&_svg]:invisible"
+                              )}
+                            >
+                              <Check className="h-4 w-4" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{lecturer.name} - {lecturer.email}</span>
+                              {/* studentNum actually represents their Specialization for the Lecturer's case */}
+                              <span className="text-xs text-muted-foreground">{lecturer.studentNum}</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {errors.lecturerIDs && (
+                <p className="text-red-500 text-sm">{errors.lecturerIDs}</p>
               )}
             </div>
 
@@ -359,6 +389,7 @@ export function UpdateModule({
                 {saving ? "Updating..." : "Update Module"}
               </Button>
             </div>
+            </>)}
           </CardContent>
         </Card>
       </main>

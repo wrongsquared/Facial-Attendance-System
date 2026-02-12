@@ -141,14 +141,11 @@ export function AdminUpdateUserProfile({
   const [email, setEmail] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [address, setAddress] = useState("");
-  const [role, setRole] = useState("");
   const [status, setStatus] = useState("");
   const [creationDate, setCreationDate] = useState("");
   const [associatedModules, setAssociatedModules] = useState("");
   const [studnum, setstudnum] = useState("");
   const hardName = name;
-  // Role specific fields
-  const [studentNum, setStudentNum] = useState("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   // Handle input changes with real-time validation
@@ -183,10 +180,6 @@ export function AdminUpdateUserProfile({
           setErrors(prev => ({ ...prev, address: addressValidation.error }));
         }
         break;
-      case 'role':
-        setRole(value);
-        setErrors(prev => ({ ...prev, role: "" }));
-        break;
       case 'status':
         setStatus(value);
         setErrors(prev => ({ ...prev, status: "" }));
@@ -217,7 +210,6 @@ export function AdminUpdateUserProfile({
         // Map backend fields to frontend state
         setName(data.name || "");
         setEmail(data.email || "");
-        setRole(data.role || "");
         setStatus(data.active ? "Active" : "Inactive");
         setstudnum(data.studentNum || "");
         // Fields from your DB 'users' table
@@ -264,10 +256,6 @@ export function AdminUpdateUserProfile({
     }
 
     // Role validation
-    if (!role.trim()) {
-      validationErrors.role = "Role is required";
-    }
-
     // Status validation
     if (!status.trim()) {
       validationErrors.status = "Status is required";
@@ -288,7 +276,6 @@ export function AdminUpdateUserProfile({
         name: name,
         phone: contactNumber,
         fulladdress: address,
-        roleName: role,
         status: status,
       };
 
@@ -311,7 +298,6 @@ export function AdminUpdateUserProfile({
     showToast("Changes discarded.");
   };
 
-  if (loading && !isEditMode) return <div className="p-10 text-center">Loading Profile...</div>;
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile} />
@@ -328,8 +314,8 @@ export function AdminUpdateUserProfile({
         <div className="mb-8">
           <h2 className="text-3xl mb-2">{isEditMode ? 'Update User Profile' : 'View User Profile'}</h2>
           <div className="mt-4 space-y-1">
-            <p className="text-gray-600">User ID: {userData.uuid}</p>
-            <p className="text-gray-600">User Name: {hardName}</p>
+            <p className="text-gray-600">User ID: {loading ? "Loading..." : userData.uuid}</p>
+            <p className="text-gray-600">User Name: {loading ? "Loading..." : hardName}</p>
           </div>
         </div>
 
@@ -413,22 +399,6 @@ export function AdminUpdateUserProfile({
               <p className="font-medium">{userData.uuid} / {studnum}</p>
             </div>
             <div>
-              <label className="text-sm text-gray-600 mb-2 block">Role:</label>
-              <Select value={role} onValueChange={(value: string) => handleInputChange("role", value)} disabled={!isEditMode}>
-                <SelectTrigger className={errors.role ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Student">Student</SelectItem>
-                  <SelectItem value="Lecturer">Lecturer</SelectItem>
-                  <SelectItem value="Admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.role && (
-                <p className="text-red-500 text-sm mt-1">{errors.role}</p>
-              )}
-            </div>
-            <div>
               <label className="text-sm text-gray-600 mb-2 block">
                 Status:
               </label>
@@ -471,25 +441,8 @@ export function AdminUpdateUserProfile({
               <label className="text-sm text-gray-600 mb-2 block">
                 Status:
               </label>
-              <p className="font-medium">Not Created</p>
+              <p className="font-medium">Not Enrolled</p>
             </div>
-            {/* not in use */}
-            {/* <div>
-              <label className="text-sm text-gray-600 mb-2 block">
-                Last updated:
-              </label>
-              <p className="font-medium">{biometricLastUpdated}</p>
-            </div>
-            <div className="pt-2">
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={onNavigateToBiometricProfile}
-              >
-                <Fingerprint className="h-4 w-4 mr-2" />
-                Manage Biometric Profile
-              </Button>
-            </div> */}
           </CardContent>
         </Card>
 

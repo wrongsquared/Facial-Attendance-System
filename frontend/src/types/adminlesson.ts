@@ -8,6 +8,7 @@ export interface LessonData {
   building: string;
   room: string;
   lecturerName?: string;
+  tutorialGroupID?: string;
 }
 
 export interface CreateLessonRequest {

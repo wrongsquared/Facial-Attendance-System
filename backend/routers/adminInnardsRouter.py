@@ -85,18 +85,16 @@ def get_users_for_management(
     results = query.all()
     output = []
     
-    # Unpack the 5 items we queried
     for user_obj, role_name, stud_num, lec_spec, admin_job in results:
         
-        # LOGIC: Determine what to show in the "ID/Details" column
         display_id = "-"
         
         if role_name == "Student":
             display_id = stud_num or "No Student ID"
         elif role_name == "Lecturer":
-            display_id = lec_spec or "Lecturer" # Show their specialization
+            display_id = lec_spec or "Lecturer" 
         elif role_name == "Admin":
-            display_id = admin_job or "Admin"   # Show their job title
+            display_id = admin_job or "Admin" 
 
         output.append({
             # Align keys with your Pydantic Schema

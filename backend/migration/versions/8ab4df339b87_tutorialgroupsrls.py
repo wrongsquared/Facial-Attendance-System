@@ -20,11 +20,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Add RLS Policies."""
-    # 1. Enable RLS
     op.execute('ALTER TABLE tutorialgroups ENABLE ROW LEVEL SECURITY;')
     op.execute('ALTER TABLE studenttutorialgroups ENABLE ROW LEVEL SECURITY;')
 
-    # 2. Create the Policies
     op.execute("""
         CREATE POLICY "Lecturer Group Access" ON tutorialgroups FOR SELECT TO authenticated
         USING (EXISTS (SELECT 1 FROM lecmods WHERE "lecModID" = tutorialgroups."lecModID" AND "lecturerID" = auth.uid()));
@@ -54,12 +52,10 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove RLS Policies only."""
-    # DROP only what this file created
     op.execute('DROP POLICY IF EXISTS "Lecturer Group Access" ON tutorialgroups;')
     op.execute('DROP POLICY IF EXISTS "Student Group Access" ON tutorialgroups;')
     op.execute('DROP POLICY IF EXISTS "Lecturer Member Access" ON studenttutorialgroups;')
     op.execute('DROP POLICY IF EXISTS "Student Member Access" ON studenttutorialgroups;')
     
-    # Disable RLS (Optional, but good practice)
     op.execute('ALTER TABLE tutorialgroups DISABLE ROW LEVEL SECURITY;')
     op.execute('ALTER TABLE studenttutorialgroups DISABLE ROW LEVEL SECURITY;')

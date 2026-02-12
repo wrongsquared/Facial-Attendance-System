@@ -20,10 +20,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
 
-    # Authenticated users can upload, BUT only if:
-    # 1. It is the 'avatars' bucket.
-    # 2. The folder name matches their User ID.
-    #    (Assumes file path: "avatars/{uuid}/filename.jpg")
     op.execute("""
         CREATE POLICY "Users can upload their own avatar"
         ON storage.objects FOR INSERT
@@ -35,7 +31,6 @@ def upgrade() -> None:
     """)
 
 
-    # Users can delete/replace files in their own folder.
     op.execute("""
         CREATE POLICY "Users can update/delete their own avatar"
         ON storage.objects FOR UPDATE
@@ -56,9 +51,6 @@ def upgrade() -> None:
         );
     """)
 
-
-    # Any authenticated user (Student/Lecturer) can view 
-    # ANY image in the avatars bucket. 
     op.execute("""
         CREATE POLICY "Authenticated users can view avatars"
         ON storage.objects FOR SELECT
@@ -68,7 +60,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Drop policies in reverse order
     op.execute('DROP POLICY IF EXISTS "Authenticated users can view avatars" ON storage.objects')
     op.execute('DROP POLICY IF EXISTS "Users can delete their own avatar" ON storage.objects')
     op.execute('DROP POLICY IF EXISTS "Users can update/delete their own avatar" ON storage.objects')

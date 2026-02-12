@@ -34,6 +34,7 @@ interface ManageModulesProps {
   onNavigateToProfile?: () => void;
   onNavigateToCreateModule?: () => void;
   onNavigateToUpdateModule?: (moduleData: ModuleData) => void;
+  onNavigateToEnrollStudent?: (moduleData: ModuleData) => void;
   refreshTrigger?: number; // Add refresh trigger prop
 }
 
@@ -42,6 +43,7 @@ export function ManageModules({
   onNavigateToProfile,
   onNavigateToCreateModule,
   onNavigateToUpdateModule,
+  onNavigateToEnrollStudent,
   refreshTrigger,
 }: ManageModulesProps) {
   const [modules, setModules] = useState<ModuleData[]>([]);
@@ -113,6 +115,13 @@ export function ManageModules({
     }
   };
 
+  const handleEnrollStudent = (moduleId: string) => {
+    const module = modules.find(m => m.moduleID === moduleId);
+    if (module && onNavigateToEnrollStudent) {
+      onNavigateToEnrollStudent(module);
+    }
+  };
+
   const handleDeleteClick = (moduleId: string) => {
     const module = modules.find(m => m.moduleID === moduleId);
     if (module) {
@@ -140,32 +149,6 @@ export function ManageModules({
       alert('Failed to delete module. Please try again.');
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading modules data...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-600 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Modules</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700">
-            Retry
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -237,7 +220,6 @@ export function ManageModules({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-center">Module ID</TableHead>
                     <TableHead className="text-center">Module Code</TableHead>
                     <TableHead className="text-center">Module Name</TableHead>
                     <TableHead>Start Date</TableHead>
@@ -264,21 +246,28 @@ export function ManageModules({
                   ) : (
                     paginatedModules.map((module) => (
                       <TableRow key={module.moduleID}>
-                        <TableCell className="font-medium text-center">{module.moduleID}</TableCell>
                         <TableCell className="font-medium text-center">{module.moduleCode}</TableCell>
                         <TableCell className="text-center">
                           <div className="font-medium">{module.moduleName}</div>
                         </TableCell>
                         <TableCell>{module.startDate ? new Date(module.startDate).toLocaleDateString() : 'N/A'}</TableCell>
                         <TableCell>{module.endDate ? new Date(module.endDate).toLocaleDateString() : 'N/A'}</TableCell>
+                        
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-2">
                             <Button
                               variant="outline"
                               size="sm"
+                              onClick={() => handleEnrollStudent(module.moduleID)}
+                              className="border-green-600 text-green-600 hover:bg-green-50 hover:text-green-700">
+                              Enroll 
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => handleEditModule(module.moduleID)}
                             >
-                              Update Module
+                              Update
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -287,7 +276,7 @@ export function ManageModules({
                                   size="sm"
                                   onClick={() => handleDeleteClick(module.moduleID)}
                                 >
-                                  Delete Module
+                                  Delete
                                 </Button>
                               </AlertDialogTrigger>
 

@@ -78,7 +78,6 @@ export interface UpdateProfilePayload {
   name: string;
   phone: string;
   fulladdress: string;
-  roleName: string;
   status: string;
   attendanceMinimum?: number;
 }

@@ -20,6 +20,7 @@ export interface AttendanceLog {
 }
 
 export interface StudentProfileData {
+  studentID: string;
   name: string;
   email: string;
   studentNum: string;

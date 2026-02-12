@@ -19,13 +19,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # 1. Add column as nullable first
     op.add_column('attdcheck', sa.Column('status', sa.String(length=20), nullable=True))
     
-    # 2. Backfill existing rows (Assume everyone currently in the table is 'Present')
     op.execute("UPDATE attdcheck SET status = 'Present' WHERE status IS NULL")
-    
-    # 3. Make it non-nullable now that data is fixed
     op.alter_column('attdcheck', 'status', nullable=False)
 
 def downgrade() -> None:

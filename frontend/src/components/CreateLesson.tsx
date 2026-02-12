@@ -7,7 +7,7 @@ import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Navbar } from "./Navbar";
 import { useAuth } from "../cont/AuthContext";
-import { getAdminModuleList, createLesson, getManageUsers } from "../services/api";
+import { getAdminModuleList, createLesson, getManageUsers, getTutorialGroupsForModule } from "../services/api";
 
 interface LecturerData {
   uuid: string;
@@ -16,6 +16,12 @@ interface LecturerData {
   role: string;
   studentNum: string;
   status: string;
+}
+
+interface TutorialGroup {
+  tutorialGroupsID: number;
+  groupName: string;
+  studentCount: number;
 }
 
 interface ModuleData {
@@ -44,6 +50,7 @@ export function CreateLesson({
     moduleCode: "",
     lecturerID: "",
     lessonType: "",
+    tutorialGroupID: "",
     startDateTime: "",
     endDateTime: "",
     building: "",
@@ -52,6 +59,7 @@ export function CreateLesson({
 
   const [modules, setModules] = useState<ModuleData[]>([]);
   const [lecturers, setLecturers] = useState<LecturerData[]>([]);
+  const [tutorialGroups, setTutorialGroups] = useState<TutorialGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -85,8 +93,41 @@ export function CreateLesson({
     fetchData();
   }, [token]);
 
+  // Fetch tutorial groups when module is selected
+  useEffect(() => {
+    const fetchTutorialGroups = async () => {
+      if (formData.moduleCode && token) {
+        try {
+          const moduleData = modules.find(m => m.moduleCode === formData.moduleCode);
+          if (moduleData) {
+            const tutorialGroupsData = await getTutorialGroupsForModule(moduleData.moduleID, token);
+            setTutorialGroups(tutorialGroupsData || []);
+          }
+        } catch (error) {
+          console.error('Error fetching tutorial groups:', error);
+          setTutorialGroups([]);
+        }
+      } else {
+        setTutorialGroups([]);
+      }
+    };
+
+    fetchTutorialGroups();
+  }, [formData.moduleCode, token, modules]);
+
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      // Clear tutorial group when lesson type changes to Lecture
+      if (field === 'lessonType' && value === 'Lecture') {
+        updated.tutorialGroupID = '';
+      }
+      // Clear tutorial group when module changes
+      if (field === 'moduleCode') {
+        updated.tutorialGroupID = '';
+      }
+      return updated;
+    });
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
@@ -106,6 +147,10 @@ export function CreateLesson({
 
     if (!formData.lessonType.trim()) {
       newErrors.lessonType = "Lesson Type is required";
+    }
+
+    if (formData.lessonType === 'Practical' && !formData.tutorialGroupID.trim()) {
+      newErrors.tutorialGroupID = "Tutorial Group is required for Practical lessons";
     }
 
     if (!formData.startDateTime) {
@@ -147,6 +192,11 @@ export function CreateLesson({
       { field: 'room', label: 'Room' }
     ];
 
+    // Add tutorial group as required for practical lessons
+    if (formData.lessonType === 'Practical') {
+      requiredFields.push({ field: 'tutorialGroupID', label: 'Tutorial Group' });
+    }
+
     const missingFields = requiredFields.filter(({ field }) =>
       !formData[field as keyof typeof formData]?.toString().trim()
     );
@@ -177,6 +227,7 @@ export function CreateLesson({
         moduleCode: formData.moduleCode,
         lecturerID: formData.lecturerID,
         lessonType: formData.lessonType,
+        tutorialGroupID: formData.lessonType === 'Practical' ? formData.tutorialGroupID : null,
         startDateTime: formData.startDateTime,
         endDateTime: formData.endDateTime,
         building: formData.building,
@@ -205,11 +256,7 @@ export function CreateLesson({
 
   const lessonTypes = [
     "Lecture",
-    "Tutorial",
-    "Lab",
-    "Practical",
-    "Workshop",
-    "Seminar"
+    "Practical"
   ];
 
   if (loading) {
@@ -317,6 +364,34 @@ export function CreateLesson({
                 <p className="text-red-500 text-sm">{errors.lessonType}</p>
               )}
             </div>
+
+            {/* Tutorial Group (Only for Practical lessons) */}
+            {formData.lessonType === 'Practical' && (
+              <div className="space-y-2">
+                <Label htmlFor="tutorialGroup">Tutorial Group</Label>
+                <Select value={formData.tutorialGroupID} onValueChange={(value: string) => handleInputChange("tutorialGroupID", value)}>
+                  <SelectTrigger className={errors.tutorialGroupID ? "border-red-500" : ""}>
+                    <SelectValue placeholder="Select a tutorial group" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tutorialGroups.map((group) => (
+                      <SelectItem key={group.tutorialGroupsID} value={group.tutorialGroupsID.toString()}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{group.groupName}</span>
+                          <span className="text-xs text-gray-500">{group.studentCount} student{group.studentCount !== 1 ? 's' : ''} enrolled</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.tutorialGroupID && (
+                  <p className="text-red-500 text-sm">{errors.tutorialGroupID}</p>
+                )}
+                {tutorialGroups.length === 0 && formData.moduleCode && (
+                  <p className="text-amber-600 text-sm">No tutorial groups found for this module.</p>
+                )}
+              </div>
+            )}
 
             {/* Date and Time Range */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
