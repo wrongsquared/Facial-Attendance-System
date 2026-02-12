@@ -298,7 +298,6 @@ export function AdminUpdateUserProfile({
     showToast("Changes discarded.");
   };
 
-  if (loading && !isEditMode) return <div className="p-10 text-center">Loading Profile...</div>;
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar title="Admin Portal" onNavigateToProfile={onNavigateToProfile} />
@@ -444,23 +443,6 @@ export function AdminUpdateUserProfile({
               </label>
               <p className="font-medium">Not Created</p>
             </div>
-            {/* not in use */}
-            {/* <div>
-              <label className="text-sm text-gray-600 mb-2 block">
-                Last updated:
-              </label>
-              <p className="font-medium">{biometricLastUpdated}</p>
-            </div>
-            <div className="pt-2">
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={onNavigateToBiometricProfile}
-              >
-                <Fingerprint className="h-4 w-4 mr-2" />
-                Manage Biometric Profile
-              </Button>
-            </div> */}
           </CardContent>
         </Card>
 
