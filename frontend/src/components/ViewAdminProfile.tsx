@@ -183,9 +183,9 @@ export function ViewAdminProfile({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Field label="Name" id="name" value={formData.name} disabled />
-              <Field label="Role" id="role" value={formData.role} disabled />
-              <Field label="Email" id="email" value={formData.email} disabled />
+              <Field label="Name" id="name" value={formData.name} disabled loading={loading}/>
+              <Field label="Role" id="role" value={formData.role} disabled loading={loading}/>
+              <Field label="Email" id="email" value={formData.email} disabled loading={loading}/>
 
               <Field
                 label="Contact Number"
@@ -193,15 +193,21 @@ export function ViewAdminProfile({
                 value={formData.contactNumber}
                 onChange={handleChange}
                 disabled={!isEditMode}
+                loading={loading}
               />
 
               <Label htmlFor="address">Address:</Label>
+              {loading ? (
+                  // Custom Hard Pulse Skeleton for Textarea
+                  <div className="animate-hard-pulse bg-gray-200 rounded-md h-24 w-full" />
+                ) : (
               <Textarea
                 id="address"
                 value={formData.address}
                 onChange={handleChange}
                 disabled={!isEditMode}
               />
+                )}
             </CardContent>
           </Card>
 
@@ -220,6 +226,7 @@ export function ViewAdminProfile({
                 value={formData.emergencyContactName}
                 onChange={handleChange}
                 disabled={!isEditMode}
+                loading={loading}
               />
 
               <Field
@@ -228,6 +235,7 @@ export function ViewAdminProfile({
                 value={formData.emergencyContactRelationship}
                 onChange={handleChange}
                 disabled={!isEditMode}
+                loading={loading}
               />
 
               <Field
@@ -236,6 +244,7 @@ export function ViewAdminProfile({
                 value={formData.emergencyContactNumber}
                 onChange={handleChange}
                 disabled={!isEditMode}
+                loading={loading}
               />
             </CardContent>
           </Card>
@@ -276,29 +285,16 @@ export function ViewAdminProfile({
   );
 }
 
-function Field({
-  label,
-  id,
-  value,
-  onChange,
-  disabled,
-}: {
-  label: string;
-  id: string;
-  value: string | undefined;
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  disabled?: boolean;
-}) {
+function Field({ label, id, value, onChange, disabled, loading }: any) {
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}:</Label>
-      <Input
-        id={id}
-        value={value || ""}
-        onChange={onChange}
-        disabled={disabled}
-        className="h-12"
-      />
+      {loading ? (
+        // Custom Hard Pulse Skeleton for Input
+        <div className="animate-hard-pulse bg-gray-200 rounded-md h-12 w-full" />
+      ) : (
+        <Input id={id} value={value || ""} onChange={onChange} disabled={disabled} className="h-12" />
+      )}
     </div>
   );
 }

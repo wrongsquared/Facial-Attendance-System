@@ -193,6 +193,10 @@ export function UpdateModule({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+          {loading ?( 
+          <div className = "animate-hard-pulse w-full" style={{ flex: 1, height:'100%' ,minHeight: '600px' }} />
+          ):(
+            <>
             {/* Module ID (Read-only) */}
             <div className="space-y-2">
               <Label htmlFor="moduleID">Module ID</Label>
@@ -366,6 +370,7 @@ export function UpdateModule({
                 {saving ? "Updating..." : "Update Module"}
               </Button>
             </div>
+            </>)}
           </CardContent>
         </Card>
       </main>

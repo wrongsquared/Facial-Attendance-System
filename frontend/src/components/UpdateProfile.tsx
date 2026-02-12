@@ -280,7 +280,7 @@ export function UpdateProfile({
                 <Label htmlFor="emergencyContactRelationship">
                   Relationship:
                 </Label>
-                        {loading ? (
+            {loading ? (
           <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
         ) : (
                 <Input
