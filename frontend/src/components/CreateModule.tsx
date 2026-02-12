@@ -7,7 +7,7 @@ import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Navbar } from "./Navbar";
 import { useAuth } from "../cont/AuthContext";
-import { getManageUsers, createModule, getCampusCourses } from "../services/api";
+import { getManageUsers, createModule } from "../services/api";
 
 interface LecturerData {
   uuid: string;
@@ -16,12 +16,6 @@ interface LecturerData {
   role: string;
   studentNum: string;
   status: string;
-}
-
-interface Course {
-  courseID: number;
-  courseCode: string;
-  courseName?: string;
 }
 
 interface CreateModuleProps {
@@ -74,7 +68,6 @@ export function CreateModule({
   });
 
   const [lecturers, setLecturers] = useState<LecturerData[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -91,16 +84,10 @@ export function CreateModule({
         }
 
         // Get lecturers and courses in parallel
-        const [lecturerData, courseData] = await Promise.all([
+        const [lecturerData] = await Promise.all([
           getManageUsers(token, "", "Lecturer", ""),
-          getCampusCourses(token)
         ]);
-
-        console.log('Lecturer data fetched:', lecturerData);
-        console.log('Course data fetched:', courseData);
-
         setLecturers(lecturerData);
-        setCourses(courseData || []);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -346,39 +333,6 @@ export function CreateModule({
               </Select>
               {errors.lecturerID && (
                 <p className="text-red-500 text-sm">{errors.lecturerID}</p>
-              )}
-            </div>
-
-            {/* Course Assignment */}
-            <div className="space-y-2">
-              <Label htmlFor="courses">Assign to Courses</Label>
-              <div className="space-y-2 max-h-40 overflow-y-auto border rounded-md p-2">
-                {courses.map((course) => (
-                  <div key={course.courseID} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id={`course-${course.courseID}`}
-                      checked={formData.courseIDs.includes(course.courseID)}
-                      onChange={(e) => {
-                        const isChecked = e.target.checked;
-                        const newCourseIDs = isChecked
-                          ? [...formData.courseIDs, course.courseID]
-                          : formData.courseIDs.filter(id => id !== course.courseID);
-                        handleInputChange("courseIDs", newCourseIDs);
-                      }}
-                      className="rounded border-gray-300"
-                    />
-                    <label htmlFor={`course-${course.courseID}`} className="text-sm flex-1 cursor-pointer">
-                      <span className="font-medium">{course.courseCode}</span> - {course.courseName}
-                    </label>
-                  </div>
-                ))}
-                {courses.length === 0 && (
-                  <p className="text-gray-500 text-sm">No courses available</p>
-                )}
-              </div>
-              {errors.courseIDs && (
-                <p className="text-red-500 text-sm">{errors.courseIDs}</p>
               )}
             </div>
 

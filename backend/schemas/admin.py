@@ -99,6 +99,5 @@ class UpdateProfileSchema(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
     fulladdress: Optional[str] = None
-    roleName: Optional[str] = None # e.g., "Lecturer"
     status: Optional[str] = None   # "Active" or "Inactive"
     attendanceMinimum: Optional[float] = None

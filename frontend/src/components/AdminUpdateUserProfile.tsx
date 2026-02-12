@@ -141,14 +141,11 @@ export function AdminUpdateUserProfile({
   const [email, setEmail] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [address, setAddress] = useState("");
-  const [role, setRole] = useState("");
   const [status, setStatus] = useState("");
   const [creationDate, setCreationDate] = useState("");
   const [associatedModules, setAssociatedModules] = useState("");
   const [studnum, setstudnum] = useState("");
   const hardName = name;
-  // Role specific fields
-  const [studentNum, setStudentNum] = useState("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   // Handle input changes with real-time validation
@@ -183,10 +180,6 @@ export function AdminUpdateUserProfile({
           setErrors(prev => ({ ...prev, address: addressValidation.error }));
         }
         break;
-      case 'role':
-        setRole(value);
-        setErrors(prev => ({ ...prev, role: "" }));
-        break;
       case 'status':
         setStatus(value);
         setErrors(prev => ({ ...prev, status: "" }));
@@ -217,7 +210,6 @@ export function AdminUpdateUserProfile({
         // Map backend fields to frontend state
         setName(data.name || "");
         setEmail(data.email || "");
-        setRole(data.role || "");
         setStatus(data.active ? "Active" : "Inactive");
         setstudnum(data.studentNum || "");
         // Fields from your DB 'users' table
@@ -264,10 +256,6 @@ export function AdminUpdateUserProfile({
     }
 
     // Role validation
-    if (!role.trim()) {
-      validationErrors.role = "Role is required";
-    }
-
     // Status validation
     if (!status.trim()) {
       validationErrors.status = "Status is required";
@@ -288,7 +276,6 @@ export function AdminUpdateUserProfile({
         name: name,
         phone: contactNumber,
         fulladdress: address,
-        roleName: role,
         status: status,
       };
 
@@ -411,22 +398,6 @@ export function AdminUpdateUserProfile({
                 User ID: / Student Num
               </label>
               <p className="font-medium">{userData.uuid} / {studnum}</p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600 mb-2 block">Role:</label>
-              <Select value={role} onValueChange={(value: string) => handleInputChange("role", value)} disabled={!isEditMode}>
-                <SelectTrigger className={errors.role ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Student">Student</SelectItem>
-                  <SelectItem value="Lecturer">Lecturer</SelectItem>
-                  <SelectItem value="Admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.role && (
-                <p className="text-red-500 text-sm mt-1">{errors.role}</p>
-              )}
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">
