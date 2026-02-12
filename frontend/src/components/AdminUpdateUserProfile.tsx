@@ -314,8 +314,8 @@ export function AdminUpdateUserProfile({
         <div className="mb-8">
           <h2 className="text-3xl mb-2">{isEditMode ? 'Update User Profile' : 'View User Profile'}</h2>
           <div className="mt-4 space-y-1">
-            <p className="text-gray-600">User ID: {userData.uuid}</p>
-            <p className="text-gray-600">User Name: {hardName}</p>
+            <p className="text-gray-600">User ID: {loading ? "Loading..." : userData.uuid}</p>
+            <p className="text-gray-600">User Name: {loading ? "Loading..." : hardName}</p>
           </div>
         </div>
 
@@ -441,7 +441,7 @@ export function AdminUpdateUserProfile({
               <label className="text-sm text-gray-600 mb-2 block">
                 Status:
               </label>
-              <p className="font-medium">Not Created</p>
+              <p className="font-medium">Not Enrolled</p>
             </div>
           </CardContent>
         </Card>
