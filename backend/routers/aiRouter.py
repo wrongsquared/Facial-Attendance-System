@@ -474,16 +474,30 @@ async def get_biometric_images(student_num: str, db: Session = Depends(get_db)):
         return {"images": []}
 
     images_response = []
+    sb = _require_supabase()
+    
     for rec in records:
         try:
-            res = supabase.storage.from_("biometrics").create_signed_url(rec.imagepath, 60)
+            # Use the same bucket as defined at the top of the file
+            res = sb.storage.from_(SUPABASE_BUCKET).create_signed_url(rec.imagepath, 3600)
+            
+            # Handle different possible response formats
+            url = res.get("signedURL") or res.get("signedUrl") or res.get("signed_url")
+            if not url:
+                print(f"No signed URL returned for {rec.photoangle}: {res}")
+                continue
+                
+            # Ensure full URL if relative
+            if url.startswith("/") and SUPABASE_URL:
+                url = SUPABASE_URL.rstrip("/") + url
             
             images_response.append({
                 "angle": rec.photoangle,
-                "url": res['signedURL']
+                "url": url
             })
         except Exception as e:
             print(f"Error generating URL for {rec.photoangle}: {e}")
+            continue
 
     return {"images": images_response}
 

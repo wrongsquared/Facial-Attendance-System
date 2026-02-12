@@ -57,7 +57,7 @@ export function StudentProfile({
   const [loading, setLoading] = useState(true);
 
   // Biometric enrollment state - true if enrolled, false if not
-  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(false); // HARDCODED: Always start as enrolled
+  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState<boolean | null>(null); // Will be fetched from backend
 
   // Biometric dialog state
   const [showBiometricDialog, setShowBiometricDialog] = useState(false);
@@ -72,7 +72,7 @@ export function StudentProfile({
   // If backend gives a persistent URL, store it here:
   const [biometricImageUrl, setBiometricImageUrl] = useState<string | null>(null);
   // Store images from all 5 angles for viewing - HARDCODED: Initialize with demo images
-  
+
   // replace with your own face angle images in the bucket
   const [biometricImages, setBiometricImages] = useState<Array<{ angle: string, url: string }>>([]);
   const [loadingBiometricImages, setLoadingBiometricImages] = useState(false);
@@ -133,6 +133,35 @@ export function StudentProfile({
   }, [formData.name, formData.studentNum]);
 
   // Validation function
+  // Function to fetch biometric enrollment status
+  const fetchBiometricStatus = async (studentNum: string) => {
+    if (!studentNum) return;
+
+    try {
+      const response = await fetch(`${API_URL}/profile/status?student_num=${encodeURIComponent(studentNum)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setIsBiometricEnrolled(data.enrolled || false);
+        if (data.last_updated) {
+          setBiometricLastUpdated(data.last_updated);
+        }
+        if (data.profile_image_url) {
+          setBiometricImageUrl(data.profile_image_url);
+        }
+      } else {
+        setIsBiometricEnrolled(false);
+      }
+    } catch (error) {
+      console.error('Failed to fetch biometric status:', error);
+      setIsBiometricEnrolled(false);
+    }
+  };
+
   const validateForm = (): boolean => {
     const errors: { [key: string]: string } = {};
 
@@ -199,9 +228,9 @@ export function StudentProfile({
       setLoading(true);
       try {
         const data = await getStudentFullProfile(token);
-        
+
         setFormData({
-          studentID: data.studentID|| "",
+          studentID: data.studentID || "",
           name: data.name || "",
           email: data.email || "",
           studentNum: data.studentNum || "",
@@ -211,6 +240,11 @@ export function StudentProfile({
           emergencyContactRelationship: data.emergencyContactRelationship || "",
           emergencyContactNumber: data.emergencyContactNumber || ""
         });
+
+        // Fetch biometric status after getting student data
+        if (data.studentNum) {
+          await fetchBiometricStatus(data.studentNum);
+        }
 
       } catch (err) {
         console.error("Failed to load profile", err);
@@ -222,26 +256,26 @@ export function StudentProfile({
   }, [token]);
 
   useEffect(() => {
-  const fetchImages = async () => {
-    try {
-      setLoadingImages(true);
-      const response = await fetch(`${API_URL}/biometric/${formData.studentNum}/images`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+    const fetchImages = async () => {
+      try {
+        setLoadingImages(true);
+        const response = await fetch(`${API_URL}/biometric/${formData.studentNum}/images`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        setBiometricImages(data.images);
+        if (response.ok) {
+          const data = await response.json();
+          setBiometricImages(data.images);
+        }
+      } catch (error) {
+        console.error('Failed to fetch biometric images:', error);
+      } finally {
+        setLoadingImages(false);
       }
-    } catch (error) {
-      console.error('Failed to fetch biometric images:', error);
-    } finally {
-      setLoadingImages(false);
-    }
-  };
+    };
 
-  if (formData.studentNum) fetchImages();
-}, [formData.studentNum, token]);
+    if (formData.studentNum) fetchImages();
+  }, [formData.studentNum, token]);
 
   // ========= fetch all 5 biometric images for viewing =========
   const fetchBiometricImages = async () => {
@@ -249,6 +283,7 @@ export function StudentProfile({
 
     setLoadingBiometricImages(true);
     try {
+      console.log('Fetching biometric images for student:', formData.studentNum);
       const response = await fetch(`${API_URL}/biometric/${formData.studentNum}/images`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -257,7 +292,10 @@ export function StudentProfile({
 
       if (response.ok) {
         const data = await response.json();
+        console.log('Biometric images response:', data);
         setBiometricImages(data.images || []);
+      } else {
+        console.error('Failed to fetch biometric images:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Failed to fetch biometric images:', error);
@@ -265,7 +303,7 @@ export function StudentProfile({
     } finally {
       setLoadingBiometricImages(false);
     }
-    
+
   };
 
   // Handle Input Changes
@@ -423,7 +461,7 @@ export function StudentProfile({
           student_label: studentLabel,
           student_name: formData.name,
           student_num: formData.studentNum,
-          student_id: formData.studentID, 
+          student_id: formData.studentID,
           // Work around
         }),
       });
@@ -554,6 +592,12 @@ export function StudentProfile({
       setRunning(false);
 
       alert("Biometric profile updated successfully!");
+
+      // Refresh biometric status to show updated enrollment
+      if (formData.studentNum) {
+        await fetchBiometricStatus(formData.studentNum);
+      }
+
       setShowUpdateBiometricDialog(false);
 
     } catch (e: any) {
@@ -628,12 +672,22 @@ export function StudentProfile({
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-medium">Face Recognition</span>
-                  <span className={`font-semibold ${isBiometricEnrolled ? 'text-green-600' : 'text-red-600'}`}>
-                    {isBiometricEnrolled ? 'Enrolled' : 'Not Enrolled'}
+                  <span className={`font-semibold ${isBiometricEnrolled === null
+                    ? 'text-gray-500'
+                    : isBiometricEnrolled
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                    }`}>
+                    {isBiometricEnrolled === null ? 'Loading...' : isBiometricEnrolled ? 'Enrolled' : 'Not Enrolled'}
                   </span>
                 </div>
 
-                {isBiometricEnrolled ? (
+                {isBiometricEnrolled === null ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                    <p className="text-gray-500">Loading biometric status...</p>
+                  </div>
+                ) : isBiometricEnrolled ? (
                   <>
                     <p className="text-sm text-gray-600 mb-2">
                       Last updated on {lastUpdatedText}
@@ -710,8 +764,8 @@ export function StudentProfile({
                 <Label htmlFor="name">Name:</Label>
                 {loading ? (
                   <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
-                  ) : (
-                <Input id="name" type="text" value={formData.name} className="h-12" disabled />
+                ) : (
+                  <Input id="name" type="text" value={formData.name} className="h-12" disabled />
                 )}
               </div>
 
@@ -719,18 +773,18 @@ export function StudentProfile({
                 <Label htmlFor="studentId">Student ID:</Label>
                 {loading ? (
                   <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
-                  ) : (
-                <Input id="studentId" type="text" value={formData.studentNum} className="h-12" disabled />
-                  )}
+                ) : (
+                  <Input id="studentId" type="text" value={formData.studentNum} className="h-12" disabled />
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email:</Label>
                 {loading ? (
                   <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
-                  ) : (
-                <Input id="email" type="email" value={formData.email} onChange={handleChange} className="h-12" disabled />
-                  )}
+                ) : (
+                  <Input id="email" type="email" value={formData.email} onChange={handleChange} className="h-12" disabled />
+                )}
               </div>
 
               <div className="space-y-2">
@@ -739,16 +793,16 @@ export function StudentProfile({
                 </Label>
                 {loading ? (
                   <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
-                  ) : (
-                <Input
-                  id="contactNumber"
-                  type="tel"
-                  value={formData.contactNumber}
-                  onChange={handleChange}
-                  className={`h-12 ${validationErrors.contactNumber ? 'border-red-500' : ''}`}
-                  disabled={!isEditMode}
-                />
-                  )}
+                ) : (
+                  <Input
+                    id="contactNumber"
+                    type="tel"
+                    value={formData.contactNumber}
+                    onChange={handleChange}
+                    className={`h-12 ${validationErrors.contactNumber ? 'border-red-500' : ''}`}
+                    disabled={!isEditMode}
+                  />
+                )}
                 {validationErrors.contactNumber && (
                   <p className="text-sm text-red-500">{validationErrors.contactNumber}</p>
                 )}
@@ -760,14 +814,14 @@ export function StudentProfile({
                 </Label>
                 {loading ? (
                   <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
-                  ) : (
-                <Textarea
-                  id="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  className={`h-12 ${validationErrors.address ? 'border-red-500' : ''}`}
-                  disabled={!isEditMode}
-                />)}
+                ) : (
+                  <Textarea
+                    id="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    className={`h-12 ${validationErrors.address ? 'border-red-500' : ''}`}
+                    disabled={!isEditMode}
+                  />)}
                 {validationErrors.address && (
                   <p className="text-sm text-red-500">{validationErrors.address}</p>
                 )}
@@ -788,16 +842,16 @@ export function StudentProfile({
                 </Label>
                 {loading ? (
                   <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
-                  ) : (
-                <Input
-                  id="emergencyContactName"
-                  type="text"
-                  onChange={handleChange}
-                  value={formData.emergencyContactName}
-                  className={`h-12 ${validationErrors.emergencyContactName ? 'border-red-500' : ''}`}
-                  disabled={!isEditMode}
-                />
-                  )}
+                ) : (
+                  <Input
+                    id="emergencyContactName"
+                    type="text"
+                    onChange={handleChange}
+                    value={formData.emergencyContactName}
+                    className={`h-12 ${validationErrors.emergencyContactName ? 'border-red-500' : ''}`}
+                    disabled={!isEditMode}
+                  />
+                )}
                 {validationErrors.emergencyContactName && (
                   <p className="text-sm text-red-500">{validationErrors.emergencyContactName}</p>
                 )}
@@ -809,16 +863,16 @@ export function StudentProfile({
                 </Label>
                 {loading ? (
                   <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
-                  ) : (
-                <Input
-                  id="emergencyContactRelationship"
-                  type="text"
-                  onChange={handleChange}
-                  value={formData.emergencyContactRelationship}
-                  className={`h-12 ${validationErrors.emergencyContactRelationship ? 'border-red-500' : ''}`}
-                  disabled={!isEditMode}
-                />
-                  )}
+                ) : (
+                  <Input
+                    id="emergencyContactRelationship"
+                    type="text"
+                    onChange={handleChange}
+                    value={formData.emergencyContactRelationship}
+                    className={`h-12 ${validationErrors.emergencyContactRelationship ? 'border-red-500' : ''}`}
+                    disabled={!isEditMode}
+                  />
+                )}
                 {validationErrors.emergencyContactRelationship && (
                   <p className="text-sm text-red-500">{validationErrors.emergencyContactRelationship}</p>
                 )}
@@ -830,15 +884,15 @@ export function StudentProfile({
                 </Label>
                 {loading ? (
                   <div className="animate-hard-pulse h-12 w-full bg-gray-200 rounded-md" />
-                  ) : (
-                <Input
-                  id="emergencyContactNumber"
-                  type="tel"
-                  onChange={handleChange}
-                  value={formData.emergencyContactNumber}
-                  className={`h-12 ${validationErrors.emergencyContactNumber ? 'border-red-500' : ''}`}
-                  disabled={!isEditMode}
-                />
+                ) : (
+                  <Input
+                    id="emergencyContactNumber"
+                    type="tel"
+                    onChange={handleChange}
+                    value={formData.emergencyContactNumber}
+                    className={`h-12 ${validationErrors.emergencyContactNumber ? 'border-red-500' : ''}`}
+                    disabled={!isEditMode}
+                  />
                 )}
                 {validationErrors.emergencyContactNumber && (
                   <p className="text-sm text-red-500">{validationErrors.emergencyContactNumber}</p>
@@ -878,13 +932,13 @@ export function StudentProfile({
           <DialogHeader>
             <DialogTitle className="text-2xl">Update Biometric Profile</DialogTitle>
             <DialogDescription asChild>
-            <div> {/* This is the SINGLE child React is looking for */}
-              Capture 200 guided frames and upload them to the backend.
-              <div className="mt-2 text-xs text-gray-500">
-                Enrolment label: <code>{studentLabel}</code>
+              <div> {/* This is the SINGLE child React is looking for */}
+                Capture 200 guided frames and upload them to the backend.
+                <div className="mt-2 text-xs text-gray-500">
+                  Enrolment label: <code>{studentLabel}</code>
+                </div>
               </div>
-            </div>
-          </DialogDescription>
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
@@ -954,7 +1008,7 @@ export function StudentProfile({
                       <Button
                         className="bg-blue-600 text-white hover:bg-blue-700"
                         onClick={startEnrolmentAndCapture}
-                        disabled={!formData.studentID || running} 
+                        disabled={!formData.studentID || running}
                       >
                         Start 200 Capture
                       </Button>
@@ -1031,12 +1085,35 @@ export function StudentProfile({
             </Button>
             <Button
               className="bg-red-600 text-white hover:bg-red-700"
-              onClick={() => {
-                setIsBiometricEnrolled(false);
-                setBiometricImageUrl(null);
-                setBiometricPreviewImage(null);
-                setBiometricLastUpdated(null);
-                alert("Biometric profile deleted");
+              onClick={async () => {
+                try {
+                  if (formData.studentNum && token) {
+                    const response = await fetch(`${API_URL}/biometric/${formData.studentNum}`, {
+                      method: 'DELETE',
+                      headers: {
+                        'Authorization': `Bearer ${token}`
+                      }
+                    });
+
+                    if (response.ok) {
+                      // Refresh biometric status after deletion
+                      await fetchBiometricStatus(formData.studentNum);
+                      alert("Biometric profile deleted successfully");
+                    } else {
+                      throw new Error('Failed to delete biometric profile');
+                    }
+                  } else {
+                    // Fallback for mock delete
+                    setIsBiometricEnrolled(false);
+                    setBiometricImageUrl(null);
+                    setBiometricPreviewImage(null);
+                    setBiometricLastUpdated(null);
+                    alert("Biometric profile deleted");
+                  }
+                } catch (error) {
+                  console.error('Failed to delete biometric profile:', error);
+                  alert("Failed to delete biometric profile. Please try again.");
+                }
                 setShowDeleteBiometricDialog(false);
               }}
             >
@@ -1199,7 +1276,7 @@ export function StudentProfile({
                       <Button
                         className="bg-blue-600 text-white hover:bg-blue-700"
                         onClick={startEnrolmentAndCapture}
-                        disabled={!formData.studentID || running} 
+                        disabled={!formData.studentID || running}
                       >
                         Start 200 Capture
                       </Button>
@@ -1244,10 +1321,11 @@ export function StudentProfile({
 
               <Button
                 className="bg-blue-600 text-white hover:bg-blue-700"
-                onClick={() => {
-                  // After successful enrollment, mark as enrolled and close dialog
-                  setIsBiometricEnrolled(true);
-                  setBiometricLastUpdated(new Date().toLocaleString());
+                onClick={async () => {
+                  // After successful enrollment, refresh status from backend
+                  if (formData.studentNum) {
+                    await fetchBiometricStatus(formData.studentNum);
+                  }
                   alert("Biometric profile enrolled successfully!");
                   setShowEnrollDialog(false);
                 }}
