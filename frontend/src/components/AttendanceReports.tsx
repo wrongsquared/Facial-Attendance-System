@@ -8,12 +8,8 @@ import {
 } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import {
-  BookOpen,
-  LogOut,
-  Bell,
   ArrowLeft,
   Download,
   FileText,
@@ -34,42 +30,6 @@ interface AttendanceReportsProps {
   onBack: () => void;
   onNavigateToProfile: () => void;
 }
-
-// const recentReports = [
-//   {
-//     id: 1,
-//     name: "CSCI334 - Daily Report",
-//     date: "28 Oct 2025",
-//     type: "Daily",
-//     status: "Present",
-//     downloadUrl: "#",
-//   },
-//   {
-//     id: 2,
-//     name: "CSCI203 - Monthly Report",
-//     date: "1 Oct 2025",
-//     type: "Monthly",
-//     status: "Absent",
-//     downloadUrl: "#",
-//   },
-//   {
-//     id: 3,
-//     name: "CSCI334 - Daily Report",
-//     date: "27 Oct 2025",
-//     type: "Daily",
-//     status: "Present",
-//     downloadUrl: "#",
-//   },
-//   {
-//     id: 4,
-//     name: "CSCI203 - Daily Report",
-//     date: "26 Oct 2025",
-//     type: "Daily",
-//     status: "All",
-//     downloadUrl: "#",
-//   },
-// ];
-
 const days = Array.from({ length: 31 }, (_, i) =>
   (i + 1).toString(),
 );
@@ -129,6 +89,7 @@ export function AttendanceReports({
   onBack,
   onNavigateToProfile,
 }: AttendanceReportsProps) {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
   const [reportType, setReportType] = useState<
     "Daily" | "Monthly"
   >("Daily");
@@ -147,7 +108,7 @@ export function AttendanceReports({
   const fetchReportHistory = async () => {
     try {
       const res = await fetch(
-        "http://localhost:8000/lecturer/reports/history",
+        `${API_URL}/lecturer/reports/history`,
         {
           method: "GET",
           headers: {
@@ -170,7 +131,7 @@ export function AttendanceReports({
     const fetchModulesTaught = async () => {
       try {
         const res = await fetch(
-          "http://localhost:8000/lecturer/modules/",
+          `${API_URL}/lecturer/modules/`,
           {
             method: "GET",
             headers: {
@@ -205,7 +166,7 @@ export function AttendanceReports({
         attendance_status: attendanceStatus
       });
 
-      const res = await fetch("http://localhost:8000/lecturer/reports/generate", {
+      const res = await fetch(`${API_URL}/lecturer/reports/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -232,7 +193,7 @@ export function AttendanceReports({
       const data = await res.json()
       const reportID = data.report_id;
 
-      const downloadRes = await fetch(`http://localhost:8000/lecturer/reports/download/${reportID}`, {
+      const downloadRes = await fetch(`${API_URL}/lecturer/reports/download/${reportID}`, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -264,7 +225,7 @@ export function AttendanceReports({
 
     try {
       // 1. Fetch the file blob from the API
-      const res = await fetch(`http://localhost:8000/lecturer/reports/download/${reportID}`, {
+      const res = await fetch(`${API_URL}/lecturer/reports/download/${reportID}`, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${token}`

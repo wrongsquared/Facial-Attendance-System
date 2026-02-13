@@ -58,6 +58,7 @@ export function AdminAttendanceReports({
   onBack,
   onNavigateToProfile,
 }: AdminAttendanceReportsProps) {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
   // 1. State Management
   const [reportType, setReportType] = useState<"Module Performance" | "Low Attendance Rate">
     ("Module Performance");
@@ -83,7 +84,7 @@ export function AdminAttendanceReports({
 
     // 1. Fetch History
     try {
-      const res = await fetch("http://localhost:8000/admin/reports/history", {
+      const res = await fetch(`${API_URL}/admin/reports/history`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
 
@@ -100,7 +101,7 @@ export function AdminAttendanceReports({
 
     // 2. Fetch Modules
     try {
-      const res = await fetch("http://localhost:8000/admin/modules", {
+      const res = await fetch(`${API_URL}/admin/modules`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
 
@@ -121,7 +122,7 @@ export function AdminAttendanceReports({
   // 3. Download Logic
   const handleDownloadFile = async (reportID: number, fileName: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/admin/reports/download/${reportID}`, {
+      const res = await fetch(`${API_URL}/admin/reports/download/${reportID}`, {
         method: "GET",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -153,7 +154,7 @@ export function AdminAttendanceReports({
         course_id: selectedModule
       };
 
-      const res = await fetch("http://localhost:8000/admin/reports/generate", {
+      const res = await fetch(`${API_URL}/admin/reports/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
