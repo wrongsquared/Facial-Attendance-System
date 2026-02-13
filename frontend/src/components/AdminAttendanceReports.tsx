@@ -123,7 +123,7 @@ export function AdminAttendanceReports({
   const handleDownloadFile = async (reportID: number, fileName: string) => {
     if (!token){ return;}
     try {
-      const downloadUrl = `http://localhost:8000/admin/reports/download/${reportID}`;
+      const downloadUrl = `${API_URL}/admin/reports/download/${reportID}`;
 
 
       const res = await fetch(downloadUrl, {
@@ -137,14 +137,7 @@ export function AdminAttendanceReports({
         console.error(`Download failed with status ${res.status}:`, errorText);
         throw new Error(`Download failed: ${res.status} - ${errorText}`);
       }
-
-
-
-
-
       const blob = await res.blob();
-
-
       if (blob.size === 0) {
         throw new Error("Downloaded file is empty");
       }
