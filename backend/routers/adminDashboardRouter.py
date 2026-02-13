@@ -1296,9 +1296,12 @@ def create_lesson(
         
         admin_campus_id = current_admin.campusID
         
-        module = db.query(Module).filter(Module.moduleCode == lesson_data["moduleCode"]).first()
+        module = db.query(Module).filter(
+            Module.moduleCode == lesson_data["moduleCode"],
+            Module.campusID == admin_campus_id
+        ).first()
         if not module:
-            raise HTTPException(status_code=404, detail="Module not found")
+            raise HTTPException(status_code=404, detail="Module not found or access denied for your campus")
         
         lecturer_uuid = uuid.UUID(lesson_data["lecturerID"])
         lecturer = (
