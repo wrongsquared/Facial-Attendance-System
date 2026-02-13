@@ -772,7 +772,7 @@ def get_monthly_timetable(
     return results
 
 
-@router.get("/lecturer/modules")
+@router.get("/lecturer/reports/modules")
 def get_lecturer_modules(
     user_id: str = Depends(get_current_user_id), 
     db: Session = Depends(get_db)

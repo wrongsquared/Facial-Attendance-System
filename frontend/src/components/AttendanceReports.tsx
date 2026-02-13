@@ -131,7 +131,7 @@ export function AttendanceReports({
     const fetchModulesTaught = async () => {
       try {
         const res = await fetch(
-          `${API_URL}/lecturer/modules/`,
+          `${API_URL}/lecturer/reports/modules`,
           {
             method: "GET",
             headers: {
