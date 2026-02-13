@@ -40,8 +40,6 @@ export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: Navb
   // Debug user photo
   useEffect(() => {
     if (user) {
-      console.log('🖼️ Navbar: User photo URL:', user.photo);
-      console.log('🖼️ Navbar: User object:', user);
     }
   }, [user?.photo]);
   const getPortalTitle = () => {

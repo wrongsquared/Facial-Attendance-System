@@ -1,13 +1,11 @@
 import './index.css';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './cont/AuthContext';
 import {
   loginUser,
-  getNotifications,
   updateAttendanceRecord as updateAttendanceRecordAPI, getStudentsForCustomGoals
 } from './services/api';
-import { LoginCredentials } from './types/auth';
 import { LoginPage } from './components/LoginPage';
 import { StudentDashboard } from './components/StudentDashboard';
 import { LecturerDashboard } from './components/LecturerDashboard';
@@ -222,9 +220,7 @@ function AppContent() {
     try {
       const data = await loginUser(creds);
 
-      console.log('🔐 App: Login successful, calling AuthContext.login');
       await login(data); // Now login is async and handles photo refresh internally
-      console.log('🔐 App: Login completed with photo refresh');
 
       // Redirect based on role
       const role = data.role_name.toLowerCase();
@@ -578,7 +574,6 @@ function AppContent() {
               setLessonToUpdate(null);
               navigate('/admin/lessons')
             }}
-            onLogout={handleLogout}
             onNavigateToProfile={() => navigate('/admin/profile')} />
         </ProtectedRoute>} />
 
