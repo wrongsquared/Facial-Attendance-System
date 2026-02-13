@@ -243,7 +243,7 @@ export function ManageCourses({
                               size="sm"
                               onClick={() => handleEditCourse(course.courseID)}
                             >
-                              Update Course
+                              Update
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -252,7 +252,7 @@ export function ManageCourses({
                                   size="sm"
                                   onClick={() => handleDeleteClick(course.courseID)}
                                 >
-                                  Delete Course
+                                  Delete
                                 </Button>
                               </AlertDialogTrigger>
 

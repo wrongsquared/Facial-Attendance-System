@@ -286,9 +286,9 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
         </Button>
 
         {/* Update User Form Card */}
-        <Card className="max-w-2xl mx-auto">
-          {loading ?( 
-          <div className = "animate-hard-pulse w-full" style={{ flex: 1, height:'100%' ,minHeight: '600px' }} />
+        <Card className="max-w-2xl mx-auto overflow-hidden">
+          {loading ? ( 
+          <div className="animate-hard-pulse w-full h-[600px] rounded-lg" />
           ):(
             <>
           <CardHeader>
