@@ -18,8 +18,10 @@ import csv
 import uuid
 
 router = APIRouter()
-REPORT_DIR = "generated_reports_files"
+# Use absolute path for reports directory
+REPORT_DIR = os.path.join(os.getcwd(), "generated_reports_files")
 os.makedirs(REPORT_DIR, exist_ok=True)
+
 @router.get("/admin/stats", response_model=AdminDashboardStats)
 def get_admin_dashboard_stats(
     current_user_id: str = Depends(get_current_user_id),

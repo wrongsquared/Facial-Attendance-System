@@ -123,30 +123,54 @@ export function AdminAttendanceReports({
   const handleDownloadFile = async (reportID: number, fileName: string) => {
     if (!token){ return;}
     try {
-      const res = await fetch(`${API_URL}/admin/reports/download/${reportID}`, {
+      const downloadUrl = `http://localhost:8000/admin/reports/download/${reportID}`;
+
+
+      const res = await fetch(downloadUrl, {
         method: "GET",
         headers: { "Authorization": `Bearer ${token}` }
       });
 
-      if (!res.ok) throw new Error("Download failed");
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`Download failed with status ${res.status}:`, errorText);
+        throw new Error(`Download failed: ${res.status} - ${errorText}`);
+      }
+
+
+
+
 
       const blob = await res.blob();
+
+
+      if (blob.size === 0) {
+        throw new Error("Downloaded file is empty");
+      }
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = fileName.endsWith('.csv') ? fileName : `${fileName}.csv`;
+
+
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+
+
     } catch (error) {
-      console.error(error);
-      alert("Failed to download file.");
+      console.error("Download error details:", error);
+      // alert(`Failed to download file: ${error.message}`);
     }
   };
 
   // 4. Generate Logic
   const handleGenerateReport = async () => {
+
+
     try {
       const payload = {
         report_type: reportType,
@@ -155,7 +179,9 @@ export function AdminAttendanceReports({
         course_id: selectedModule
       };
 
-      const res = await fetch(`${API_URL}/admin/reports/generate`, {
+
+
+      const res = await fetch("http://localhost:8000/admin/reports/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -164,15 +190,29 @@ export function AdminAttendanceReports({
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error("Generation failed");
+
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`Generation failed with status ${res.status}:`, errorText);
+        throw new Error(`Generation failed: ${res.status} - ${errorText}`);
+      }
 
       const data = await res.json();
+
+
+      if (!data.report_id || !data.filename) {
+        throw new Error("Invalid response: missing report_id or filename");
+      }
+
+
+
       await handleDownloadFile(data.report_id, data.filename);
       fetchData(); // Refresh list
 
     } catch (error) {
-      console.error(error);
-      alert("Failed to generate report.");
+      console.error("Generate error details:", error);
+      // alert(`Failed to generate report: ${error.message}`);
     }
   };
 
