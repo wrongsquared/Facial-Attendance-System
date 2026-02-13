@@ -450,7 +450,6 @@ def get_user_profile_photo(user_id: str, db: Session = Depends(get_db)):
     
 
     if not row or not row[0]:
-        print(f"No profile photo found for user {user_id}")
         return {"url": None}
 
     path = row[0]
