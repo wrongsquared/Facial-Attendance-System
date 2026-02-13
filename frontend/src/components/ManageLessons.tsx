@@ -333,7 +333,7 @@ export function ManageLessons({
                                 size="sm"
                                 onClick={() => handleEditLesson(lesson.lessonID)}
                               >
-                                Update Lesson
+                                Update 
                               </Button>
                             </div>
                           </TableCell>

@@ -12,6 +12,8 @@ class CourseAttentionItem(BaseModel):
     lecturer_name: str
     student_count: int
     attendance_rate: int
+    lesson_type: Optional[str] = None
+    tutorial_group: Optional[str] = None
 
 class UserManagementItem(BaseModel):
     user_id: str # UUID

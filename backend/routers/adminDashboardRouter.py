@@ -135,22 +135,53 @@ def get_courses_requiring_attention(
     LecUser = aliased(User)
 
     # 2. Get all Modules at this Campus with their Lecturer Names
+    # Modified to get the lecturer with the most lessons for each module to avoid random selection
     modules_query = (
         db.query(
-            Module,
-            LecUser.name.label("lecturer_name")
+            Module.moduleID,
+            Module.moduleCode,
+            Module.moduleName,
+            Module.campusID,
+            Module.startDate,
+            Module.endDate,
+            LecUser.name.label("lecturer_name"),
+            func.count(Lesson.lessonID).label("lesson_count")
         )
         .join(LecMod, Module.moduleID == LecMod.moduleID)
         .join(Lecturer, LecMod.lecturerID == Lecturer.lecturerID)
-        # Use the alias here
         .join(LecUser, Lecturer.lecturerID == LecUser.userID)
+        .outerjoin(Lesson, LecMod.lecModID == Lesson.lecModID)
         .filter(Module.campusID == my_campus_id)
-        .distinct()
+        .group_by(
+            Module.moduleID,
+            Module.moduleCode,
+            Module.moduleName,
+            Module.campusID,
+            Module.startDate,
+            Module.endDate,
+            LecUser.name
+        )
+        .order_by(Module.moduleID, func.count(Lesson.lessonID).desc())
     ).all()
 
     results = []
     
-    for mod, lecturer_name in modules_query:
+    # Group by module to ensure we only get one lecturer per module (the one with most lessons)
+    modules_dict = {}
+    for module_id, module_code, module_name, campus_id, start_date, end_date, lecturer_name, lesson_count in modules_query:
+        if module_id not in modules_dict:
+            # Create a module object-like structure
+            module_obj = type('Module', (), {
+                'moduleID': module_id,
+                'moduleCode': module_code,
+                'moduleName': module_name,
+                'campusID': campus_id,
+                'startDate': start_date,
+                'endDate': end_date
+            })()
+            modules_dict[module_id] = (module_obj, lecturer_name)
+    
+    for mod, lecturer_name in modules_dict.values():
         
         # 3. CALCULATE TRUE CAPACITY (The precise Denominator)
         # We only count classes for the student's assigned group
@@ -185,23 +216,69 @@ def get_courses_requiring_attention(
             .scalar()
         ) or 0
 
-        # 5. Get Student Count
-        student_count = db.query(func.count(StudentModules.studentModulesID)).filter(
-            StudentModules.modulesID == mod.moduleID
-        ).scalar() or 0
-
-        # 6. Calculate Final Rate
+        # 5. Calculate Final Rate
         rate = round((min(actual_attended, total_expected) / total_expected) * 100)
 
-        # 7. Filter for modules below 80%
+        # 6. Get lesson types and tutorial groups for this module
+        # Get the most common lesson type for this module with low attendance
+        lesson_with_attendance_result = (
+            db.query(
+                Lesson.lessontype,
+                Lesson.tutorialGroupID,
+                func.count(Lesson.lessontype).label('count')
+            )
+            .join(LecMod, Lesson.lecModID == LecMod.lecModID)
+            .outerjoin(AttdCheck, Lesson.lessonID == AttdCheck.lessonID)
+            .filter(
+                LecMod.moduleID == mod.moduleID,
+                Lesson.endDateTime < now
+            )
+            .group_by(Lesson.lessontype, Lesson.tutorialGroupID)
+            .order_by(func.count(Lesson.lessontype).desc())
+            .first()
+        )
+        
+        lesson_type = lesson_with_attendance_result.lessontype if lesson_with_attendance_result else None
+        
+        # Get the tutorial group associated with the lesson that has attendance issues
+        tutorial_group = None
+        student_count = 0
+        
+        if lesson_with_attendance_result and lesson_with_attendance_result.tutorialGroupID:
+            # Get tutorial group name
+            tutorial_group_result = (
+                db.query(TutorialsGroup.groupName)
+                .filter(TutorialsGroup.tutorialGroupsID == lesson_with_attendance_result.tutorialGroupID)
+                .first()
+            )
+            tutorial_group = tutorial_group_result.groupName if tutorial_group_result else None
+            
+            # Get student count specifically for this tutorial group
+            student_count = (
+                db.query(func.count(StudentTutorialGroup.sTutorialGroupsID))
+                .filter(StudentTutorialGroup.tutorialGroupID == lesson_with_attendance_result.tutorialGroupID)
+                .scalar() or 0
+            )
+        else:
+            # For lessons without tutorial groups (e.g., lectures), count all students in the module
+            student_count = db.query(func.count(StudentModules.studentModulesID)).filter(
+                StudentModules.modulesID == mod.moduleID
+            ).scalar() or 0
+
+        # 7. Filter for modules below 80% - ensure each module-lecturer combination appears only once
         if rate < 80:
-            results.append({
-                "module_code": mod.moduleCode,
-                "module_name": mod.moduleName,
-                "lecturer_name": lecturer_name,
-                "student_count": student_count,
-                "attendance_rate": rate
-            })
+            # Check if module-lecturer combination already exists in results
+            existing_entry = next((item for item in results if item["module_code"] == mod.moduleCode and item["lecturer_name"] == lecturer_name), None)
+            if not existing_entry:
+                results.append({
+                    "module_code": mod.moduleCode,
+                    "module_name": mod.moduleName,
+                    "lecturer_name": lecturer_name,
+                    "student_count": student_count,
+                    "attendance_rate": rate,
+                    "lesson_type": lesson_type,
+                    "tutorial_group": tutorial_group
+                })
 
     return sorted(results, key=lambda x: x['attendance_rate'])
 

@@ -17,13 +17,15 @@ export interface CourseAttention {
   lecturer_name: string;
   student_count: number;
   attendance_rate: number;
+  lesson_type?: string;
+  tutorial_group?: string;
 }
 
 export interface UserManagementItem {
   joined: ReactNode;
   id: Key | null | undefined;
   user_id: string;
-  name: string; 
+  name: string;
   email: string;
   role: string;
   status: "active" | "pending" | "inactive";
