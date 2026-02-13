@@ -121,6 +121,7 @@ export function AdminAttendanceReports({
 
   // 3. Download Logic
   const handleDownloadFile = async (reportID: number, fileName: string) => {
+    if (!token){ return;}
     try {
       const res = await fetch(`${API_URL}/admin/reports/download/${reportID}`, {
         method: "GET",

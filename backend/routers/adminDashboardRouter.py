@@ -1008,9 +1008,9 @@ def generate_report(
 
     return {"message": "Report generated", "report_id": new_report.reportID, "filename": filename}
 
-@router.get("/admin/reports/download/{report_id}")
+@router.get("/admin/reports/download/{reportID}")
 def download_report(
-    report_id: int,
+    reportID: int,
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
@@ -1022,25 +1022,22 @@ def download_report(
 
     # SECURITY: Only allow downloading reports created by current admin
     report = db.query(GeneratedReport).filter(
-        GeneratedReport.reportID == report_id,
+        GeneratedReport.reportID == reportID,
         GeneratedReport.lecturerID == user_uuid  # Ensure report belongs to this admin
     ).first()
     
     if not report:
         raise HTTPException(status_code=404, detail="Report not found or access denied")
 
-    # Clean filename
-    clean_filename = os.path.basename(report.fileName)
-    
-    # Construct path using the SAME global variable used in generate
-    forced_path = os.path.join(REPORT_DIR, clean_filename)
+    # Check if file exists using the stored filePath from database
+    if not os.path.exists(report.filePath):
+        raise HTTPException(status_code=404, detail="Report file not found")
 
-    print(f"DEBUG: Checking for file at: {forced_path}")
-
-    if not os.path.exists(forced_path):
-        raise HTTPException(status_code=404, detail="File missing from server")
-
-    return FileResponse(path=forced_path, filename=clean_filename, media_type='text/csv')
+    return FileResponse(
+        path=report.filePath,
+        filename=report.fileName,
+        media_type='text/csv'
+    )
 
 @router.put("/admin/profile")
 def update_admin_profile(
