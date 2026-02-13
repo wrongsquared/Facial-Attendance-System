@@ -1031,15 +1031,99 @@ def download_report(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found or access denied")
 
-    # Check if file exists using the stored filePath from database
-    if not os.path.exists(report.filePath):
-        raise HTTPException(status_code=404, detail="Report file not found")
+    # Generate CSV data dynamically from database instead of reading files
+    try:
+        csv_data = []
+        
+        # Recreate the report data based on the stored report type and parameters
+        if report.reportType == "Module Performance":
+            csv_data.append(["Date", "Module Code", "Lecturer", "Lesson Type", "Total Students", "Present", "Attendance Rate (%)"])
+            
+            # Get lessons for the module (using stored moduleCode)
+            query = db.query(Lesson)\
+                .join(LecMod)\
+                .join(Lecturer, LecMod.lecturerID == Lecturer.userID)\
+                .filter(Lecturer.campusID == current_admin.campusID)
+            
+            if report.moduleCode != "All":
+                query = query.join(Module, LecMod.moduleID == Module.moduleID).filter(Module.moduleCode == report.moduleCode)
+            
+            lessons = query.all()
+            for lesson in lessons:
+                mod_code = lesson.lecMod.modules.moduleCode if lesson.lecMod and lesson.lecMod.modules else "N/A"
+                lecturer_name = lesson.lecMod.lecturers.name if lesson.lecMod and lesson.lecMod.lecturers else "Unknown"
+                
+                total_students = db.query(func.count(StudentModules.studentID)).filter(StudentModules.modulesID == lesson.lecMod.moduleID).scalar() or 0
+                present_count = db.query(func.count(AttdCheck.AttdCheckID)).filter(AttdCheck.lessonID == lesson.lessonID).scalar() or 0
+                rate = round((present_count / total_students * 100), 2) if total_students > 0 else 0
+                
+                csv_data.append([
+                    lesson.startDateTime.strftime("%Y-%m-%d"), 
+                    mod_code, lecturer_name, lesson.lessontype, 
+                    total_students, present_count, f"{rate}%"
+                ])
 
-    return FileResponse(
-        path=report.filePath,
-        filename=report.fileName,
-        media_type='text/csv'
-    )
+        elif report.reportType == "Low Attendance Rate":
+            csv_data.append(["Student ID", "Student Name", "Module Code", "Total Lessons", "Attended", "Attendance Rate (%)", "Status"])
+
+            # Get student enrollments
+            enrollment_query = db.query(Student, Module)\
+                .join(StudentModules, Student.studentID == StudentModules.studentID)\
+                .join(Module, StudentModules.modulesID == Module.moduleID)\
+                .filter(Student.campusID == current_admin.campusID)
+                
+            if report.moduleCode != "All":
+                enrollment_query = enrollment_query.filter(Module.moduleCode == report.moduleCode)
+            
+            enrollments = enrollment_query.all()
+
+            for student, module in enrollments:
+                total_lessons = db.query(func.count(Lesson.lessonID))\
+                    .join(LecMod)\
+                    .join(Lecturer, LecMod.lecturerID == Lecturer.userID)\
+                    .filter(Lecturer.campusID == current_admin.campusID)\
+                    .filter(LecMod.moduleID == module.moduleID).scalar() or 0
+
+                attended_lessons = db.query(func.count(AttdCheck.AttdCheckID))\
+                    .join(Lesson, AttdCheck.lessonID == Lesson.lessonID)\
+                    .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
+                    .filter(AttdCheck.studentID == student.studentID)\
+                    .filter(LecMod.moduleID == module.moduleID).scalar() or 0
+
+                attendance_rate = round((attended_lessons / total_lessons * 100), 2) if total_lessons > 0 else 0
+                status = "Below 75%" if attendance_rate < 75 else "Good"
+
+                csv_data.append([
+                    student.studentNum, student.name, module.moduleCode,
+                    total_lessons, attended_lessons, f"{attendance_rate}%", status
+                ])
+
+        # Convert CSV data to string
+        from io import StringIO
+        import csv as csv_module
+        
+        output = StringIO()
+        writer = csv_module.writer(output)
+        if not csv_data:
+            writer.writerow(["No data found for the selected criteria."])
+        else:
+            writer.writerows(csv_data)
+        
+        csv_content = output.getvalue()
+        output.close()
+
+        # Return CSV content as downloadable response
+        from fastapi.responses import Response
+        return Response(
+            content=csv_content,
+            media_type='text/csv',
+            headers={
+                "Content-Disposition": f"attachment; filename={report.fileName}"
+            }
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating report: {str(e)}")
 
 @router.put("/admin/profile")
 def update_admin_profile(
