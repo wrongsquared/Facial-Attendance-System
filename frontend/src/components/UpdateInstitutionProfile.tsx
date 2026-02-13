@@ -19,17 +19,7 @@ import {
   Building2,
   MapPin
 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
+
 
 // UI Components
 import { Input } from "./ui/input";
@@ -115,9 +105,8 @@ export function UpdateInstitutionProfile({
 
   // 1. Fetch current data to populate the form
   useEffect(() => {
+    if (!token || !institutionData.institutionId) return;
     const fetchCurrentDetails = async () => {
-      if (!token || !institutionData.institutionId) return;
-
       try {
         setLoading(true);
         const response = await fetch(

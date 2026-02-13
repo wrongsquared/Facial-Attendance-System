@@ -144,7 +144,7 @@ export function NotificationAlerts({
                             <div>
                               <p className="text-sm text-gray-600">Recent Sessions Missed:</p>
                               <p className="font-medium">
-                                {alert.meta_data?.missed_count} of last {alert.meta_data?.total_expected}
+                                {alert.meta_data?.missed_count} of last {alert.meta_data?.total_past}
                               </p>
                             </div>
 

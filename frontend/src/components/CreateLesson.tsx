@@ -67,13 +67,14 @@ export function CreateLesson({
   const { token } = useAuth();
 
   useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
+      }
     const fetchData = async () => {
       setLoading(true);
       try {
-        if (!token) {
-          setLoading(false);
-          return;
-        }
+
 
         // Fetch both modules and lecturers in parallel
         const [moduleData, lecturerData] = await Promise.all([

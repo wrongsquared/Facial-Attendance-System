@@ -66,6 +66,7 @@ export function CreateModule({
     moduleName: "",
     startDate: "",
     endDate: "",
+    tutorialGroupsCount: 1,
     lecturerIDs: [] as string[],
     courseIDs: [] as number[],
     // tutorialGroupsCount: 3

@@ -77,8 +77,9 @@ export function UpdateAdminProfile({
     setsaving(true);
   }
   useEffect(()=>{
+    if (!token) return;
     const fetchData = async () => {
-      if (!token) return;
+      
       try{
         const data = await getAdminProfile(token);
           setFormData({

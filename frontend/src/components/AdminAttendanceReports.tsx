@@ -8,17 +8,12 @@ import {
 } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+
 import { Badge } from "./ui/badge";
 import {
-  BookOpen,
-  LogOut,
-  Bell,
-  Settings,
   ArrowLeft,
   Download,
-  FileText,
-  Shield, // Icon for Admin
+  FileText, // Icon for Admin
 } from "lucide-react";
 import { Label } from "./ui/label";
 import {
@@ -28,17 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog";
 import { useAuth } from "../cont/AuthContext";
 import { Navbar } from "./Navbar";
 
@@ -91,8 +75,6 @@ export function AdminAttendanceReports({
   // 2. Fetch Data
   // Replace your existing fetchData with this:
   const fetchData = async () => {
-    console.log("--- FETCHING DATA START ---");
-    console.log("Current Token:", token);
 
     if (!token) {
       console.warn("No token found! Aborting fetch.");
@@ -105,11 +87,8 @@ export function AdminAttendanceReports({
         headers: { "Authorization": `Bearer ${token}` }
       });
 
-      console.log("History Status:", res.status);
-
       if (res.ok) {
         const data = await res.json();
-        console.log("History Data Received:", data);
         setRecentReports(data);
       } else {
         const errText = await res.text();
@@ -125,11 +104,9 @@ export function AdminAttendanceReports({
         headers: { "Authorization": `Bearer ${token}` }
       });
 
-      console.log("Modules Status:", res.status);
 
       if (res.ok) {
         const data = await res.json();
-        console.log("Modules Data Received:", data);
         setModulesList(data);
       }
     } catch (e) {

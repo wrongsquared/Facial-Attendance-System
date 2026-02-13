@@ -49,7 +49,6 @@ export function EnrollStudent({
   const [students, setStudents] = useState<StudentData[]>([]);
   const [tutorialGroups, setTutorialGroups] = useState<TutorialGroup[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [enrolling, setEnrolling] = useState(false);
@@ -60,14 +59,14 @@ export function EnrollStudent({
   const { token } = useAuth();
 
   useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     const fetchData = async () => {
       setLoading(true);
-      setError(null);
       try {
-        if (!token) {
-          setLoading(false);
-          return;
-        }
+
 
         console.log('Fetching students for module:', moduleData.moduleCode);
 
@@ -76,9 +75,6 @@ export function EnrollStudent({
           getStudentsWithEnrollmentStatus(moduleData.moduleID, token),
           getTutorialGroupsForModule(moduleData.moduleID, token)
         ]);
-
-        console.log('Students with enrollment status received:', studentsData);
-        console.log('Tutorial groups data received:', tutorialGroupsData);
 
         setStudents(studentsData);
         setTutorialGroups(tutorialGroupsData);
@@ -89,8 +85,8 @@ export function EnrollStudent({
         try {
           console.log('Falling back to basic student data...');
           const [studentsData, tutorialGroupsData] = await Promise.all([
-            getStudentsForCustomGoals(token, "", "All Status"),
-            getTutorialGroupsForModule(moduleData.moduleID, token)
+            getStudentsForCustomGoals(token || "", "", "All Status"),
+            getTutorialGroupsForModule(moduleData.moduleID, token || "")
           ]);
 
           // Add isEnrolled: false as fallback
@@ -101,10 +97,8 @@ export function EnrollStudent({
 
           setStudents(studentsWithEnrollment);
           setTutorialGroups(tutorialGroupsData);
-          setError('Note: Unable to determine enrollment status. All students shown as not enrolled.');
         } catch (fallbackError) {
           console.error('Fallback also failed:', fallbackError);
-          setError(fallbackError instanceof Error ? fallbackError.message : 'Failed to fetch data');
         }
         setLoading(false);
       }
@@ -165,13 +159,13 @@ export function EnrollStudent({
     setEnrolling(true);
     try {
       // Call the actual enrollment API with auto-assignment to tutorial groups
-      const result = await enrollStudentsInModule(moduleData.moduleID, Array.from(selectedStudents), token);
+      const result = await enrollStudentsInModule(moduleData.moduleID, Array.from(selectedStudents), token || "");
       console.log('Enrollment result:', result);
 
       // Refresh both student enrollment status and tutorial groups from database
       const [updatedStudents, updatedTutorialGroups] = await Promise.all([
-        getStudentsWithEnrollmentStatus(moduleData.moduleID, token),
-        getTutorialGroupsForModule(moduleData.moduleID, token)
+        getStudentsWithEnrollmentStatus(moduleData.moduleID, token || ""),
+        getTutorialGroupsForModule(moduleData.moduleID, token || "")
       ]);
 
       setStudents(updatedStudents);
@@ -192,8 +186,6 @@ export function EnrollStudent({
     }
   };
 
-  const unenrolledCount = filteredStudents.filter(student => !student.isEnrolled).length;
-  const enrolledCount = filteredStudents.filter(student => student.isEnrolled).length;
   const currentPageUnenrolledCount = paginatedStudents.filter(student => !student.isEnrolled).length;
   const currentPageSelectedCount = paginatedStudents.filter(student =>
     !student.isEnrolled && selectedStudents.has(student.uuid)
@@ -375,8 +367,8 @@ export function EnrollStudent({
                           <Checkbox
                             checked={selectedStudents.has(student.uuid)}
                             disabled={student.isEnrolled}
-                            onCheckedChange={(checked) =>
-                              handleStudentSelect(student.uuid, checked as boolean)
+                            onCheckedChange={(checked: boolean) =>
+                              handleStudentSelect(student.uuid, checked)
                             }
                           />
                         </TableCell>

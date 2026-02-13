@@ -45,13 +45,14 @@ export function ManageLessons({
   const { token } = useAuth();
 
   useEffect(() => {
+    if (!token) {
+      setLoading(false);
+    return;
+    }
     const fetchLessons = async () => {
       setLoading(true);
       try {
-        if (!token) {
-          setLoading(false);
-          return;
-        }
+
 
         // First test admin access
 

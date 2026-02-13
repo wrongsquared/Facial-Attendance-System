@@ -160,8 +160,8 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
   };
 
   useEffect(() => {
+    if (!token) return;
     const loadInitialData = async () => {
-      if (!token) return;
       try {
         // Fetch courses for the dropdown
         const coursesData = await getCampusCourses(token);

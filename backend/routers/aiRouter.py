@@ -450,23 +450,27 @@ def get_user_profile_photo(user_id: str, db: Session = Depends(get_db)):
     
 
     if not row or not row[0]:
-        print(f" No profile photo found for user {user_id}")
-        raise HTTPException(status_code=404, detail="No profile photo")
+        print(f"No profile photo found for user {user_id}")
+        return {"url": None}
 
     path = row[0]
 
-    res = sb.storage.from_(SUPABASE_BUCKET).create_signed_url(path, 3600)
-    
-    url = res.get("signedURL") or res.get("signedUrl") or res.get("signed_url")
+    try:
+        res = sb.storage.from_(SUPABASE_BUCKET).create_signed_url(path, 3600)
+        
+        url = res.get("signedURL") or res.get("signedUrl") or res.get("signed_url")
 
-    if not url:
-        print(f"Failed to generate signed URL for path: {path}")
-        raise HTTPException(status_code=500, detail="Failed to sign URL")
+        if not url:
+            print(f"Failed to generate signed URL for path: {path}")
+            raise HTTPException(status_code=500, detail="Failed to sign URL")
 
-    if url.startswith("/"):
-        url = SUPABASE_URL.rstrip("/") + url
+        if url.startswith("/"):
+            url = SUPABASE_URL.rstrip("/") + url
 
-    return {"url": url}
+        return {"url": url}
+    except Exception as e:
+        print(f"Error generating profile image URL: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate signed URL")
 
 
 

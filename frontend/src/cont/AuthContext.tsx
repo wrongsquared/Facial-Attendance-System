@@ -33,12 +33,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Refresh user photo after setting user and token, but only if user has a valid user_id
         if (parsedUser && parsedUser.user_id) {
-          console.log('AuthContext: Refreshing user photo on startup for user:', parsedUser.user_id);
-          console.log('AuthContext: Current stored photo URL:', parsedUser.photo);
           setTimeout(async () => {
             try {
               const apiUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/users/profile-photo?user_id=${encodeURIComponent(parsedUser.user_id)}`;
-              console.log('AuthContext: Fetching photo from:', apiUrl);
               const response = await fetch(apiUrl, {
                 headers: {
                   'Authorization': `Bearer ${storedToken}`
@@ -53,18 +50,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   setUser(updatedUser);
                   localStorage.setItem("user", JSON.stringify(updatedUser));
                 } else {
-                  console.log('AuthContext: No URL in response data');
+                  console.log('no photo');
                 }
               } else if (response.status === 404) {
-                console.log('AuthContext: No profile photo found (404), clearing stored photo');
-                // User has no profile photo, ensure photo is empty string
-                if (parsedUser.photo) {
-                  const updatedUser = { ...parsedUser, photo: "" };
-                  setUser(updatedUser);
-                  localStorage.setItem("user", JSON.stringify(updatedUser));
-                }
+                console.log('AuthContext: No profile photo found (404)');
+                // User has no profile photo, do nothing
               } else {
-                const errorText = await response.text();
               }
             } catch (error) {
               console.warn("Failed to refresh user photo on startup:", error);
@@ -84,7 +75,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (data: AuthResponse) => {
-    console.log('AuthContext: Login called with data:', data);
     setUser(data);
     setToken(data.access_token);
     // Save to localStorage so refresh doesn't log them out
@@ -111,10 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         } else if (response.status === 404) {
           console.log('AuthContext: No photo found during login (404)');
-          // User has no profile photo, ensure photo is cleared
-          const updatedUser = { ...data, photo: "" };
-          setUser(updatedUser);
-          localStorage.setItem("user", JSON.stringify(updatedUser));
+          // User has no profile photo, do nothing
         } else {
           
         }
@@ -156,9 +143,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.log('refreshUserPhoto: No URL in response');
           }
         } else if (response.status === 404) {
-          console.log('refreshUserPhoto: No photo found (404), clearing photo');
-          // User has no profile photo, clear the photo
-          updateUserPhoto("");
+          console.log('refreshUserPhoto: No photo found (404)');
+          // User has no profile photo, do nothing
         } else {
           console.log('refreshUserPhoto: Request failed with status:', response.status);
           const errorText = await response.text();

@@ -71,6 +71,7 @@ export function UpdateModule({
   const { token } = useAuth();
 
   useEffect(() => {
+    if(!token) return;
     const fetchData = async () => {
       setLoading(true);
       try {

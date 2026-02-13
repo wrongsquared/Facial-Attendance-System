@@ -98,10 +98,8 @@ export function UpdateCourse({
         courseName: formData.courseName
       };
 
-      console.log("Sending update data:", updateData);
       const result = await updateCourse(courseData.courseID, updateData, token);
 
-      console.log("Course updated successfully:", result);
       alert("Course updated successfully!");
 
       // Call the onSave callback if provided

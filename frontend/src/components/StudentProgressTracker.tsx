@@ -31,8 +31,8 @@ export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigate
   const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
+    if (!token) return;
     const fetchData = async () => {
-      if (!token) return;
       try {
         const result = await getStudentProgress(token);
         setData(result);

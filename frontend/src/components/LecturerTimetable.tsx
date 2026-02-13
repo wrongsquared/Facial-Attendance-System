@@ -131,8 +131,9 @@ export function LecturerTimetable({
 
 
   useEffect(() => {
+    if (!token) return;
     const fetchData = async () => {
-      if (!token) return;
+      
       setLoading(true);
       try {
         if (viewMode === "monthly") {

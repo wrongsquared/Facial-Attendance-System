@@ -84,8 +84,8 @@ export function ManageUserProfile({
     return () => clearTimeout(timer);
   }, [search]);
   useEffect(() => {
+    if (!token) return;
     const loadUsers = async () => {
-      if (!token) return;
       try {
         setLoading(true);
         const data = await getUsers(token);

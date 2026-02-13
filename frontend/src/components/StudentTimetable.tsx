@@ -44,8 +44,9 @@ export function StudentTimetable({ onBack, onNavigateToProfile, onOpenNotificati
     return new Date(year, month - 1, day, hour, minute);
   };
   useEffect(() => {
+    if (!token) return;
     const fetchData = async () => {
-      if (!token) return;
+      
       setLoading(true);
       try {
         // Calculate range based on view

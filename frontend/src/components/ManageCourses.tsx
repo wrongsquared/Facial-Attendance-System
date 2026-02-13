@@ -56,13 +56,14 @@ export function ManageCourses({
   const { token } = useAuth();
 
   useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
     const fetchCourses = async () => {
       setLoading(true);
       try {
-        if (!token) {
-          setLoading(false);
-          return;
-        }
 
         const data = await getCampusCourses(token);
         setCourses(data);

@@ -59,18 +59,17 @@ export function ManageModules({
   const { token } = useAuth();
 
   useEffect(() => {
+    if (!token) {
+      setLoading(false);
+        return;
+      }
     const fetchModules = async () => {
       setLoading(true);
       setError(null);
       try {
-        if (!token) {
-          setLoading(false);
-          return;
-        }
 
-        console.log("Fetching modules...");
+
         const data = await getAdminModuleList(token);
-        console.log("Modules data received:", data);
         setModules(data);
         setLoading(false);
       } catch (error) {

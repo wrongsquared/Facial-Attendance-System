@@ -56,11 +56,12 @@ export function UpdateLesson({
   const { token } = useAuth();
 
   useEffect(() => {
+    if (!token) {
+      return;
+      }
     const fetchData = async () => {
       try {
-        if (!token) {
-          return;
-        }
+
 
         // Fetch modules
         const moduleData = await getAdminModuleList(token);
@@ -155,10 +156,8 @@ export function UpdateLesson({
         room: formData.room
       };
 
-      console.log("Sending update data:", updateData);
       const result = await updateLesson(formData.lessonID, updateData, token);
 
-      console.log("Lesson updated successfully:", result);
       alert("Lesson updated successfully!");
 
       // Call the onSave callback if provided

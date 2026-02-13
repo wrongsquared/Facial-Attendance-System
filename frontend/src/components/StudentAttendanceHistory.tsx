@@ -221,13 +221,6 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
             {/* Attendance History Table */}
             <div className="border rounded-lg overflow-hidden">
               <Table>
-              {loading ? (
-              <div 
-                className="animate-hard-pulse rounded-xl" 
-                style={{ height: '300px', width: '100%' }} 
-              />
-            ) : (
-              <>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Module</TableHead>
@@ -237,7 +230,13 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentRecords.length > 0 ? (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-gray-500 py-8">
+                        Loading Table Data
+                      </TableCell>
+                    </TableRow>
+                  ) : currentRecords.length > 0 ? (
                     currentRecords.map((record) => {
                       const dateObj = new Date(record.start_time);
                       return (
@@ -263,7 +262,6 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
                     </TableRow>
                   )}
                 </TableBody>
-                </>)}
               </Table>
               
             </div>

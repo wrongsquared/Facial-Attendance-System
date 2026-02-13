@@ -160,8 +160,9 @@ export function AdminAttendanceRecords({
   }, [searchQuery]);
 
   useEffect(() => {
+    if (!token) return;
     const fetchModules = async () => {
-      if (!token) return;
+
       try {
         const modules = await getAdminModuleList(token);
         setModuleList(modules);
@@ -173,8 +174,8 @@ export function AdminAttendanceRecords({
   }, [token]);
 
   useEffect(() => {
+    if (!token) return;
     const fetchData = async () => {
-      if (!token) return;
       setLoading(true);
       try {
         // Convert Date to YYYY-MM-DD

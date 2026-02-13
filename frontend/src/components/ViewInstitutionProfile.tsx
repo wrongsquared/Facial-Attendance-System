@@ -16,10 +16,6 @@ import {
   ShieldCheck,
   MapPin,
   Search,
-  Plus,
-  Filter,
-  CheckCircle2,
-  XCircle
 } from "lucide-react";
 import {
   Dialog,
@@ -97,7 +93,7 @@ export function ViewInstitutionProfile({
 
   // 1. Fetch Data
   const fetchInstitutionProfile = async () => {
-    if (!token || !institutionData.institutionId) return;
+
 
     try {
       setLoading(true);
@@ -123,6 +119,7 @@ export function ViewInstitutionProfile({
   };
 
   useEffect(() => {
+    if (!token || !institutionData.institutionId) return;
     fetchInstitutionProfile();
   }, [token, institutionData.institutionId]);
 

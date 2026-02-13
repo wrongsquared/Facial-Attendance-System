@@ -201,8 +201,9 @@ export function AdminUpdateUserProfile({
     }).format(date);
   };
   useEffect(() => {
+    if (!userData.uuid || !token) return;
     const loadData = async () => {
-      if (!userData.uuid || !token) return;
+      
       try {
         setLoading(true);
         const data = await getUserAccDetails(userData.uuid, token);

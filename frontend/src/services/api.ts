@@ -34,19 +34,19 @@ export const fetchProtected = async (endpoint: string, token: string, options: R
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
-      const errorData = await response.json().catch(() => ({}));
-      // Only auto-logout for actual token expiration, not permission issues
-      if (errorData.detail && errorData.detail.toLowerCase().includes('expire')) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login?error=session_expired';
-        throw new Error("Session expired. Please login again.");
-      } else {
-        // For other 401 errors (like permission issues), just throw without auto-logout
-        throw new Error(errorData.detail || "Unauthorized access");
-      }
-    }
+    // if (response.status === 401) {
+    //   const errorData = await response.json().catch(() => ({}));
+    //   // Only auto-logout for actual token expiration, not permission issues
+    //   if (errorData.detail && errorData.detail.toLowerCase().includes('expire')) {
+    //     localStorage.removeItem('token');
+    //     localStorage.removeItem('user');
+    //     window.location.href = '/login?error=session_expired';
+    //     throw new Error("Session expired. Please login again.");
+    //   } else {
+    //     // For other 401 errors (like permission issues), just throw without auto-logout
+    //     throw new Error(errorData.detail || "Unauthorized access");
+    //   }
+    // }
 
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
@@ -222,7 +222,6 @@ export const getAttendanceLog = async (token: string, filters: AttendanceLogFilt
 
 
 export const updateLecturerProfile = async (token: string, data: ProfileUpdateData) => {
-  console.log(data);
   return await sendUpdate("/lecturer/profile/update", token, data);
 };
 
@@ -421,8 +420,6 @@ export const updateAttendanceRecord = async (
     },
     body: JSON.stringify(payload),
   });
-
-  console.log("API response status:", res.status, res.statusText);
 
   if (!res.ok) {
     const errorText = await res.text();
