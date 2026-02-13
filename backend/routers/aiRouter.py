@@ -442,25 +442,36 @@ def storage_signed_url(
 @router.get("/users/profile-photo")
 def get_user_profile_photo(user_id: str, db: Session = Depends(get_db)):
     sb = _require_supabase()
+    
+    print(f"🖼️ Getting profile photo for user_id: {user_id}")
 
     row = db.execute(
         text('SELECT photo FROM public.users WHERE "userID" = :uid'),
         {"uid": user_id},
     ).fetchone()
+    
+    print(f"🖼️ Database query result: {row}")
 
     if not row or not row[0]:
+        print(f"🖼️ No profile photo found for user {user_id}")
         raise HTTPException(status_code=404, detail="No profile photo")
 
     path = row[0]
+    print(f"🖼️ Photo path from database: {path}")
 
     res = sb.storage.from_(SUPABASE_BUCKET).create_signed_url(path, 3600)
+    print(f"🖼️ Supabase response: {res}")
+    
     url = res.get("signedURL") or res.get("signedUrl") or res.get("signed_url")
+    print(f"🖼️ Generated signed URL: {url}")
 
     if not url:
+        print(f"🖼️ Failed to generate signed URL for path: {path}")
         raise HTTPException(status_code=500, detail="Failed to sign URL")
 
     if url.startswith("/"):
         url = SUPABASE_URL.rstrip("/") + url
+        print(f"🖼️ Final URL with domain: {url}")
 
     return {"url": url}
 

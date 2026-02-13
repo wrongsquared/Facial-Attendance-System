@@ -18,11 +18,11 @@ import {
 } from "./ui/alert-dialog";
 import { useAuth } from "../cont/AuthContext";
 import { NotificationItem } from "../types/studentinnards";
-import { 
-  getNotifications, 
-  markNotificationRead, 
+import {
+  getNotifications,
+  markNotificationRead,
 } from "../services/api";
-import { NotificationAlerts } from "./NotificationAlerts"; 
+import { NotificationAlerts } from "./NotificationAlerts";
 import { useEffect, useState } from "react";
 
 interface NavbarProps {
@@ -36,6 +36,14 @@ export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: Navb
   const { user, token, logout } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
+
+  // Debug user photo
+  useEffect(() => {
+    if (user) {
+      console.log('🖼️ Navbar: User photo URL:', user.photo);
+      console.log('🖼️ Navbar: User object:', user);
+    }
+  }, [user?.photo]);
   const getPortalTitle = () => {
     if (title) return title; // Use override if provided
     if (!user) return "Portal";
@@ -58,8 +66,8 @@ export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: Navb
   }, [token, user]);
 
   const handleDismissAlert = async (notificationID: number) => {
-    
-    setNotifications((prev) => 
+
+    setNotifications((prev) =>
       prev.filter((n) => n.notificationID !== notificationID)
     );
     try {
@@ -102,18 +110,18 @@ export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: Navb
             <Button variant="ghost" size="icon" className="relative" onClick={() => setIsAlertsOpen(true)}>
               <Bell className="h-5 w-5" />
               {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
+                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
               )}
             </Button>
           )}
           <div className="flex items-center gap-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
             onClick={onNavigateToProfile}>
-              <Avatar>
-                <AvatarImage src={user?.photo}/>
-                <AvatarFallback>{getInitials()}</AvatarFallback>
-              </Avatar>
+            <Avatar>
+              <AvatarImage src={user?.photo} />
+              <AvatarFallback>{getInitials()}</AvatarFallback>
+            </Avatar>
             <div className="hidden md:block">
               <p>{user?.name ?? "Unknown Name"}</p>
               <p className="text-sm text-gray-600">{getUserSubtitle()}</p>
@@ -142,12 +150,12 @@ export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: Navb
             </AlertDialogContent>
           </AlertDialog>
         </div>
-        <NotificationAlerts 
-        isOpen={isAlertsOpen}
-        onClose={() => setIsAlertsOpen(false)}
-        alerts={notifications}
-        onDismissAlert={handleDismissAlert}
-      />
+        <NotificationAlerts
+          isOpen={isAlertsOpen}
+          onClose={() => setIsAlertsOpen(false)}
+          alerts={notifications}
+          onDismissAlert={handleDismissAlert}
+        />
       </div>
     </header>
   )

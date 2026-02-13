@@ -108,7 +108,7 @@ const deleteStudentAttendanceMinimum = async (token: string, userId: string) => 
 };
 
 function AppContent() {
-  const { user, login, logout, token } = useAuth();
+  const { user, login, logout, token, refreshUserPhoto } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -221,7 +221,11 @@ function AppContent() {
   const handleLogin = async (creds: any) => {
     try {
       const data = await loginUser(creds);
-      login(data);
+
+      console.log('🔐 App: Login successful, calling AuthContext.login');
+      await login(data); // Now login is async and handles photo refresh internally
+      console.log('🔐 App: Login completed with photo refresh');
+
       // Redirect based on role
       const role = data.role_name.toLowerCase();
       if (role === 'student') navigate('/student');
