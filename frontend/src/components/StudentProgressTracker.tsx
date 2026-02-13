@@ -46,9 +46,6 @@ export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigate
   }, [token]);
 
 
-  const overallProgress = data?.overall_percentage ?? 0;
-  const overallProgressColor = overallProgress >= 85 ? "#22c55e" : "#ef4444"; 
-
   // Pagination
   const allModules = data?.modules || [];
   const totalPages = Math.ceil(allModules.length / MODS_PER_PAGE);
@@ -62,6 +59,18 @@ export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigate
     goal: mod.goal_percentage,
     status: mod.status
   }));
+  
+  const getProgressTheme = (progress: number, goal: number = 70) => {
+    if (progress >= goal) 
+      return { hex: "#22c55e", bg: "bg-green-500" }; 
+    else if (progress >= goal + 4) 
+      return { hex: "#eab308", bg: "bg-yellow-500" };
+    else 
+      return { hex: "#ef4444", bg: "bg-red-500" }; 
+  };
+  const overallProgress = data?.overall_percentage ?? 0;
+  const overallGoal = currentModules.length > 0 ? currentModules[0].goal : 75;
+  const theme = getProgressTheme(overallProgress, overallGoal);
   const handlePreviousPage = () => {
     if (currentPage > 1) setCurrentPage(prev => prev - 1);
   };
@@ -120,7 +129,7 @@ export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigate
                     cx="96"
                     cy="96"
                     r="88"
-                    stroke={overallProgressColor}
+                    stroke={theme.hex}
                     strokeWidth="16"
                     fill="none"
                     strokeDasharray={`${2 * Math.PI * 88}`}
@@ -128,7 +137,7 @@ export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigate
                       2 * Math.PI * 88 * (1 - overallProgress / 100)
                     }`}
                     strokeLinecap="round"
-                    style={{ transition: "stroke-dashoffset 0.5s ease-in-out" }}
+                    style={{ transition: "stroke-dashoffset 0.5s ease-in-out, stroke 0.5s ease" }}
                   />
                 </svg>
                 {/* Center text */}
@@ -152,10 +161,8 @@ export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigate
               <div className="space-y-6">
                  {currentModules.map((module) => {
                   
-                  // Determine color class for module progress
-                  // Standard shadcn Progress uses classes, not hex codes
-                  const isSuccess = module.progress >= module.goal;
-                  const indicatorClass = isSuccess ? "bg-blue-600" : "bg-red-500";
+                  // Get theme color for module progress
+                  const moduleTheme = getProgressTheme(module.progress, module.goal);
 
                   return (
                     <div
@@ -186,8 +193,12 @@ export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigate
                       <div className="flex items-center gap-3">
                         <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                             <div 
-                                className={`h-full transition-all duration-500 ${indicatorClass}`}
-                                style={{ width: `${module.progress}%` }} 
+                                style={{ 
+                                  width: `${module.progress}%`,
+                                  backgroundColor: moduleTheme.hex,
+                                  transition: "width 0.5s ease-in-out, background-color 0.5s ease"
+                                }} 
+                                className="h-full"
                             />
                         </div>
                         

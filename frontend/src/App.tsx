@@ -54,6 +54,9 @@ import { ManageCustomGoals } from './components/ManageCustomGoals';
 import { CreateCustomGoal } from './components/CreateCustomGoal';
 import { AdminUpdateUserProfile } from './components/AdminUpdateUserProfile';
 import { ManualOverride } from './components/ManualOverride';
+import { CreateInstitutionProfile } from './components/CreateInstitutionProfile';
+import { ViewInstitutionProfile } from './components/ViewInstitutionProfile';
+import { UpdateInstitutionProfile } from './components/UpdateInstitutionProfile';
 
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) => {
@@ -114,7 +117,13 @@ function AppContent() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notificationAlerts, setNotificationAlerts] = useState<any[]>([]);
 
-  const [selectedInstitutionData, setSelectedInstitutionData] = useState<any>(null);
+  const [selectedInstitutionData, setSelectedInstitutionData] = useState<{
+    institutionId: string;
+    institutionName: string;
+  } | null>(null);
+  // Institutions list for Platform Manager (local state)
+  const [institutions, setInstitutions] = useState<any[]>([]);
+  const [platformManagerView, setPlatformManagerView] = useState<string>('manageInstitutions');
   const [moduleToUpdate, setModuleToUpdate] = useState<any>(null);
   const [moduleToEnroll, setModuleToEnroll] = useState<any>(null);
   const [selectedStudentData, setSelectedStudentData] = useState<{
@@ -150,7 +159,34 @@ function AppContent() {
     emergencyRelationship: "",
     emergencyContactNumber: "",
   });
+  const handleCreateInstitution = (institutionData: {
+    institutionName: string;
+    address: string;
+    fullName: string;
+    email: string;
+    phoneNumber: string;
+    tempPassword: string;
+  }) => {
+    // Generate new institution ID
+    const newId = `INS${String(institutions.length + 1).padStart(3, '0')}`;
 
+    // Add new institution to the list
+    const newInstitution = {
+      id: newId,
+      name: institutionData.institutionName,
+      status: "Active",
+      address: institutionData.address,
+      adminFullName: institutionData.fullName,
+      adminEmail: institutionData.email,
+      adminPhone: institutionData.phoneNumber,
+      tempPassword: institutionData.tempPassword,
+    };
+
+    setInstitutions(prev => [...prev, newInstitution]);
+
+    // Navigate back to manage institutions
+    setPlatformManagerView('manageInstitutions');
+  };
   const handleSaveAdminProfile = (profileData: any) => {
     setAdminProfileData(profileData);
     showToast('Profile updated successfully!');
@@ -435,7 +471,7 @@ function AppContent() {
             onLogout={handleLogout}
             onBack={() => navigate('/admin')}
             onCreateUser={() => navigate('/admin/users/create')}
-            onUpdateUser={(data) => { setSelectedUserData(data); navigate('/admin/users/update'); }}
+            onUpdateUser={(data) => { setSelectedUserData(data); navigate('/admin/users/edit'); }}
             onNavigateToProfile={() => navigate('/admin/profile')} />
         </ProtectedRoute>} />
         <Route path="/admin/users/create" element={<ProtectedRoute allowedRoles={['admin']}>
@@ -445,22 +481,6 @@ function AppContent() {
             onCreateSuccess={() => navigate('/admin/users')}
             onNavigateToProfile={() => navigate('/admin/profile')} />
         </ProtectedRoute>} />
-        <Route path="/admin/users/update" element={<ProtectedRoute allowedRoles={['admin']}>
-          {selectedUserData ? (
-            <UpdateUser
-              userData={selectedUserData}
-              onLogout={handleLogout}
-              onBack={() => navigate('/admin/users')}
-              onUpdateSuccess={() => navigate('/admin/users')}
-              onNavigateToProfile={() => navigate('/admin/profile')}
-              showToast={showToast}
-            />
-          ) : (
-            <Navigate to="/admin/users" replace />
-          )}
-        </ProtectedRoute>
-        }
-        />
 
         <Route path="/admin/records" element={<ProtectedRoute allowedRoles={['admin']}>
           <AdminAttendanceRecords onLogout={handleLogout} onBack={() => navigate('/admin')}
@@ -498,11 +518,27 @@ function AppContent() {
             onLogout={handleLogout}
             onBack={() => navigate('/admin')}
             onNavigateToCreateCustomGoal={(data) => { setSelectedCustomGoalUserData(data); navigate('/admin/goals/create'); }}
-            onNavigateToUpdateUserProfile={(data) => { setSelectedBiometricUserData({ userId: data.uuid, name: data.name, role: data.role }); navigate('/admin/user-profiles/update'); }}
+            onNavigateToUpdateUserProfile={(data) => { setSelectedBiometricUserData({ userId: data.uuid, name: data.name, role: data.role }); navigate('/admin/user-profiles/updateProfiles'); }}
             userGoals={userGoals}
             userProfiles={userProfiles} />
         </ProtectedRoute>} />
-        <Route path="/admin/user-profiles/update" element={<ProtectedRoute allowedRoles={['admin']}>
+            <Route path="/admin/users/edit" element={<ProtectedRoute allowedRoles={['admin']}>
+          {selectedUserData ? (
+            <UpdateUser
+              userData={selectedUserData}
+              onLogout={handleLogout}
+              onBack={() => navigate('/admin/users')}
+              onUpdateSuccess={() => navigate('/admin/users')}
+              onNavigateToProfile={() => navigate('/admin/profile')}
+              showToast={showToast}
+            />
+          ) : (
+            <Navigate to="/admin/users" replace />
+          )}
+        </ProtectedRoute>
+        }
+        />
+        <Route path="/admin/user-profiles/updateProfiles" element={<ProtectedRoute allowedRoles={['admin']}>
           {selectedBiometricUserData ? (
             <AdminUpdateUserProfile
               onLogout={handleLogout}
@@ -521,14 +557,8 @@ function AppContent() {
           )}
         </ProtectedRoute>} />
 
-        <Route path="/admin/users/create" element={<ProtectedRoute allowedRoles={['admin']}>
-          <CreateUser
-            onLogout={handleLogout}
-            onBack={() => navigate('/admin/users')}
-            onCreateSuccess={() => navigate('/admin/users')}
-            onNavigateToProfile={() => navigate('/admin/profile')} />
-        </ProtectedRoute>} />
-        <Route path="/admin/users/update" element={<ProtectedRoute allowedRoles={['admin']}>
+
+        <Route path="/admin/users/updateP" element={<ProtectedRoute allowedRoles={['admin']}>
           {selectedBiometricUserData ? (
             <AdminUpdateUserProfile
               onLogout={handleLogout}
@@ -684,8 +714,36 @@ function AppContent() {
             onCreateProfile={() => navigate('/pmanager/institutions/create')}
             onViewProfile={(data) => { setSelectedInstitutionData(data); navigate('/pmanager/institutions/view'); }} />
         </ProtectedRoute>} />
-
-
+        <Route path="/pmanager/institutions/create" element={<ProtectedRoute allowedRoles={['pmanager']}> 
+          <CreateInstitutionProfile
+            onLogout={handleLogout}
+            onBack={() => navigate('/pmanager/institutions')}
+            onCreate={handleCreateInstitution}
+          />
+        </ProtectedRoute>} />
+        <Route path="/pmanager/institutions/view" element={<ProtectedRoute allowedRoles={['pmanager']}> 
+          {selectedInstitutionData ? (
+            <ViewInstitutionProfile
+              onLogout={handleLogout}
+              onBack={() => navigate('/pmanager/institutions')}
+              onEditProfile={() => navigate('/pmanager/institutions/edit')}
+              institutionData={selectedInstitutionData}
+            />
+          ) : (
+            <Navigate to="/pmanager/institutions" replace />
+          )}
+        </ProtectedRoute>} />
+        <Route path="/pmanager/institutions/edit" element={<ProtectedRoute allowedRoles={['pmanager']}> 
+          {selectedInstitutionData ? (
+            <UpdateInstitutionProfile
+              onLogout={handleLogout}
+              onBack={() => navigate('/pmanager/institutions')}
+              institutionData={selectedInstitutionData}
+            />
+          ) : (
+            <Navigate to="/pmanager/institutions" replace />
+          )}
+        </ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />

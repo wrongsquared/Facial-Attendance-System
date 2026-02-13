@@ -45,7 +45,7 @@ export interface NotificationItem {
     current_pct?: number;
     threshold?: number;
     missed_count?: number;
-    total_past?: number;
+    total_expected?: number;
     date?: string;
   };
 }

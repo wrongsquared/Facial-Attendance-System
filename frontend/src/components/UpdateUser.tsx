@@ -289,10 +289,6 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
 
         {/* Update User Form Card */}
         <Card className="max-w-2xl mx-auto overflow-hidden">
-          {loading ? ( 
-          <div className="animate-hard-pulse w-full h-[600px] rounded-lg" />
-          ):(
-            <>
           <CardHeader>
             <CardTitle>Update User Account</CardTitle>
             <CardDescription>
@@ -486,7 +482,6 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
               </div>
             </form>
           </CardContent>
-          </>)}
         </Card>
       </main>
     </div>
