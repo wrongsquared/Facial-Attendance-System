@@ -12,14 +12,8 @@ from database.db import (InstitutionRegistration, UserProfile, #This was really 
                          Lecturer, 
                          Student,
                          Admin,
-                         Campus,
                          University,
                         PlatformMgr,
-                        AttdCheck,
-                        EntLeave,
-                        StudentModules,
-                        studentAngles,
-                        StudentNotifications
                          )
 from dependencies.deps import get_signed_url, check_single_student_risk
 from uuid import UUID
@@ -63,12 +57,9 @@ def read_root(db: Session= Depends(get_db)):
 @app.post("/register-institution", status_code=status.HTTP_201_CREATED)
 def register_user(payload: InstitutionRegistration, db: Session = Depends(get_db)):
     
-    # 1. Check if University Name already exists
     existing_uni = db.query(University).filter(University.universityName == payload.universityName).first()
     if existing_uni:
         raise HTTPException(status_code=400, detail="University Name already registered.")
-
-    # 2. Create User in Supabase Auth
     new_uuid = None
     try:
         auth_response = supabase_adm.auth.admin.create_user({
@@ -82,34 +73,28 @@ def register_user(payload: InstitutionRegistration, db: Session = Depends(get_db
         })
         new_uuid = UUID(auth_response.user.id)
     except Exception as e:
-        # Handle specific Supabase errors (like email already exists)
         raise HTTPException(status_code=400, detail=f"Auth Error: {str(e)}")
 
-    # 3. Create Database Entries (University + Manager)
     try:
-        # A. Create the University Row
         new_university = University(
             universityName=payload.universityName,
-            universityAddress="N/A", # Or pass from frontend if you uncomment address
+            universityAddress="N/A",
             subscriptionDate=datetime.now(),
             isActive=True
         )
         db.add(new_university)
-        db.flush() # Flush to generate the new_university.universityID without committing yet
+        db.flush() 
 
-        # B. Get or Create the 'Platform Manager' Profile Type
         pm_profile_type = db.query(UserProfile).filter(UserProfile.profileTypeName == "PManager").first()
         if not pm_profile_type:
-            # Fallback if seed didn't run
             pm_profile_type = UserProfile(profileTypeName="PManager")
             db.add(pm_profile_type)
             db.flush()
 
-        # C. Create the Platform Manager User
         new_manager = PlatformMgr(
             userID=new_uuid,
             profileTypeID=pm_profile_type.profileTypeID,
-            universityID=new_university.universityID, # Link to the new Uni
+            universityID=new_university.universityID,
             email=payload.email,
             name=f"Manger of {payload.universityName}",
             role="Platform Manager",
@@ -124,7 +109,6 @@ def register_user(payload: InstitutionRegistration, db: Session = Depends(get_db
 
     except Exception as e:
         db.rollback()
-        # Clean up Supabase user so they aren't stuck with an account but no DB data
         if new_uuid:
             try:
                 supabase_adm.auth.admin.delete_user(str(new_uuid))

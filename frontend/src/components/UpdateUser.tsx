@@ -106,7 +106,7 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState("");
   const [selectedCourseID, setSelectedCourseID] = useState("");
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const targetUUID = userData?.uuid;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -184,6 +184,8 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
         }
       } catch (err) {
         console.error("Initialization failed:", err);
+      } finally {
+        setLoading(false);
       }
     };
     loadInitialData();
@@ -303,61 +305,85 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
                 {/* User ID Input */}
                 <div className="space-y-2">
                   <Label>Full Name:</Label>
-                  <Input
-                    value={name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                    className={errors.name ? "border-red-500" : ""}
-                    placeholder="Enter full name"
-                  />
-                  {errors.name && (
-                    <p className="text-red-500 text-sm">{errors.name}</p>
+                  {loading ? (
+                    <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+                  ) : (
+                    <>
+                      <Input
+                        value={name}
+                        onChange={(e) => handleInputChange("name", e.target.value)}
+                        className={errors.name ? "border-red-500" : ""}
+                        placeholder="Enter full name"
+                      />
+                      {errors.name && (
+                        <p className="text-red-500 text-sm">{errors.name}</p>
+                      )}
+                    </>
                   )}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="email">User E-mail:</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter E-mail"
-                    value={email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    className={errors.email ? "border-red-500" : ""}
-                  />
-                  {errors.email && (
-                    <p className="text-red-500 text-sm">{errors.email}</p>
+                  {loading ? (
+                    <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+                  ) : (
+                    <>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="Enter E-mail"
+                        value={email}
+                        onChange={(e) => handleInputChange("email", e.target.value)}
+                        className={errors.email ? "border-red-500" : ""}
+                      />
+                      {errors.email && (
+                        <p className="text-red-500 text-sm">{errors.email}</p>
+                      )}
+                    </>
                   )}
                 </div>
                 {role.toLowerCase() === 'student' && (
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label>Student Number:</Label>
-                      <Input
-                        value={userIdInput}
-                        onChange={(e) => handleInputChange("userIdInput", e.target.value)}
-                        placeholder="Enter Student ID"
-                        className={errors.userIdInput ? "border-red-500" : ""}
-                      />
-                      {errors.userIdInput && (
-                        <p className="text-red-500 text-sm">{errors.userIdInput}</p>
+                      {loading ? (
+                        <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+                      ) : (
+                        <>
+                          <Input
+                            value={userIdInput}
+                            onChange={(e) => handleInputChange("userIdInput", e.target.value)}
+                            placeholder="Enter Student ID"
+                            className={errors.userIdInput ? "border-red-500" : ""}
+                          />
+                          {errors.userIdInput && (
+                            <p className="text-red-500 text-sm">{errors.userIdInput}</p>
+                          )}
+                        </>
                       )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="course-select">Course:</Label>
-                      <Select value={selectedCourseID} onValueChange={(value: string) => handleInputChange("selectedCourseID", value)}>
-                        <SelectTrigger id="course-select" className={errors.selectedCourseID ? "border-red-500" : ""}>
-                          <SelectValue placeholder="Select a Course" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {courses.map((course) => (
-                            <SelectItem key={course.courseID} value={course.courseID.toString()}>
-                              {course.courseCode}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors.selectedCourseID && (
-                        <p className="text-red-500 text-sm">{errors.selectedCourseID}</p>
+                      {loading ? (
+                        <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+                      ) : (
+                        <>
+                          <Select value={selectedCourseID} onValueChange={(value: string) => handleInputChange("selectedCourseID", value)}>
+                            <SelectTrigger id="course-select" className={errors.selectedCourseID ? "border-red-500" : ""}>
+                              <SelectValue placeholder="Select a Course" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {courses.map((course) => (
+                                <SelectItem key={course.courseID} value={course.courseID.toString()}>
+                                  {course.courseCode}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {errors.selectedCourseID && (
+                            <p className="text-red-500 text-sm">{errors.selectedCourseID}</p>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -366,14 +392,20 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
                 {role.toLowerCase() === 'lecturer' && (
                   <div className="space-y-2">
                     <Label>Lecturer Specialisation:</Label>
-                    <Input
-                      placeholder="e.g. Data Science, Ethics"
-                      value={userIdInput}
-                      onChange={(e) => handleInputChange("userIdInput", e.target.value)}
-                      className={errors.userIdInput ? "border-red-500" : ""}
-                    />
-                    {errors.userIdInput && (
-                      <p className="text-red-500 text-sm">{errors.userIdInput}</p>
+                    {loading ? (
+                      <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+                    ) : (
+                      <>
+                        <Input
+                          placeholder="e.g. Data Science, Ethics"
+                          value={userIdInput}
+                          onChange={(e) => handleInputChange("userIdInput", e.target.value)}
+                          className={errors.userIdInput ? "border-red-500" : ""}
+                        />
+                        {errors.userIdInput && (
+                          <p className="text-red-500 text-sm">{errors.userIdInput}</p>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -381,46 +413,64 @@ export function UpdateUser({ onLogout, onBack, onUpdateSuccess, userData, showTo
                 {role.toLowerCase() === 'admin' && (
                   <div className="space-y-2">
                     <Label>Admin Job Role:</Label>
-                    <Input
-                      placeholder="e.g. Faculty Manager"
-                      value={userIdInput}
-                      onChange={(e) => handleInputChange("userIdInput", e.target.value)}
-                      className={errors.userIdInput ? "border-red-500" : ""}
-                    />
-                    {errors.userIdInput && (
-                      <p className="text-red-500 text-sm">{errors.userIdInput}</p>
+                    {loading ? (
+                      <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+                    ) : (
+                      <>
+                        <Input
+                          placeholder="e.g. Faculty Manager"
+                          value={userIdInput}
+                          onChange={(e) => handleInputChange("userIdInput", e.target.value)}
+                          className={errors.userIdInput ? "border-red-500" : ""}
+                        />
+                        {errors.userIdInput && (
+                          <p className="text-red-500 text-sm">{errors.userIdInput}</p>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
                 {/* Password Input */}
                 <div className="space-y-2">
                   <Label htmlFor="password">Password:</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter new password (leave blank to keep current)"
-                    value={newPassword}
-                    onChange={(e) => handleInputChange("newPassword", e.target.value)}
-                    className={errors.newPassword ? "border-red-500" : ""}
-                  />
-                  {errors.newPassword && (
-                    <p className="text-red-500 text-sm">{errors.newPassword}</p>
+                  {loading ? (
+                    <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+                  ) : (
+                    <>
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="Enter new password (leave blank to keep current)"
+                        value={newPassword}
+                        onChange={(e) => handleInputChange("newPassword", e.target.value)}
+                        className={errors.newPassword ? "border-red-500" : ""}
+                      />
+                      {errors.newPassword && (
+                        <p className="text-red-500 text-sm">{errors.newPassword}</p>
+                      )}
+                    </>
                   )}
                 </div>
 
                 {/* Confirm Password Input */}
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirm Password:</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="Re-enter new password"
-                    value={confirmPassword}
-                    onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                    className={errors.confirmPassword ? "border-red-500" : ""}
-                  />
-                  {errors.confirmPassword && (
-                    <p className="text-red-500 text-sm">{errors.confirmPassword}</p>
+                  {loading ? (
+                    <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+                  ) : (
+                    <>
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        placeholder="Re-enter new password"
+                        value={confirmPassword}
+                        onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                        className={errors.confirmPassword ? "border-red-500" : ""}
+                      />
+                      {errors.confirmPassword && (
+                        <p className="text-red-500 text-sm">{errors.confirmPassword}</p>
+                      )}
+                    </>
                   )}
                 </div>
 

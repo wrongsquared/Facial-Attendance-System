@@ -327,60 +327,84 @@ export function AdminUpdateUserProfile({
           <CardContent className="space-y-4">
             <div>
               <label className="text-sm text-gray-600 mb-2 block">Full Name:</label>
-              <Input
-                value={name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                placeholder="Enter name"
-                disabled={!isEditMode}
-                className={errors.name ? "border-red-500" : ""}
-              />
-              {errors.name && (
-                <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+              {loading ? (
+                <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+              ) : (
+                <>
+                  <Input
+                    value={name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    placeholder="Enter name"
+                    disabled={!isEditMode}
+                    className={errors.name ? "border-red-500" : ""}
+                  />
+                  {errors.name && (
+                    <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+                  )}
+                </>
               )}
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">Email:</label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => handleInputChange("email", e.target.value)}
-                placeholder="Enter email"
-                disabled // This can be edited in UserAccounts Edit
-                className={errors.email ? "border-red-500" : ""}
-              />
-              {errors.email && (
-                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+              {loading ? (
+                <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+              ) : (
+                <>
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    placeholder="Enter email"
+                    disabled // This can be edited in UserAccounts Edit
+                    className={errors.email ? "border-red-500" : ""}
+                  />
+                  {errors.email && (
+                    <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                  )}
+                </>
               )}
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">
                 Contact Number:
               </label>
-              <Input
-                type="tel"
-                value={contactNumber}
-                onChange={(e) => handleInputChange("contactNumber", e.target.value)}
-                placeholder="Enter contact number"
-                disabled={!isEditMode}
-                className={errors.contactNumber ? "border-red-500" : ""}
-              />
-              {errors.contactNumber && (
-                <p className="text-red-500 text-sm mt-1">{errors.contactNumber}</p>
+              {loading ? (
+                <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+              ) : (
+                <>
+                  <Input
+                    type="tel"
+                    value={contactNumber}
+                    onChange={(e) => handleInputChange("contactNumber", e.target.value)}
+                    placeholder="Enter contact number"
+                    disabled={!isEditMode}
+                    className={errors.contactNumber ? "border-red-500" : ""}
+                  />
+                  {errors.contactNumber && (
+                    <p className="text-red-500 text-sm mt-1">{errors.contactNumber}</p>
+                  )}
+                </>
               )}
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">
                 Address:
               </label>
-              <Textarea // Multiline Support
-                value={address}
-                onChange={(e) => handleInputChange("address", e.target.value)}
-                placeholder="Enter address"
-                disabled={!isEditMode}
-                className={errors.address ? "border-red-500" : ""}
-              />
-              {errors.address && (
-                <p className="text-red-500 text-sm mt-1">{errors.address}</p>
+              {loading ? (
+                <div className="animate-hard-pulse h-24 bg-gray-300 rounded w-full"></div>
+              ) : (
+                <>
+                  <Textarea // Multiline Support
+                    value={address}
+                    onChange={(e) => handleInputChange("address", e.target.value)}
+                    placeholder="Enter address"
+                    disabled={!isEditMode}
+                    className={errors.address ? "border-red-500" : ""}
+                  />
+                  {errors.address && (
+                    <p className="text-red-500 text-sm mt-1">{errors.address}</p>
+                  )}
+                </>
               )}
             </div>
           </CardContent>
@@ -396,37 +420,55 @@ export function AdminUpdateUserProfile({
               <label className="text-sm text-gray-600 mb-2 block">
                 User ID: / Student Num
               </label>
-              <p className="font-medium">{userData.uuid} / {studnum}</p>
+              {loading ? (
+                <div className="animate-hard-pulse h-6 bg-gray-300 rounded w-full"></div>
+              ) : (
+                <p className="font-medium">{userData.uuid} / {studnum}</p>
+              )}
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">
                 Status:
               </label>
-              <Select value={status} onValueChange={(value: string) => handleInputChange("status", value)} disabled={!isEditMode}>
-                <SelectTrigger className={errors.status ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                  <SelectItem value="Suspended">Suspended</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.status && (
-                <p className="text-red-500 text-sm mt-1">{errors.status}</p>
+              {loading ? (
+                <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+              ) : (
+                <>
+                  <Select value={status} onValueChange={(value: string) => handleInputChange("status", value)} disabled={!isEditMode}>
+                    <SelectTrigger className={errors.status ? "border-red-500" : ""}>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="Inactive">Inactive</SelectItem>
+                      <SelectItem value="Suspended">Suspended</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.status && (
+                    <p className="text-red-500 text-sm mt-1">{errors.status}</p>
+                  )}
+                </>
               )}
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">
                 Account Creation Date:
               </label>
-              <p className="font-medium">{creationDate}</p>
+              {loading ? (
+                <div className="animate-hard-pulse h-6 bg-gray-300 rounded w-full"></div>
+              ) : (
+                <p className="font-medium">{creationDate}</p>
+              )}
             </div>
             <div>
               <label className="text-sm text-gray-600 mb-2 block">
                 Associated Modules:
               </label>
-              <p className="font-medium">{associatedModules}</p>
+              {loading ? (
+                <div className="animate-hard-pulse h-6 bg-gray-300 rounded w-full"></div>
+              ) : (
+                <p className="font-medium">{associatedModules}</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -441,7 +483,11 @@ export function AdminUpdateUserProfile({
               <label className="text-sm text-gray-600 mb-2 block">
                 Status:
               </label>
-              <p className="font-medium">Not Enrolled</p>
+              {loading ? (
+                <div className="animate-hard-pulse h-6 bg-gray-300 rounded w-full"></div>
+              ) : (
+                <p className="font-medium">Not Enrolled</p>
+              )}
             </div>
           </CardContent>
         </Card>

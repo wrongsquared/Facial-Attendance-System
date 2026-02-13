@@ -1,23 +1,13 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Save, Calendar } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Navbar } from "./Navbar";
 import { useAuth } from "../cont/AuthContext";
 import { getAdminModuleList, getManageUsers, updateLesson, getTutorialGroupsForModule } from "../services/api";
 import { LessonData } from "../types/adminlesson";
-
-interface LecturerData {
-  uuid: string;
-  name: string;
-  email: string;
-  role: string;
-  studentNum: string;
-  status: string;
-}
 
 interface TutorialGroup {
   tutorialGroupsID: number;
@@ -36,7 +26,6 @@ interface ModuleData {
 
 interface UpdateLessonProps {
   onBack: () => void;
-  onLogout?: () => void;
   onNavigateToProfile?: () => void;
   onSave?: (lessonData: any) => void;
   lessonData: LessonData;
@@ -44,7 +33,6 @@ interface UpdateLessonProps {
 
 export function UpdateLesson({
   onBack,
-  onLogout,
   onNavigateToProfile,
   onSave,
   lessonData,
@@ -62,9 +50,6 @@ export function UpdateLesson({
   });
 
   const [modules, setModules] = useState<ModuleData[]>([]);
-  const [lecturers, setLecturers] = useState<LecturerData[]>([]);
-  const [tutorialGroups, setTutorialGroups] = useState<TutorialGroup[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
@@ -72,34 +57,28 @@ export function UpdateLesson({
 
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
       try {
         if (!token) {
-          setLoading(false);
           return;
         }
 
-        // Fetch both modules and lecturers in parallel
-        const [moduleData, lecturerData] = await Promise.all([
-          getAdminModuleList(token),
-          getManageUsers(token, "", "Lecturer", "")
-        ]);
+        // Fetch modules
+        const moduleData = await getAdminModuleList(token);
+        await getManageUsers(token, "", "Lecturer", "");
 
         setModules(moduleData || []);
-        setLecturers(lecturerData || []);
 
         // If lesson is practical, fetch tutorial groups to get the group name
         if (lessonData.lessonType === 'Practical') {
           try {
-            const moduleInfo = moduleData?.find(m => m.moduleCode === lessonData.moduleCode);
+            const moduleInfo = moduleData?.find((m: ModuleData) => m.moduleCode === lessonData.moduleCode);
             if (moduleInfo) {
               const tutorialGroupsData = await getTutorialGroupsForModule(moduleInfo.moduleID, token);
-              setTutorialGroups(tutorialGroupsData || []);
 
               // Find and set the tutorial group name
               if (lessonData.tutorialGroupID && tutorialGroupsData) {
-                const currentGroup = tutorialGroupsData.find(g =>
-                  g.tutorialGroupsID === parseInt(lessonData.tutorialGroupID) ||
+                const currentGroup = tutorialGroupsData.find((g: TutorialGroup) =>
+                  g.tutorialGroupsID === parseInt(lessonData.tutorialGroupID || "0") ||
                   g.tutorialGroupsID.toString() === lessonData.tutorialGroupID
                 );
                 if (currentGroup) {
@@ -118,10 +97,8 @@ export function UpdateLesson({
             setFormData(prev => ({ ...prev, tutorialGroupName: 'Error loading group' }));
           }
         }
-        setLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);
-        setLoading(false);
       }
     };
 
@@ -198,22 +175,6 @@ export function UpdateLesson({
       setSaving(false);
     }
   };
-
-  const lessonTypes = [
-    "Lecture",
-    "Practical"
-  ];
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading form data...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

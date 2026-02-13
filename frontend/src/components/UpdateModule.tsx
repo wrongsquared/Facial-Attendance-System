@@ -201,62 +201,80 @@ export function UpdateModule({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-          {loading ?( 
-          <div className = "animate-hard-pulse w-full" style={{ flex: 1, height:'100%' ,minHeight: '600px' }} />
-          ):(
-            <>
             {/* Module ID (Read-only) */}
             <div className="space-y-2">
               <Label htmlFor="moduleID">Module ID</Label>
-              <Input
-                id="moduleID"
-                type="text"
-                value={formData.moduleID}
-                disabled
-                className="bg-gray-100 cursor-not-allowed"
-              />
-              <p className="text-sm text-gray-500">Module ID cannot be changed</p>
+              {loading ? (
+                <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+              ) : (
+                <>
+                  <Input
+                    id="moduleID"
+                    type="text"
+                    value={formData.moduleID}
+                    disabled
+                    className="bg-gray-100 cursor-not-allowed"
+                  />
+                  <p className="text-sm text-gray-500">Module ID cannot be changed</p>
+                </>
+              )}
             </div>
 
             {/* Module Code */}
             <div className="space-y-2">
               <Label htmlFor="moduleCode">Module Code</Label>
-              <Input
-                id="moduleCode"
-                placeholder="Enter module code (e.g., CSIT100)"
-                value={formData.moduleCode}
-                onChange={(e) => handleInputChange("moduleCode", e.target.value)}
-                className={errors.moduleCode ? "border-red-500" : ""}
-              />
-              {errors.moduleCode && (
-                <p className="text-red-500 text-sm">{errors.moduleCode}</p>
+              {loading ? (
+                <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+              ) : (
+                <>
+                  <Input
+                    id="moduleCode"
+                    placeholder="Enter module code (e.g., CSIT100)"
+                    value={formData.moduleCode}
+                    onChange={(e) => handleInputChange("moduleCode", e.target.value)}
+                    className={errors.moduleCode ? "border-red-500" : ""}
+                  />
+                  {errors.moduleCode && (
+                    <p className="text-red-500 text-sm">{errors.moduleCode}</p>
+                  )}
+                </>
               )}
             </div>
 
             {/* Module Name */}
             <div className="space-y-2">
               <Label htmlFor="moduleName">Module Name</Label>
-              <Input
-                id="moduleName"
-                placeholder="Enter module name (e.g., Introduction to Computer Science)"
-                value={formData.moduleName}
-                onChange={(e) => handleInputChange("moduleName", e.target.value)}
-                className={errors.moduleName ? "border-red-500" : ""}
-              />
-              {errors.moduleName && (
-                <p className="text-red-500 text-sm">{errors.moduleName}</p>
+              {loading ? (
+                <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+              ) : (
+                <>
+                  <Input
+                    id="moduleName"
+                    placeholder="Enter module name (e.g., Introduction to Computer Science)"
+                    value={formData.moduleName}
+                    onChange={(e) => handleInputChange("moduleName", e.target.value)}
+                    className={errors.moduleName ? "border-red-500" : ""}
+                  />
+                  {errors.moduleName && (
+                    <p className="text-red-500 text-sm">{errors.moduleName}</p>
+                  )}
+                </>
               )}
             </div>
 
             {/* Tutorial Groups (Read-only) */}
             <div className="space-y-2">
               <Label htmlFor="tutorialGroups">Number of Tutorial Groups</Label>
-              <Input
-                id="tutorialGroups"
-                value={tutorialGroups.length || 0}
-                disabled
-                className="bg-gray-100 text-gray-600"
-              />
+              {loading ? (
+                <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+              ) : (
+                <Input
+                  id="tutorialGroups"
+                  value={tutorialGroups.length || 0}
+                  disabled
+                  className="bg-gray-100 text-gray-600"
+                />
+              )}
             </div>
 
             {/* Date Range */}
@@ -264,15 +282,19 @@ export function UpdateModule({
               {/* Start Date */}
               <div className="space-y-2">
                 <Label htmlFor="startDate">Start Date & Time</Label>
-                <div className="relative">
-                  <Input
-                    id="startDate"
-                    type="datetime-local"
-                    value={formData.startDate}
-                    onChange={(e) => handleInputChange("startDate", e.target.value)}
-                    className={errors.startDate ? "border-red-500" : ""}
-                  />
-                </div>
+                {loading ? (
+                  <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+                ) : (
+                  <div className="relative">
+                    <Input
+                      id="startDate"
+                      type="datetime-local"
+                      value={formData.startDate}
+                      onChange={(e) => handleInputChange("startDate", e.target.value)}
+                      className={errors.startDate ? "border-red-500" : ""}
+                    />
+                  </div>
+                )}
                 {errors.startDate && (
                   <p className="text-red-500 text-sm">{errors.startDate}</p>
                 )}
@@ -281,15 +303,19 @@ export function UpdateModule({
               {/* End Date */}
               <div className="space-y-2">
                 <Label htmlFor="endDate">End Date & Time</Label>
-                <div className="relative">
-                  <Input
-                    id="endDate"
-                    type="datetime-local"
-                    value={formData.endDate}
-                    onChange={(e) => handleInputChange("endDate", e.target.value)}
-                    className={errors.endDate ? "border-red-500" : ""}
-                  />
-                </div>
+                {loading ? (
+                  <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+                ) : (
+                  <div className="relative">
+                    <Input
+                      id="endDate"
+                      type="datetime-local"
+                      value={formData.endDate}
+                      onChange={(e) => handleInputChange("endDate", e.target.value)}
+                      className={errors.endDate ? "border-red-500" : ""}
+                    />
+                  </div>
+                )}
                 {errors.endDate && (
                   <p className="text-red-500 text-sm">{errors.endDate}</p>
                 )}
@@ -299,97 +325,104 @@ export function UpdateModule({
             {/* Lecturer Assignment */}
             <div className="space-y-2">
               <Label>Assign Lecturers</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    className={cn(
-                      "w-full justify-between h-auto min-h-10 px-3",
-                      errors.lecturerIDs ? "border-red-500" : ""
-                    )}
-                  >
-                    <div className="flex flex-wrap gap-1">
-                      {formData.lecturerIDs.length > 0 ? (
-                        formData.lecturerIDs.map((id: string) => {
-                          const lecturer = lecturers.find((l) => l.uuid === id);
-                          return (
-                            <Badge key={id} variant="secondary" className="mr-1 py-1">
-                              {lecturer?.name}
-                              <button
-                                className="ml-1 ring-offset-background rounded-full outline-none"
-                                onClick={(e) => {
-                                  e.stopPropagation(); // Prevent opening popover
-                                  toggleLecturer(id);
-                                }}
+              {loading ? (
+                <div className="animate-hard-pulse h-10 bg-gray-300 rounded w-full"></div>
+              ) : (
+                <>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-full justify-between h-auto min-h-10 px-3",
+                          errors.lecturerIDs ? "border-red-500" : ""
+                        )}
+                      >
+                        <div className="flex flex-wrap gap-1">
+                          {formData.lecturerIDs.length > 0 ? (
+                            formData.lecturerIDs.map((id: string) => {
+                              const lecturer = lecturers.find((l) => l.uuid === id);
+                              return (
+                                <Badge key={id} variant="secondary" className="mr-1 py-1">
+                                  {lecturer?.name}
+                                  <button
+                                    className="ml-1 ring-offset-background rounded-full outline-none"
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // Prevent opening popover
+                                      toggleLecturer(id);
+                                    }}
+                                  >
+                                    <X className="h-3 w-3 text-muted-foreground" />
+                                  </button>
+                                </Badge>
+                              );
+                            })
+                          ) : (
+                            <span className="text-muted-foreground">Select lecturers...</span>
+                          )}
+                        </div>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }} align="start" side="bottom" sideOffset={4}>
+                      <Command className="w-full border-none shadow-none">
+                        <CommandInput placeholder="Search lecturer..." />
+                        <CommandList className="w-full">
+                          <CommandEmpty>No lecturer found.</CommandEmpty>
+                          <CommandGroup>
+                            {lecturers.map((lecturer) => (
+                              <CommandItem
+                                key={lecturer.uuid}
+                                value={`${lecturer.name} ${lecturer.email}`}
+                                onSelect={() => toggleLecturer(lecturer.uuid)}
+                                className="w-full"
                               >
-                                <X className="h-3 w-3 text-muted-foreground" />
-                              </button>
-                            </Badge>
-                          );
-                        })
-                      ) : (
-                        <span className="text-muted-foreground">Select lecturers...</span>
-                      )}
-                    </div>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }} align="start" side="bottom" sideOffset={4}>
-                  <Command className="w-full border-none shadow-none">
-                    <CommandInput placeholder="Search lecturer..." />
-                    <CommandList className="w-full">
-                      <CommandEmpty>No lecturer found.</CommandEmpty>
-                      <CommandGroup>
-                        {lecturers.map((lecturer) => (
-                          <CommandItem
-                            key={lecturer.uuid}
-                            value={`${lecturer.name} ${lecturer.email}`}
-                            onSelect={() => toggleLecturer(lecturer.uuid)}
-                            className="w-full"
-                          >
-                            <div
-                              className={cn(
-                                "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                                formData.lecturerIDs.includes(lecturer.uuid)
-                                  ? "bg-primary text-primary-foreground"
-                                  : "opacity-50 [&_svg]:invisible"
-                              )}
-                            >
-                              <Check className="h-4 w-4" />
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{lecturer.name} - {lecturer.email}</span>
-                              {/* studentNum actually represents their Specialization for the Lecturer's case */}
-                              <span className="text-xs text-muted-foreground">{lecturer.studentNum}</span>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              {errors.lecturerIDs && (
-                <p className="text-red-500 text-sm">{errors.lecturerIDs}</p>
+                                <div
+                                  className={cn(
+                                    "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                    formData.lecturerIDs.includes(lecturer.uuid)
+                                      ? "bg-primary text-primary-foreground"
+                                      : "opacity-50 [&_svg]:invisible"
+                                  )}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{lecturer.name} - {lecturer.email}</span>
+                                  {/* studentNum actually represents their Specialization for the Lecturer's case */}
+                                  <span className="text-xs text-muted-foreground">{lecturer.studentNum}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {errors.lecturerIDs && (
+                    <p className="text-red-500 text-sm">{errors.lecturerIDs}</p>
+                  )}
+                </>
               )}
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center gap-4 pt-4">
-              <Button variant="outline" onClick={onBack} className="flex-1">
-                Cancel
-              </Button>
+            {!loading && (
+              <div className="flex items-center gap-4 pt-4">
+                <Button variant="outline" onClick={onBack} className="flex-1">
+                  Cancel
+                </Button>
 
-              <Button
-                onClick={handleSave}
-                disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 flex-1"
-              >
-                {saving ? "Updating..." : "Update Module"}
-              </Button>
-            </div>
-            </>)}
+                <Button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="bg-blue-600 hover:bg-blue-700 flex-1"
+                >
+                  {saving ? "Updating..." : "Update Module"}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

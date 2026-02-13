@@ -1121,12 +1121,9 @@ def get_all_lessons_for_admin(
         
         admin_campus_id = current_admin.campusID
         
-        # Let's start simple - just return empty list for now to test
-        print(f"Admin campus ID: {admin_campus_id}")
         
         # Check if any lessons exist at all
         lesson_count = db.query(Lesson).count()
-        print(f"Total lessons in database: {lesson_count}")
         
         if lesson_count == 0:
             print("No lessons found in database")
@@ -1134,18 +1131,15 @@ def get_all_lessons_for_admin(
         
         # Try to get some basic lesson data first
         basic_lessons = db.query(Lesson.lessonID, Lesson.lessontype, Lesson.building, Lesson.room).limit(3).all()
-        print(f"Sample lessons: {basic_lessons}")
         
         # Now try the full query step by step
         try:
-            # Step 1: Get lessons with LecMod join
             lessons_with_lecmod = (
                 db.query(Lesson, LecMod)
                 .join(LecMod, Lesson.lecModID == LecMod.lecModID)
                 .limit(3)
                 .all()
             )
-            print(f"Lessons with LecMod: {len(lessons_with_lecmod)}")
             
             # Step 2: Add Module join
             lessons_with_module = (
@@ -1155,7 +1149,6 @@ def get_all_lessons_for_admin(
                 .limit(3)
                 .all()
             )
-            print(f"Lessons with Module: {len(lessons_with_module)}")
             
             # Step 3: Add Lecturer join
             lessons_with_lecturer = (
@@ -1166,9 +1159,7 @@ def get_all_lessons_for_admin(
                 .limit(3)
                 .all()
             )
-            print(f"Lessons with Lecturer: {len(lessons_with_lecturer)}")
             
-            # Step 4: Filter by campus and get lecturer names
             try:
                 # Since Lecturer inherits from User, we can directly access User fields from Lecturer
                 # Build query with campus filter
@@ -1199,7 +1190,6 @@ def get_all_lessons_for_admin(
                 
                 # Order by start date and execute query
                 campus_lessons = query.order_by(Lesson.startDateTime.desc()).all()
-                print(f"Lessons for campus {admin_campus_id}: {len(campus_lessons)}")
             except Exception as join_error:
                 print(f"Error with query: {str(join_error)}")
                 return []
@@ -1223,7 +1213,6 @@ def get_all_lessons_for_admin(
                     })
                 return result
             else:
-                print(f"No lessons found for campus {admin_campus_id}")
                 return []
                 
         except Exception as query_error:
