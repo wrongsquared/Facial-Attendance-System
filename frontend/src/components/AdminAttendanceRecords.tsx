@@ -90,8 +90,6 @@ export function AdminAttendanceRecords({
   onBack,
   onNavigateToProfile,
   onNavigateToManualOverride,
-  attendanceRecords,
-  updateAttendanceRecord,
   refreshTrigger,
 }: AdminAttendanceRecordsProps) {
   const { token } = useAuth();
@@ -101,16 +99,13 @@ export function AdminAttendanceRecords({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
-  // const [selectedRecord, setSelectedRecord] = useState<typeof attendanceRecords[0] | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  //const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [moduleList, setModuleList] = useState<string[]>([]);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [totalRecords, setTotalRecords] = useState(0);
   const [recentAttendanceLog, setRecentAttendanceLog] = useState<AttendanceLogEntry[]>([]);
 
-  // Convert fetched data to display format
   const displayRecords: AttendanceRecord[] = recentAttendanceLog.map(entry => ({
     userId: entry.user_id,
     studentName: entry.student_name,
@@ -134,7 +129,6 @@ export function AdminAttendanceRecords({
     });
   };
 
-  // Current records for pagination (server-side pagination, so just use all fetched data)
   const currentRecords = displayRecords;
 
   const getStatusColor = (status: string) => {
@@ -153,7 +147,7 @@ export function AdminAttendanceRecords({
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-      setCurrentPage(1); // Important: Reset to Page 1 when searching
+      setCurrentPage(1); // Reset to Page 1 when searching
     }, 500);
 
     return () => clearTimeout(timer);
@@ -182,7 +176,6 @@ export function AdminAttendanceRecords({
         let dateStr = "";
         if (selectedDate) {
           // Ensure local date string matches API expectation
-          // Trick: use the 'en-CA' locale to get YYYY-MM-DD
           dateStr = selectedDate.toLocaleDateString("en-CA");
         }
 
@@ -384,7 +377,6 @@ export function AdminAttendanceRecords({
                       let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
                       let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
                       
-                      // Adjust startPage if we're near the end
                       if (endPage - startPage < maxVisiblePages - 1) {
                         startPage = Math.max(1, endPage - maxVisiblePages + 1);
                       }

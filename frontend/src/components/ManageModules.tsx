@@ -80,9 +80,8 @@ export function ManageModules({
     };
 
     fetchModules();
-  }, [token, refreshTrigger]); // Add refreshTrigger to dependency array
+  }, [token, refreshTrigger]); 
 
-  // Reset to first page when search or filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, moduleFilter]);

@@ -49,12 +49,10 @@ export function UpdateBiometricProfile({
   userData,
   showToast,
 }: UpdateBiometricProfileProps) {
-  // ===== original state =====
   const [updateMethod, setUpdateMethod] = useState("Facial Recognition");
   const [notes, setNotes] = useState("");
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
 
-  // Mock data
   const currentStatus = "Active";
   const profileId = "BP-2025-00123";
   const enrolledOn = "15 Nov 2025, 10:30 AM";
@@ -120,10 +118,8 @@ export function UpdateBiometricProfile({
         audio: false,
       });
 
-      // store stream first
       streamRef.current = stream;
 
-      // mount the <video> (it exists only when cameraOn === true)
       setCameraOn(true);
       setStatus("Camera requested...");
     } catch (e: any) {
@@ -131,8 +127,6 @@ export function UpdateBiometricProfile({
       setStatus("Camera failed.");
     }
   }
-
-  // Attach stream AFTER the <video> exists
   useEffect(() => {
     if (!cameraOn) return;
     const video = videoRef.current;

@@ -161,7 +161,7 @@ export function StudentDashboard({
           )}
           </Card>
 
-          {/* Card 2: Timetable */}
+          {/* Timetable */}
           <Card className="flex flex-col h-full overflow-hidden">
               {loading ? (
               <div 
@@ -341,7 +341,6 @@ export function StudentDashboard({
           {/* Recent Attendance History */}
           <Card className="lg:col-span-2">
               {loading ? (
-              /* We make this one slightly taller (e.g., 300px) because history is a list */
               <div 
                 className="animate-hard-pulse rounded-xl" 
                 style={{ height: '300px', width: '100%' }} 

@@ -135,7 +135,6 @@ export function LecturerDashboard({
   };
 
   const weeklySchedule = getWeeklySchedule();
-  // Keys must match the backend's "strftime('%a')" format (Mon, Tue, Wed...)
   const dayOrder = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   return (
@@ -331,10 +330,10 @@ export function LecturerDashboard({
                         <Badge
                           className={
                             classItem.status === 'Live'
-                              ? "bg-green-600 hover:bg-green-700 text-white" // Live = Green
+                              ? "bg-green-600 hover:bg-green-700 text-white"
                               : classItem.status === 'Completed'
-                                ? "bg-blue-600 hover:bg-blue-700 text-white"   // Completed = Blue
-                                : "bg-gray-100 text-gray-800 hover:bg-gray-200" // Pending = Gray
+                                ? "bg-blue-600 hover:bg-blue-700 text-white"   
+                                : "bg-gray-100 text-gray-800 hover:bg-gray-200" 
                           }
                         >
                           {classItem.status}
@@ -462,11 +461,11 @@ export function LecturerDashboard({
                       <TableCell>
                         <Badge
                           className={`px-3 py-1 rounded-full text-white text-sm font-medium
-    ${session.percentage >= 90
+                            ${session.percentage >= 90
                               ? "bg-blue-600 hover:bg-blue-700"
                               : "bg-gray-200 text-gray-800"
                             }
-  `}
+                          `}
                         >
                           {session.percentage}%
                         </Badge>

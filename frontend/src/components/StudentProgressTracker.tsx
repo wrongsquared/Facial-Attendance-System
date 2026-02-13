@@ -21,7 +21,7 @@ interface Props {
   onOpenNotifications:() => void;
 }
 
-const MODS_PER_PAGE = 6; // 
+const MODS_PER_PAGE = 6; 
 
 export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigateToProfile }: Props) {
   const { token } = useAuth();
@@ -51,7 +51,6 @@ export function StudentProgressTracker({ onBack, onOpenNotifications, onNavigate
   const totalPages = Math.ceil(allModules.length / MODS_PER_PAGE);
   const startIndex = (currentPage - 1) * MODS_PER_PAGE;
 
-    // Map API data to the shape your JSX expects
   const currentModules = allModules.slice(startIndex, startIndex + MODS_PER_PAGE).map(mod => ({
     moduleCode: mod.module_code,
     moduleName: mod.module_name,

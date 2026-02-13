@@ -40,9 +40,9 @@ export function UpdateLesson({
   const [formData, setFormData] = useState({
     lessonID: lessonData.lessonID || "",
     moduleCode: lessonData.moduleCode || "",
-    lecturerID: "", // Will be populated from backend
+    lecturerID: "", // populated from backend
     lessonType: lessonData.lessonType || "",
-    tutorialGroupName: "", // Will be populated for practical lessons
+    tutorialGroupName: "", // populated for practical lessons
     startDateTime: lessonData.startDateTime ? lessonData.startDateTime.slice(0, 16) : "",
     endDateTime: lessonData.endDateTime ? lessonData.endDateTime.slice(0, 16) : "",
     building: lessonData.building || "",
@@ -252,7 +252,7 @@ export function UpdateLesson({
               <p className="text-sm text-gray-500">Lesson type cannot be changed</p>
             </div>
 
-            {/* Tutorial Group (Read-only, only for Practical lessons) */}
+            {/* Tutorial Group */}
             {formData.lessonType === 'Practical' && (
               <div className="space-y-2">
                 <Label htmlFor="tutorialGroup">Tutorial Group</Label>

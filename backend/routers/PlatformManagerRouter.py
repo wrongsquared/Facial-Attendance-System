@@ -31,7 +31,7 @@ router = APIRouter(
     tags=["Platform Manager"]
 )
 
-# --- UPDATED DASHBOARD ENDPOINT ---
+
 @router.get("/dashboard", response_model=PlatformManagerDashboard)
 def get_platform_manager_dashboard(
     db: Session = Depends(get_db), 
@@ -42,10 +42,10 @@ def get_platform_manager_dashboard(
     current Platform Manager's University.
     """
     
-    # 1. Identify the Current User and their University
+    # Identify the Current User and their University
     pm_user = db.query(User).filter(User.userID == current_user_id).first()
     
-    # Safety check: Ensure the user exists and is linked to a campus/university
+    # Ensure the user exists and is linked to a campus/university
     if not pm_user or not pm_user.profileType:
         raise HTTPException(
             status_code=404, 
@@ -55,23 +55,23 @@ def get_platform_manager_dashboard(
     # Get the ID of the University this manager is responsible for
     target_university_id = pm_user.universityID
 
-    # 2. Count Total Campuses (Scoped to THIS University only)
+    # Count Total Campuses for this University
     total_institutions_count = db.query(Campus).filter(
         Campus.universityID == target_university_id
     ).count()
     
-    # 3. Query Recent Campuses (Scoped to THIS University only)
+    # Query Recent Campuses for this University
     recent_campuses = (
         db.query(Campus)
         .join(University)
-        .filter(Campus.universityID == target_university_id)  # <--- THIS IS THE FIX
-        .order_by(Campus.campusID) # Sort by newest Campus ID
+        .filter(Campus.universityID == target_university_id)  
+        .order_by(Campus.campusID) 
         .limit(10)
         .all()
     )
 
    
-    # 4. Map the data
+    # Map the data
     formatted_subscriptions = []
     
     for campus in recent_campuses:
@@ -91,17 +91,16 @@ def get_platform_manager_dashboard(
         },
         "recent_subscriptions": formatted_subscriptions
     }
-# ----------------------------------
+
 
 @router.get("/institutions", response_model=List[campusDisplay])
 def get_manager_campuses(
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
-    # 1. Identify User
+    # Identify User
     pm_user = db.query(User).filter(User.userID == current_user_id).first()
     
-    # 2. Safety Check (Ensure deep relationships exist)
     if not pm_user or not hasattr(pm_user, 'profileType'):
         raise HTTPException(
             status_code=404, 
@@ -110,19 +109,18 @@ def get_manager_campuses(
 
     target_university_id = pm_user.universityID
 
-    # 3. Query Campuses
+    # Query Campuses
     campuses = db.query(Campus).filter(
         Campus.universityID == target_university_id
     ).order_by(Campus.campusName).all()
 
-    # 4. Format the response to match the 'campusDisplay' schema keys
+    # Format the response to match the 'campusDisplay' schema keys
     formatted_campuses = []
     for campus in campuses:
         formatted_campuses.append({
             "campusID": campus.campusID,
             "campusName": campus.campusName,
             "campusAddress": campus.campusAddress ,
-            # KEY CHANGE: Use 'created_at' to match your Pydantic model
             "created_at": campus.created_at.date() if campus.created_at else None 
         })
     
@@ -134,7 +132,7 @@ def get_institution_details(
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
-    # Eagerly load the university
+    # Load the university
     uni = db.query(Campus).options(
         joinedload(Campus.university) 
     ).filter(Campus.campusID == campus_id).first()
@@ -153,12 +151,11 @@ def get_institution_details(
             "userID": str(a.userID),
             "name": a.name,
             "email": a.email,
-            "phone": a.contactNumber if a.contactNumber else None, # Changed to match schema Optional[str]
+            "phone": a.contactNumber if a.contactNumber else None, 
             "type": a.type,
             "isActive": True if a.active is True else False
         })
 
-    # --- FIX IS HERE ---
     return {
         "details": {
             "campusID": uni.campusID,
@@ -169,7 +166,6 @@ def get_institution_details(
         "admins": admin_list
     }
 
-# ... Keep the rest of your endpoints as they are ...
 
 @router.get("", response_model=PaginatedInstitutionResponse)
 def search_all_institution_profiles(
@@ -230,7 +226,7 @@ def update_institution_profile(
     """
     Updates the name and address of a specific campus.
     """
-    # 1. Search for the campus by ID
+    # Search for the campus by ID
     db_campus = db.query(Campus).filter(Campus.campusID == campus_id).first()
 
     if not db_campus:
@@ -239,13 +235,12 @@ def update_institution_profile(
             detail="Campus not found"
         )
 
-    # 2. Update the fields
-    # These names must match your SQLAlchemy 'Campus' model columns
+    # Update the fields
     db_campus.campusName = update_data.campusName
     db_campus.campusAddress = update_data.campusAddress
 
     try:
-        # 3. Commit the changes to the database
+        # Commit the changes to the database
         db.commit()
         db.refresh(db_campus)
         
@@ -266,14 +261,13 @@ def update_institution_profile(
             detail="An error occurred while updating the database."
         )
 
-# --- NEW ENDPOINT TO CREATE CAMPUS ONLY ---  
 @router.post("/campus", status_code=status.HTTP_201_CREATED)
 def create_campus_only(
     payload: CampusCreate,
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
-    # 1. Identify the Platform Manager's University
+    # Identify the Platform Manager's University
     pm_user = db.query(User).filter(User.userID == current_user_id).first()
     
     if not pm_user or not pm_user.profileType:
@@ -282,13 +276,12 @@ def create_campus_only(
     university_id = pm_user.universityID
 
     try:
-        # 2. Create the Campus
+        # Create the Campus
         new_campus = Campus(
             campusName=payload.campusName,
             campusAddress=payload.campusAddress,
             universityID=university_id,
             
-            # <--- 2. ADD THIS LINE TO FIX THE ERROR
             created_at=datetime.now() 
         )
         db.add(new_campus)
@@ -300,16 +293,13 @@ def create_campus_only(
     
     except IntegrityError:
         db.rollback()
-        # This allows the frontend to see "Campus name already exists"
         raise HTTPException(status_code=400, detail="Campus name already exists")
 
     except Exception as e:
         db.rollback()
-        # Print error to console for debugging
         print(f"Full Error: {e}") 
         raise HTTPException(status_code=500, detail=f"Failed to create campus: Campus name already exists")
-
-# --- NEW ENDPOINT TO DELETE CAMPUS PROFILE --- 
+ 
 @router.delete("/campus/{campus_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_campus_profile(
     campus_id: int,
@@ -321,7 +311,7 @@ def delete_campus_profile(
     Also removes the association (UserProfile) for any admins linked to this campus.
     """
     
-    # 1. Identify the Platform Manager's University
+    # Identify the Platform Manager's University
     pm_user = db.query(User).filter(User.userID == current_user_id).first()
     
     if not pm_user or not pm_user.profileType:
@@ -329,13 +319,13 @@ def delete_campus_profile(
          
     my_university_id = pm_user.universityID
 
-    # 2. Find the Campus to delete
+    # Find the Campus to delete
     campus_to_delete = db.query(Campus).filter(Campus.campusID == campus_id).first()
 
     if not campus_to_delete:
         raise HTTPException(status_code=404, detail="Campus not found")
 
-    # 3. SECURITY CHECK: Ensure the campus belongs to the Manager's University
+    # Ensure the campus belongs to the Manager's University
     if campus_to_delete.universityID != my_university_id:
         raise HTTPException(
             status_code=403, 
@@ -343,11 +333,10 @@ def delete_campus_profile(
         )
     
     try:
-        # 4. Cleanup: Remove UserProfiles linked to this campus first
-        # (This removes the "Admin" role for this specific campus from those users)
+        # Remove UserProfiles linked to this campus first
         db.query(Admin).filter(Admin.campusID == campus_id).delete(synchronize_session=False)
 
-        # 5. Delete the Campus
+        # Delete the Campus
         db.delete(campus_to_delete)
         
         db.commit()
@@ -368,11 +357,10 @@ def delete_campus_profile(
         print(f"Delete Error: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete campus")
     
-# --- NEW ENDPOINT TO UPDATE ADMIN STATUS ---
 @router.put("/admin/{user_id}/status")
 def update_admin_status(
     user_id: str,
-    status_update: UserStatusUpdate, # Now Python knows what this is
+    status_update: UserStatusUpdate, 
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
@@ -398,20 +386,20 @@ def getsupabaseclient():
 
 @router.post("/campus/{campus_id}/add-admin", status_code=status.HTTP_201_CREATED)
 def add_admin_to_campus(
-    campus_id: int, #Mark for Deletion - Rx
+    campus_id: int, 
     payload: AdminCreate, 
     db: Session = Depends(get_db),
     supabase_client: supabase.Client = Depends(getsupabaseclient)
 ):
-    # 0. Check Supabase Config
+    # Check Supabase Config
     if not supabase_client:
         raise HTTPException(status_code=500, detail="Supabase not configured in backend.")
 
-    # 1. Check Local DB for duplicates
+    # Check Local DB for duplicates
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=400, detail="Email already registered locally.")
 
-    # 2. Create in Supabase Auth (Get the UUID)
+    # Create in Supabase Auth
     new_uuid = None
     try:
         auth_user = supabase_client.auth.admin.create_user({
@@ -429,18 +417,14 @@ def add_admin_to_campus(
         
 
     try:
-        # 3. Create the Profile Object (BUT DO NOT ADD TO DB YET)
-        # We create a new profile specifically for THIS campus
         new_profile_object = UserProfile(
             profileTypeName="Admin"
         )
 
-        # 4. Create the User Object
-        # Instead of 'profileTypeID=...', we use 'profileType=new_profile_object'
-        # SQLAlchemy will intelligently save the profile first, get the ID, and then save the user.
+        # Create the User Object
         new_user = Admin(
             userID=new_uuid,
-            profileType=new_profile_object, # <--- THIS IS THE MAGIC LINE
+            profileType=new_profile_object, 
             email=payload.email,
             name=payload.name,
             role="System Administrator",
@@ -450,7 +434,6 @@ def add_admin_to_campus(
             campusID = campus_id
         )
 
-        # 5. Add only the User (SQLAlchemy adds the Profile automatically)
         db.add(new_user)
         db.commit()
 

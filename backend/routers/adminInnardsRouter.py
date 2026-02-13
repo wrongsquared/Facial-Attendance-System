@@ -224,9 +224,6 @@ def get_admin_attendance_log_filtered(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    """
-    Admin version of attendance log - shows attendance records for students in the admin's campus only
-    """
     
     # Verify the user is an admin and get their campus
     current_admin = db.query(Admin).filter(Admin.adminID == user_id).first()
@@ -234,7 +231,7 @@ def get_admin_attendance_log_filtered(
         raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
     my_campus_id = current_admin.campusID
     
-    # 1. BUILD THE QUERY with campus filtering
+    # campus filtering
     query = (
         db.query(
             Lesson,
@@ -243,14 +240,13 @@ def get_admin_attendance_log_filtered(
             Student.name,
             AttdCheck.AttdCheckID, # If this exists, they are Present
             AttdCheck.remarks,
-            func.min(EntLeave.detectionTime).label("entry_time") # Get the FIRST time they entered
+            func.min(EntLeave.detectionTime).label("entry_time") # Get the 1st time they entered
         )
         .select_from(Lesson)
         .join(LecMod, Lesson.lecModID == LecMod.lecModID)
         .join(Module, LecMod.moduleID == Module.moduleID)
         
         # Link Lesson -> Module -> Enrolled Students
-        # This ensures we get a row for every student, even if they are Absent
         .join(StudentModules, Module.moduleID == StudentModules.modulesID)
         .join(Student, StudentModules.studentID == Student.userID)
         
@@ -260,13 +256,13 @@ def get_admin_attendance_log_filtered(
         # Check their Entry Logs to see if they were late (Left Join)
         .outerjoin(EntLeave, (EntLeave.lessonID == Lesson.lessonID) & (EntLeave.studentID == Student.userID))
         
-        # CRITICAL: Filter by admin's campus - only show students from this campus
+        # Filter by admin's campus
         .filter(Student.campusID == my_campus_id)
         
-        # Base Filter: Show only lessons that have ended (attendance can only be taken for completed lessons)
+        # Base Filter: Show only lessons that have ended 
         .filter(Lesson.endDateTime < datetime.now())
         
-        # Grouping is required because we used an aggregate function: min(entry_time)
+        # Grouping is required because we used an aggregate function
         .group_by(
             Lesson.lessonID, 
             Module.moduleCode, 
@@ -276,8 +272,6 @@ def get_admin_attendance_log_filtered(
             AttdCheck.remarks
         )
     )
-
-    # 2. APPLY FILTERS (SQL Side)
     
     # Date Filter
     if date:
@@ -297,53 +291,41 @@ def get_admin_attendance_log_filtered(
             Student.studentNum.ilike(search_like)
         ))
 
-    # 3. EXECUTE QUERY
-    # We need to fetch more records than requested to account for status filtering at Python level
+
     # Get all matching records first, then filter by status in Python
     all_results = query.order_by(Lesson.startDateTime.desc()).all()
 
-    # 4. PROCESS LOGIC AND FILTER BY STATUS (Python Side)
     log_entries = []
     
     for lesson, mod_code, s_id, s_name, attd_id, remarks, entry_time in all_results:
         
-        # --- CALCULATE STATUS ---
         current_status = "Absent"
         
         if attd_id:
             current_status = "Present"
             
-            # Late Logic: If they entered more than 15 mins after start
-            # entry_time comes from the database (EntLeave table)
             if entry_time and entry_time > (lesson.startDateTime + timedelta(minutes=15)):
                 current_status = "Late"
         
-        # --- FILTER BY STATUS ---
-        # If the user requested a specific status, skip rows that don't match
         if status and current_status != status:
             continue
         
-        # Handle building and room safely
         building = lesson.building or "TBA"
         room = lesson.room or "TBA"
         loc = f"Building: {building} Room: {room}"
 
-        # Format entry time safely - use proper 12-hour format like other parts of the system
         if entry_time:
             entry_time_str = entry_time.strftime("%I:%M %p").lstrip("0")
         elif current_status == "Present":
-            # If marked present but no entry time recorded, use lesson start time
             entry_time_str = lesson.startDateTime.strftime("%I:%M %p").lstrip("0")
         else:
             entry_time_str = "N/A"
-        
-        # Format method based on attendance status
+
         if current_status == "Absent":
             method_str = "N/A"
         else:
             method_str = "Camera Capture"
         
-        # --- ADD TO LIST ---
         log_entries.append(AttendanceLogEntry(
             user_id=s_id,
             student_name=s_name,
@@ -356,11 +338,10 @@ def get_admin_attendance_log_filtered(
             method=method_str
         ))
     
-    # Apply pagination to filtered results
+    # Apply pagination results
     total_records = len(log_entries)
     paginated_data = log_entries[offset : offset + limit]
     
-    # Return the properly paginated results
     return {
         "data": paginated_data, 
         "total": total_records, 
@@ -379,36 +360,30 @@ def update_attendance_record(
     Creates or modifies the AttdCheck record to reflect the new status.
     """
     try:
-        print(f"[DEBUG] Starting attendance update for user_id: {request.user_id}, date: {request.date}, status: {request.new_status}")
+        
         
         # Parse the date string ("DD MMM YYYY" format)
         from datetime import datetime
         date_obj = datetime.strptime(request.date, "%d %b %Y").date()
-        print(f"[DEBUG] Parsed date: {date_obj}")
+
         
         # Find the student by studentNum (user_id)
         student = db.query(Student).filter(Student.studentNum == request.user_id).first()
         if not student:
-            print(f"[DEBUG] Student not found with studentNum: {request.user_id}")
             # Try to find by userID instead
             user = db.query(User).filter(User.userID == request.user_id).first()
             if user:
                 student = db.query(Student).filter(Student.userID == user.userID).first()
-                print(f"[DEBUG] Found student via User table: {student}")
             
             if not student:
-                print(f"[DEBUG] Student still not found, available students:")
                 all_students = db.query(Student.studentNum, Student.name).limit(5).all()
-                for s in all_students:
-                    print(f"  - {s.studentNum}: {s.name}")
+
                 raise HTTPException(status_code=404, detail=f"Student not found with ID: {request.user_id}")
         
-        print(f"[DEBUG] Found student: {student.studentNum} - {student.name}")
         
         # Find lessons for this student on this date
         start_of_day = datetime.combine(date_obj, time.min)
         end_of_day = datetime.combine(date_obj, time.max)
-        print(f"[DEBUG] Looking for lessons between {start_of_day} and {end_of_day}")
         
         lessons_query = (
             db.query(Lesson)
@@ -422,24 +397,17 @@ def update_attendance_record(
         # If lesson_id is specified, filter by that specific lesson
         if request.lesson_id:
             lessons_query = lessons_query.filter(Lesson.lessonID == request.lesson_id)
-            print(f"[DEBUG] Filtering by specific lesson ID: {request.lesson_id}")
         
         lessons = lessons_query.all()
         
-        print(f"[DEBUG] Found {len(lessons)} lessons for this student on this date")
         if not lessons:
-            print(f"[DEBUG] No lessons found. Checking student enrollments:")
             enrollments = db.query(StudentModules, Module.moduleCode).join(Module).filter(StudentModules.studentID == student.userID).all()
-            print(f"[DEBUG] Student is enrolled in {len(enrollments)} modules:")
             for enrollment, module_code in enrollments:
                 print(f"  - {module_code}")
             
-            print(f"[DEBUG] Checking all lessons on this date:")
             all_lessons = db.query(Lesson, Module.moduleCode).join(LecMod).join(Module).filter(
                 Lesson.startDateTime.between(start_of_day, end_of_day)
             ).limit(5).all()
-            for lesson, module_code in all_lessons:
-                print(f"  - {module_code}: {lesson.startDateTime}")
             
             lesson_filter_text = f" (lesson ID: {request.lesson_id})" if request.lesson_id else ""
             raise HTTPException(status_code=404, detail=f"No lessons found for student {request.user_id} on {request.date}{lesson_filter_text}")
@@ -447,7 +415,6 @@ def update_attendance_record(
         # Process each lesson for this date
         updated_lessons = []
         for lesson in lessons:
-            print(f"[DEBUG] Processing lesson {lesson.lessonID}")
             
             # Check if attendance record already exists
             existing_attd = db.query(AttdCheck).filter(
@@ -455,18 +422,15 @@ def update_attendance_record(
                 AttdCheck.studentID == student.userID
             ).first()
             
-            print(f"[DEBUG] Existing attendance record: {existing_attd}")
             
             if request.new_status == "Present" or request.new_status == "Late":
                 # Create or update attendance record
                 if existing_attd:
-                    print(f"[DEBUG] Updating existing attendance record")
                     existing_attd.remarks = f"Manual override: {request.new_status.lower()}"
                     if request.admin_notes:
                         existing_attd.remarks += f" - {request.admin_notes}"
                 else:
                     # Create new attendance record
-                    print(f"[DEBUG] Creating new attendance record")
                     new_attd = AttdCheck(
                         studentID=student.userID,
                         lessonID=lesson.lessonID,
@@ -478,7 +442,6 @@ def update_attendance_record(
                 
                 # For "Late" status, we may need to handle EntLeave records
                 if request.new_status == "Late":
-                    print(f"[DEBUG] Handling Late status entry record")
                     # Check if entry record exists
                     existing_entry = db.query(EntLeave).filter(
                         EntLeave.lessonID == lesson.lessonID,
@@ -491,7 +454,6 @@ def update_attendance_record(
                     if existing_entry:
                         # Update existing entry to be late
                         existing_entry.detectionTime = late_entry_time
-                        print(f"[DEBUG] Updated existing entry record to {late_entry_time}")
                     else:
                         # Create new entry record
                         new_entry = EntLeave(
@@ -500,10 +462,8 @@ def update_attendance_record(
                             detectionTime=late_entry_time
                         )
                         db.add(new_entry)
-                        print(f"[DEBUG] Created late entry record at {late_entry_time}")
                 else:
                     # For "Present" status, ensure entry time is within the allowed window (<= 15 mins)
-                    print(f"[DEBUG] Handling Present status entry record")
                     existing_entry = db.query(EntLeave).filter(
                         EntLeave.lessonID == lesson.lessonID,
                         EntLeave.studentID == student.userID
@@ -515,7 +475,6 @@ def update_attendance_record(
                     if existing_entry:
                         # Update existing entry to be on time
                         existing_entry.detectionTime = on_time_entry
-                        print(f"[DEBUG] Updated existing entry record to {on_time_entry}")
                     else:
                         # Create new entry record
                         new_entry = EntLeave(
@@ -524,13 +483,11 @@ def update_attendance_record(
                             detectionTime=on_time_entry
                         )
                         db.add(new_entry)
-                        print(f"[DEBUG] Created on-time entry record at {on_time_entry}")
                         
             elif request.new_status == "Absent":
-                print(f"[DEBUG] Handling Absent status")
                 # Remove attendance record if it exists
                 if existing_attd:
-                    print(f"[DEBUG] Removing existing attendance record")
+
                     db.delete(existing_attd)
                 
                 # Remove entry/leave records if they exist
@@ -539,14 +496,12 @@ def update_attendance_record(
                     EntLeave.studentID == student.userID
                 ).all()
                 
-                print(f"[DEBUG] Removing {len(existing_entries)} entry/leave records")
                 for entry in existing_entries:
                     db.delete(entry)
             
             updated_lessons.append(lesson.lessonID)
         
         db.commit()
-        print(f"[DEBUG] Successfully updated attendance for {len(updated_lessons)} lessons")
         return {
             "message": "Attendance record updated successfully", 
             "status": "success",
@@ -712,7 +667,7 @@ def create_new_user(
         )
     
     admin_campus_id = executing_admin.campusID
-    # Find the ProfileTypeID for this specific campus 
+    # Find the ProfileTypeIDs for this specific campus 
     profile_type = db.query(UserProfile).filter(
         UserProfile.profileTypeName.ilike(user_data.role),
         UserProfile.campusID == admin_campus_id
@@ -725,7 +680,7 @@ def create_new_user(
         )
 
     target_type_id = profile_type.profileTypeID
-    # Create in Supabase Auth (The Login)
+    # Create in Supabase Auth 
     try:
         auth_response = supabase_adm.auth.admin.create_user({
             "email": user_data.email,
@@ -818,7 +773,7 @@ def get_all_users_for_manage(
 
     results = []
 
-    # Process Students
+    # Students
     for s in students:
         results.append({
             "userID": s.userID,
@@ -829,7 +784,7 @@ def get_all_users_for_manage(
             "attendanceMinimum": s.attendanceMinimum
         })
 
-    # Process Lecturers
+    # Lecturers
     for l in lecturers:
         results.append({
             "userID": l.userID,
@@ -840,7 +795,7 @@ def get_all_users_for_manage(
             "attendanceMinimum": None
         })
 
-    # Process Admins
+    # Admins
     for a in admins:
         results.append({
             "userID": a.userID,
@@ -925,8 +880,8 @@ def get_user_acc_details(
         "name": user.name,
         "email": user.email,
         "active": user.active,
-        "phone": user.contactNumber,          # From users table
-        "fulladdress": user.address, # From users table
+        "phone": user.contactNumber,
+        "fulladdress": user.address, 
         "role": user.profileType.profileTypeName,
         "creationDate": user.creationDate.isoformat() if user.creationDate else None,
         "associatedModules": "N/A"
@@ -975,7 +930,7 @@ def update_user_full(
     user_data: UpdateUserSchema, 
     db: Session = Depends(get_db)
 ):
-    # Update Supabase Auth (Login Credentials)
+    # Update Supabase Auth
     auth_updates = {}
     if user_data.email: auth_updates["email"] = user_data.email
     if user_data.password: auth_updates["password"] = user_data.password
@@ -987,7 +942,6 @@ def update_user_full(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Auth update failed: {str(e)}")
 
-    # Update the Local Database
     # Fetch the base user
     user_record = db.query(User).filter(User.userID == user_uuid).first()
     if not user_record:

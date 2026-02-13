@@ -70,7 +70,6 @@ export function CreateBiometricProfile({
   };
 
   const handleSave = () => {
-    // Mock save functionality
     alert(
       `Biometric Profile Created:\nUser ID: ${userId}\nName: ${userName}\nRole: ${role}\nNotes: ${notes}`
     );

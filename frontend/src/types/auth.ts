@@ -12,9 +12,6 @@ export interface AuthResponse {
   role_name: string;
   name: string;
   photo?: string;
-  // campus_id: number;
-  // campus_name: string;
-  // uni_name:string;
   studentNum?: string | null;
   specialistIn?: string | null;
   job?: string | null;

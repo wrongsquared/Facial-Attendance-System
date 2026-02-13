@@ -45,7 +45,7 @@ import { getFullAttendanceHistory } from "../services/api";
 interface Props {
   onNavigateToProfile: () => void;
   onBack: () => void;
-  onLogout: () => void; // Kept for prop compatibility, though Navbar handles it
+  onLogout: () => void; 
   onOpenNotifications: () => void;
 }
 const itemsPerPage = 20;
@@ -75,21 +75,21 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
     };
     fetchData();
   }, [token]);
-  // 1. Get Unique Modules for Dropdown
+  // Get Unique Modules for Dropdown
   const uniqueModules = Array.from(new Set(historyData.map(item => item.module_code)));
 
-  // 2. Filter Logic
+  // Filter Logic
   const filteredRecords = historyData.filter((record) => {
-    // A. Search
+    // Search
     const matchesSearch = record.module_code.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // B. Module Dropdown
+    // Module Dropdown
     const matchesModule = selectedModule === "all" || record.module_code === selectedModule;
 
-    // C. Status Dropdown
+    // Status Dropdown
     const matchesStatus = selectedStatus === "all" || record.status === selectedStatus;
 
-    // D. Date Picker
+    // Date Picker
     let matchesDate = true;
     if (selectedDate) {
       const recordDate = new Date(record.start_time).toDateString();
@@ -110,7 +110,6 @@ export function StudentAttendanceHistory({ onBack, onNavigateToProfile, onOpenNo
     setCurrentPage(1);
   }, [searchQuery, selectedModule, selectedStatus, selectedDate]);
 
-  // --- HELPERS ---
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-GB", {
       day: "numeric",

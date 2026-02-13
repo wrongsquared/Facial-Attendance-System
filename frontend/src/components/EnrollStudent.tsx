@@ -191,21 +191,6 @@ export function EnrollStudent({
     !student.isEnrolled && selectedStudents.has(student.uuid)
   ).length;
 
-  // if (error) {
-  //   return (
-  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-  //       <div className="text-center">
-  //         <div className="text-red-600 text-6xl mb-4">⚠️</div>
-  //         <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Students</h2>
-  //         <p className="text-gray-600 mb-4">{error}</p>
-  //         <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700">
-  //           Retry
-  //         </Button>
-  //       </div>
-  //     </div>
-  //   );
-  // }
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Literal, List, Optional, Union
+from typing import Literal, List, Union
 from datetime import date
 
 class timetableEntry(BaseModel):
@@ -163,7 +163,7 @@ class ReportHistoryEntry(BaseModel):
     id: int
     title: str
     date: str            # Display date (e.g. "08 Jan 2026")
-    tags: List[str]      # e.g. ["Daily", "Absent"]
+    tags: List[str]      
     fileName: str
 
 class AttendanceLogResponse(BaseModel):

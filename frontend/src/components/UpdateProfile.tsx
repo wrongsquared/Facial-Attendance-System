@@ -114,7 +114,7 @@ export function UpdateProfile({
 
       await updateLecturerProfile(token, payload);
       alert("Profile updated successfully!");
-      setOriginalData(formData); // Update original data after successful save
+      setOriginalData(formData);
       setIsEditMode(false);
     } catch (err) {
       console.error(err);

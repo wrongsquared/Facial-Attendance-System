@@ -31,7 +31,6 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const handleLogin = () => {
-    // Basic validation
     if (!email.trim()) {
       setError("Please enter your email address");
       return;

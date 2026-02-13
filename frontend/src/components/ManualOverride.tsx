@@ -63,7 +63,6 @@ export function ManualOverride({
         lessonId: studentData.lessonId
       });
 
-      // Update the attendance record with the new status
       const result = await updateAttendanceRecord(
         studentData.userId,
         studentData.date,

@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Badge } from "./ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar } from "./ui/calendar";
 
@@ -20,7 +19,7 @@ interface ManageLessonsProps {
   onNavigateToProfile?: () => void;
   onNavigateToCreateLesson?: () => void;
   onNavigateToUpdateLesson?: (lessonData: LessonData) => void;
-  refreshTrigger?: number; // Add refresh trigger prop
+  refreshTrigger?: number;
 }
 
 export function ManageLessons({
@@ -52,13 +51,6 @@ export function ManageLessons({
     const fetchLessons = async () => {
       setLoading(true);
       try {
-
-
-        // First test admin access
-
-        // const adminTest = await testAdminAccess(token);
-
-        // Convert Date to YYYY-MM-DD format
         let dateStr = "";
         if (selectedDate) {
           dateStr = selectedDate.toLocaleDateString("en-CA");
@@ -69,7 +61,6 @@ export function ManageLessons({
         setLoading(false);
       } catch (error) {
         console.error('Error fetching lessons:', error);
-        // Set empty array on error to prevent crashes
         setLessons([]);
         setLoading(false);
       }
@@ -78,7 +69,6 @@ export function ManageLessons({
     fetchLessons();
   }, [token, refreshTrigger, selectedDate]);
 
-  // Reset to first page when search or filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, moduleFilter, lessonTypeFilter, selectedDate]);

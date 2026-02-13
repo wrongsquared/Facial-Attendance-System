@@ -56,26 +56,22 @@ export function CreateInstitutionProfile({
 
       const data = await response.json();
 
-      // --- CRITICAL ERROR CHECK ---
       if (!response.ok) {
         let msg = data.detail || "An error occurred";
 
         if (Array.isArray(data.detail)) msg = "Missing Data or Invalid Field";
 
-        // Force an error to jump to the 'catch' block
         throw new Error(msg);
       }
 
-      // --- SUCCESS LOGIC (Only runs if NO error was thrown above) ---
       toast.success("Campus created successfully!");
       onCreate(data);
       onBack();
 
     } catch (error: any) {
       console.error("Stopping duplicate creation:", error.message);
-      window.alert(error.message); // This will show "Campus name already exists"
+      window.alert(error.message); 
       toast.error(error.message);
-      // Logic stops here. It will NOT run onBack() or toast.success()
     } finally {
       setLoading(false);
     }
@@ -95,7 +91,6 @@ export function CreateInstitutionProfile({
           <h2 className="text-3xl mb-2 font-bold text-center">Add New Campus</h2>
           <p className="text-gray-600 mb-8 text-center">Create a new campus profile.</p>
 
-          {/* --- ADDED FORM TAG HERE --- */}
           <form onSubmit={handleCreate}>
             <Card>
               <CardHeader className="px-8">
@@ -133,7 +128,7 @@ export function CreateInstitutionProfile({
                   Cancel
                 </Button>
                 <Button
-                  type="submit" // CHANGED TO SUBMIT
+                  type="submit" 
                   disabled={loading}
                   className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-md"
                 >

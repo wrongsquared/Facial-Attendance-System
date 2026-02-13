@@ -123,7 +123,7 @@ export function ViewInstitutionProfile({
     fetchInstitutionProfile();
   }, [token, institutionData.institutionId]);
 
-  // 2. Add Admin Logic (Updated to handle Form Submission)
+  // Add Admin Logic
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -157,17 +157,17 @@ export function ViewInstitutionProfile({
     } catch (error: any) {
       console.error("Full Error Object:", error);
 
-      // 1. Show alert with error message
+      // Show alert with error message
       window.alert(error.message);
 
-      // 2. The original toast code
+      // The original toast code
       toast.error("Registration Failed", {
         description: error.message
       });
     }
   };
 
-  // 3. Change Status Logic
+  // Change Status Logic
   const handleStatusChange = async (userId: string, newStatus: string) => {
     const isActiveBool = newStatus === "active";
 
@@ -201,7 +201,7 @@ export function ViewInstitutionProfile({
     }
   };
 
-  // 4. Filtering Logic
+  // Filtering Logic
   const filteredAdmins = profileData?.admins.filter(admin => {
     const matchesSearch =
       admin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -267,11 +267,11 @@ export function ViewInstitutionProfile({
               </div>
             </CardHeader>
 
-            {/* --- TOOLBAR --- */}
+            {/* Tool Bar */}
             <CardContent className="p-4 bg-gray-50/30">
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
 
-                {/* SEARCH BAR */}
+                {/* Search Bar */}
                 <div className="relative flex-1 ">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
@@ -314,7 +314,7 @@ export function ViewInstitutionProfile({
                         </DialogDescription>
                       </DialogHeader>
 
-                      {/* START FORM */}
+                      {/* Start form */}
                       <form onSubmit={handleAddAdmin}>
                         <div className="grid gap-4 py-4">
                           <div className="grid gap-2">
@@ -364,7 +364,6 @@ export function ViewInstitutionProfile({
                           </Button>
                         </DialogFooter>
                       </form>
-                      {/* END FORM */}
 
                     </DialogContent>
                   </Dialog>

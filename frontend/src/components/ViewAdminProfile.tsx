@@ -290,7 +290,6 @@ function Field({ label, id, value, onChange, disabled, loading }: any) {
     <div className="space-y-2">
       <Label htmlFor={id}>{label}:</Label>
       {loading ? (
-        // Custom Hard Pulse Skeleton for Input
         <div className="animate-hard-pulse bg-gray-200 rounded-md h-12 w-full" />
       ) : (
         <Input id={id} value={value || ""} onChange={onChange} disabled={disabled} className="h-12" />

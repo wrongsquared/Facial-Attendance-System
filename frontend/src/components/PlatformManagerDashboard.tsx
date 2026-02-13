@@ -8,9 +8,7 @@ import {
 } from "./ui/card";
 import { Button } from "./ui/button";
 import {
-  Search,
   Building2,
-  Eye,
 } from "lucide-react";
 import {
   Table,

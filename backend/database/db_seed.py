@@ -50,7 +50,6 @@ def upload_photo(user_uuid: str, local_file_path: str, supabase: Client) -> str:
         storage_path = f"{user_uuid}/profile.{file_ext}"
         bucket_name = "avatars"
 
-        #  Read the local file as binary
         with open(local_file_path, 'rb') as f:
             file_data = f.read()
 

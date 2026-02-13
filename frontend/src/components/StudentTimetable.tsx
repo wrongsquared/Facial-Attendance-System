@@ -40,7 +40,6 @@ export function StudentTimetable({ onBack, onNavigateToProfile, onOpenNotificati
     const [year, month, day] = datePart.split("-").map(Number);
     const [hour, minute] = timePart ? timePart.split(":").map(Number) : [0, 0];
 
-    // Note: Month is 0-indexed in JS (Jan=0, Dec=11)
     return new Date(year, month - 1, day, hour, minute);
   };
   useEffect(() => {
@@ -74,23 +73,22 @@ export function StudentTimetable({ onBack, onNavigateToProfile, onOpenNotificati
       end.setTime(currentDate.getTime());
       end.setHours(23, 59, 59, 999);
     } else if (viewMode === "weekly") {
-      const day = currentDate.getDay(); // 0 (Sun) - 6 (Sat)
+      const day = currentDate.getDay(); 
       start.setTime(currentDate.getTime());
-      start.setDate(currentDate.getDate() - day); // Go to Sunday
+      start.setDate(currentDate.getDate() - day); 
       start.setHours(0, 0, 0, 0);
 
       end.setTime(start.getTime());
-      end.setDate(start.getDate() + 6); // Go to Saturday
+      end.setDate(start.getDate() + 6); 
       end.setHours(23, 59, 59, 999);
     } else {
-      // Monthly
       start.setTime(currentMonth.getTime());
-      start.setDate(1); // 1st
+      start.setDate(1); 
       start.setHours(0, 0, 0, 0);
 
       end.setTime(currentMonth.getTime());
       end.setMonth(currentMonth.getMonth() + 1);
-      end.setDate(0); // Last day
+      end.setDate(0);
       end.setHours(23, 59, 59, 999);
     }
     return { start, end };
@@ -201,7 +199,7 @@ export function StudentTimetable({ onBack, onNavigateToProfile, onOpenNotificati
                 View your class schedule
               </CardDescription>
 
-              {/* VIEW TABS */}
+              {/* Tabs */}
               <div className="flex gap-2 mt-4">
                 {["daily", "weekly", "monthly"].map((mode) => (
                   <Button
@@ -220,7 +218,7 @@ export function StudentTimetable({ onBack, onNavigateToProfile, onOpenNotificati
             </div>
           </CardHeader>
           <CardContent>
-            {/* DAILY VIEW */}
+            {/* Daily*/}
             {viewMode === "daily" && (
               <div>
                 <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center justify-between">
@@ -278,7 +276,6 @@ export function StudentTimetable({ onBack, onNavigateToProfile, onOpenNotificati
                       const lessonDateStr = l.start_time.split("T")[0];
 
                       // Build the column's date string manually (YYYY-MM-DD)
-                      // This avoids timezone shifts entirely
                       const year = date.getFullYear();
                       const month = String(date.getMonth() + 1).padStart(2, '0');
                       const day = String(date.getDate()).padStart(2, '0');

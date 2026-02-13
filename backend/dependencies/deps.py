@@ -9,25 +9,18 @@ from datetime import datetime, timedelta
 security = HTTPBearer()
 
 def get_current_user_id(credentials: HTTPAuthorizationCredentials = Security(security)):
-    """
-    Decodes and validates the JWT using Supabase.
-    Returns the User object if valid, raises 401 if not.
-    """
     token = credentials.credentials # Extract just the token string
 
     try:
-        # verify the token by asking Supabase for the user details
         user_response = supabase.auth.get_user(token)
         
-        # Depending on your supabase version, you might need to check if user_response has data
         if not user_response.user:
             raise Exception("User not found")
 
         return user_response.user.id
 
     except Exception as e:
-        # If Supabase rejects the token (expired, malformed, etc.)
-        print(f"Auth Error: {e}") # specific logging for your server
+        print(f"Auth Error: {e}") 
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
@@ -61,7 +54,6 @@ def check_single_student_risk(db: Session, student_id: str):
     ).all()
 
     now = datetime.now()
-    # Define a cutoff time (e.g., 24 hours ago)
     twenty_four_hours_ago = now - timedelta(hours=24)
 
     for sm, module in enrollments:
@@ -101,7 +93,7 @@ def check_single_student_risk(db: Session, student_id: str):
         pct = (attended / total_past) * 100
         
         if pct < student.attendanceMinimum:
-            # Check for existing unread notifications for this module
+            # Check for existing unread notifications
             target_title = f"Attendance Warning: {module.moduleCode}"
             existing = db.query(StudentNotifications).filter(
                 StudentNotifications.studentID == student_id,
@@ -113,7 +105,7 @@ def check_single_student_risk(db: Session, student_id: str):
             missed = total_past - attended
             
             if existing:
-                # Update existing unread notification with latest data
+                # Update existing unread notification
                 existing.message = f"Your attendance in {module.moduleCode} has dropped to {pct:.0f}%."
                 existing.meta_data = {
                     "module_code": module.moduleCode,

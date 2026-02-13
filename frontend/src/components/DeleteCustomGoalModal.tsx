@@ -36,9 +36,6 @@ export function DeleteCustomGoalModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="text-2xl text-center">Delete Custom Goal</DialogTitle>
-          {/* <DialogDescription className="text-sm text-gray-500 text-center">
-            Confirm deletion of custom goal for <span className="font-semibold">"{userData.name}"</span>?
-          </DialogDescription> */}
         </DialogHeader>
 
         {/* Confirmation Message */}

@@ -99,11 +99,9 @@ export function ManageUserProfile({
     loadUsers();
   }, [token]);
 
-  // Reset to first page when search or filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [search, roleFilter, statusFilter]);
-  // Filter profiles based on search and filters
   const filteredProfiles = users.filter((profile) => {
     const matchesSearch =
       profile.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -137,12 +135,10 @@ export function ManageUserProfile({
     }
   };
   const handleManageProfile = (userId: string) => {
-    //Look up the extended profile from the 'userProfiles' prop
     const detailedProfile = userProfiles[userId];
 
-    // Use the navigation prop passed from the parent
     onNavigateToUpdateUserProfile({
-      uuid: userId, //  ID used for the API call
+      uuid: userId,
       name: detailedProfile?.name || "",
       role: detailedProfile?.role || ""
     });

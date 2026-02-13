@@ -39,8 +39,7 @@ class InstitutionProfile(BaseModel):
     status: bool
 
     class Config:
-        from_attributes = True 
-# Helps Pydantic read data from ORM models    
+        from_attributes = True    
 
 # Schema for paginated institution responses
 class PaginatedInstitutionResponse(BaseModel):

@@ -4,7 +4,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
 import {
@@ -64,9 +63,6 @@ export function UpdateCustomGoalModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-2xl">Update Custom Goal</DialogTitle>
-          {/* <DialogDescription className="text-sm">
-            Update the custom attendance goal for the selected user.
-          </DialogDescription> */}
         </DialogHeader>
 
         {/* User Information */}

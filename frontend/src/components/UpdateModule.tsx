@@ -263,7 +263,7 @@ export function UpdateModule({
               )}
             </div>
 
-            {/* Tutorial Groups (Read-only) */}
+            {/* Tutorial Groups */}
             <div className="space-y-2">
               <Label htmlFor="tutorialGroups">Number of Tutorial Groups</Label>
               {loading ? (

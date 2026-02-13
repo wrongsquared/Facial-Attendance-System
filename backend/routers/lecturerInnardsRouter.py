@@ -39,28 +39,22 @@ import uuid as uuid_module
 from fastapi.responses import FileResponse
 router = APIRouter() 
 
-
-
-
-# View user profile (view-only)
 @router.get("/lecturer/profile/view-basic", response_model=viewUserProfile)
 def get_view_only_user_profile(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
 
-    # The query is simple SELECT * FROM users
     user_record = db.query(User).filter(User.userID == user_id).first()
     
     if not user_record:
         raise HTTPException(status_code=404, detail="User profile not found in database.")
 
-    # Pydantic maps the ORM attributes directly.
     return user_record
 
 @router.put("/lecturer/profile/update", response_model=viewUserProfile)
 def update_user_profile(
-    updates: UserProfileUpdate, # The data sent from the frontend
+    updates: UserProfileUpdate,
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
@@ -75,12 +69,11 @@ def update_user_profile(
         raise HTTPException(status_code=404, detail="User profile not found.")
 
     # Get the non-None values from the Pydantic input model
-    # We use .model_dump(exclude_none=True) to only get fields the user submitted
+
     update_data = updates.model_dump(exclude_unset=True)
 
     # Apply the updates to the ORM object
     for key, value in update_data.items():
-        # Use setattr to dynamically update the ORM attribute (e.g., user_record.name = "new name")
         setattr(user_record, key, value)
     
     # Commit and Refresh
@@ -111,25 +104,20 @@ def generate_and_download_report(
     if not module_details:
         raise HTTPException(status_code=404, detail=f"Module code not found: {criteria.module_code}")
 
-    # Now we must use the Module ID (the PK) for joining in the database
     module_id = module_details.moduleID
     module_code = module_details.moduleCode
     module_name = module_details.moduleName
     
-    # 2. Identify the pool of relevant lessons (subquery for efficiency) with tutorial group info
+    # Identify the pool of relevant lessons (subquery for efficiency) with tutorial group info
     lesson_pool_query = db.query(Lesson.lessonID, Lesson.startDateTime, Lesson.lessontype, TutorialsGroup.tutorialGroupsID.label('tutorial_group_id'))\
     .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
     .outerjoin(TutorialsGroup, Lesson.tutorialGroupID == TutorialsGroup.tutorialGroupsID)\
     .filter(
-        # The Lesson is already linked to a LecMod record.
-        # We need to ensure that LecMod record satisfies BOTH conditions:
-        
+       # Ensure that LecMod record satisfies all conditions:
         # Taught by the current user
         LecMod.lecturerID == user_id, 
-        
-        # Belongs to the module we looked up earlier
+        # Belongs to the module looked up earlier
         LecMod.moduleID == module_id,
-        
         # Falls within the date range (using the fixed date comparison)
         func.date(Lesson.startDateTime).between(start_date, end_date)
     )
@@ -173,8 +161,7 @@ def generate_and_download_report(
             # Skip if student is not in the same tutorial group as the lesson
             if student_tutorial_group_id and lesson_tutorial_group_id and student_tutorial_group_id != lesson_tutorial_group_id:
                 continue
-                
-            # This is where the status check happens, and it's missing!
+                # Check attendance record
             attendance_record = db.query(AttdCheck).filter(
                 AttdCheck.studentID == student_id,
                 AttdCheck.lessonID == lesson_id
@@ -184,7 +171,7 @@ def generate_and_download_report(
             if attendance_record:
                 status_text = "Present"
             else:
-                status_text = "Absent" # Default status if no record is found
+                status_text = "Absent" # Default status
         
             # Apply the final status filter requested by the user
             if criteria.attendance_status != "All" and status_text != criteria.attendance_status:
@@ -210,7 +197,7 @@ def generate_and_download_report(
                 "Attendance Status": status_text,
             })
             
-    # Handle Download (CSV Generation)
+    # CSV Generation
 
     if not report_data:
         raise HTTPException(status_code=404, detail="No records match the selected criteria and status filter.")
@@ -257,7 +244,6 @@ def get_report_history(
     ]
 
 
-# Generate report and save to database/file system
 @router.post("/lecturer/reports/generate")
 def generate_report(
     criteria: ReportCriteria,
@@ -568,7 +554,7 @@ def get_detailed_attendance_record(
 
     student, lesson, module = record
     
-    # Check for Presence/Late Status (Simplified Logic from the Log Query)
+    # Check for Presence/Late Status,
     # Check for AttdCheck existence
     is_present = db.query(AttdCheck).filter(
         AttdCheck.lessonID == lesson_id, 
@@ -590,17 +576,13 @@ def get_detailed_attendance_record(
     else:
         status_str = 'Present'
         
-    # Get Timestamp (Use EntLeave.detectionTime time if available, otherwise lesson start)
     entry_time_record = db.query(EntLeave.detectionTime).filter(EntLeave.lessonID == lesson_id, EntLeave.studentID == student.studentID).first()
     timestamp_str = (entry_time_record[0] if entry_time_record else lesson.startDateTime).strftime("%H:%M %p")
-
-
-    # Assemble and Return Data (Using Placeholders for Missing DB Fields)
-    
+    # Assemble data
     # Location (Using the corrected fields from your Lesson model)
     camera_location_str = f"Building {lesson.building}, Room {lesson.room}" if lesson.building and lesson.room else "TBA"
 
-    return DetailedAttendanceRecord(
+    return DetailedAttendanceRecord( #Need to change this
         # Top Section
         student_name=student.name,
         user_id=student.studentNum, # Use the Student Number
@@ -609,13 +591,10 @@ def get_detailed_attendance_record(
         
         # Details Section
         attendance_status=status_str,
-        live_check='Passed', # <--- PLACEHOLDER (Requires a 'liveCheck' column)
         timestamp=timestamp_str,
-        virtual_tripwire='Triggered', # <--- PLACEHOLDER (Requires a 'tripwire' column)
         
-        attendance_method='Biometric Scan', # <--- PLACEHOLDER (Requires a 'method' column)
+        attendance_method='Biometric Scan', 
         camera_location=camera_location_str,
-        verification_type='Multi-person group verification' # <--- PLACEHOLDER (Requires a 'verification' column)
     )
 
 # Daily Timetable

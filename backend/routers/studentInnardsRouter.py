@@ -23,7 +23,6 @@ def get_student_progress_quarterly(
     user_id: str = Depends(get_current_user_id), 
     db: Session = Depends(get_db)
 ):
-    # 1. Determine Current Quarter Date Range (Existing Logic)
     now = datetime.now()
     year = now.year
     month = now.month
@@ -190,12 +189,10 @@ def get_timetable_by_range(
         .join(LecMod, Module.moduleID == LecMod.moduleID)
         .join(Lesson, LecMod.lecModID == Lesson.lecModID)
         
-        # --- THE FIX: Identify the specific group assignment ---
         .outerjoin(StudentTutorialGroup, and_(
             StudentModules.studentModulesID == StudentTutorialGroup.studentModulesID
         ))
         
-        # --- Join to Attendance check ---
         .outerjoin(AttdCheck, and_(
             AttdCheck.lessonID == Lesson.lessonID, 
             AttdCheck.studentID == user_id
@@ -205,7 +202,6 @@ def get_timetable_by_range(
             StudentModules.studentID == user_id,
             Lesson.startDateTime >= start_date,
             Lesson.startDateTime <= end_date,
-            # --- THE FILTER FIX: Lectures OR the specific Group ---
             or_(
                 Lesson.tutorialGroupID == None, 
                 Lesson.tutorialGroupID == StudentTutorialGroup.tutorialGroupID
@@ -257,7 +253,7 @@ def get_student_notifications(
     user_id: str = Depends(get_current_user_id), # This is the UUID
     db: Session = Depends(get_db)
 ):
-    # First, run risk assessment to ensure notifications are up to date
+    # Ensure notifications are up to date
     check_single_student_risk(db, user_id)
     
     # Clean up any duplicate notifications after risk assessment

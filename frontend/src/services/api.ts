@@ -47,7 +47,6 @@ export const fetchProtected = async (endpoint: string, token: string, options: R
     //     throw new Error(errorData.detail || "Unauthorized access");
     //   }
     // }
-
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
   }

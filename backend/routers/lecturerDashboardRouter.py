@@ -93,7 +93,6 @@ def get_lecturer_timetable(
 
         entry = timetableEntry(
             module_code=display_code,
-            # .strftime("%a") gives "Mon", "Tue", etc.
             day_of_week=lesson.startDateTime.strftime("%a"), 
             start_time=lesson.startDateTime.strftime("%I:%M %p").lstrip("0"),
             end_time=lesson.endDateTime.strftime("%I:%M %p").lstrip("0"),
@@ -164,7 +163,7 @@ def get_recent_sessions_card(
     now = datetime.now()
     seven_days_ago = now - timedelta(days=7)
 
-    # Query Logic: Count the unique Lesson IDs
+    # Count the unique Lesson IDs
     recent_sessions_count = db.query(func.count(Lesson.lessonID))\
         .join(LecMod, Lesson.lecModID == LecMod.lecModID)\
         .filter(
@@ -178,7 +177,7 @@ def get_recent_sessions_card(
         Recent_sessions_record=recent_sessions_count
     )
 
-# Course Overview Cards
+# Course Overview Card
 @router.get("/lecturer/dashboard/my-courses-overview", response_model=list[courseoverviewcard])
 def get_lecturer_courses_overview(
     user_id: str = Depends(get_current_user_id),
@@ -334,7 +333,7 @@ def get_recent_sessions_log(
                 StudentModules.modulesID == module.moduleID
             ).scalar() or 0
         else:
-            # It's a Tutorial: Expect only members of this specific group
+            # It's a Tutorial: Expect only members of this specific Tutorial group
             expected_count = db.query(func.count(StudentTutorialGroup.sTutorialGroupsID)).filter(
                 StudentTutorialGroup.tutorialGroupID == lesson.tutorialGroupID
             ).scalar() or 0
@@ -368,13 +367,11 @@ def get_view_only_user_profile(
     """
     Fetches all profile data from the merged 'users' table.
     """
-    # The query is simple SELECT * FROM users
     user_record = db.query(User).filter(User.userID == user_id).first()
     
     if not user_record:
         raise HTTPException(status_code=404, detail="User profile not found in database.")
 
-    # Pydantic maps the ORM attributes directly.
     return user_record
 
 @router.put("/lecturer/profile/update", response_model=viewUserProfile)
@@ -393,13 +390,9 @@ def update_user_profile(
     if not user_record:
         raise HTTPException(status_code=404, detail="User profile not found.")
 
-    # Get the non-None values from the Pydantic input model
-    # We use .model_dump(exclude_none=True) to only get fields the user submitted
     update_data = updates.model_dump(exclude_unset=True)
 
-    # Apply the updates to the ORM object
     for key, value in update_data.items():
-        # Use setattr to dynamically update the ORM attribute (e.g., user_record.name = "new name")
         setattr(user_record, key, value)
     
     # Commit and Refresh
@@ -472,9 +465,6 @@ def generate_report(
                 detail=f"No lessons found for module {criteria.module_code} between {criteria.date_from} and {criteria.date_to}. Try a different date range."
             )
 
-    # Fetch Students who are actually supposed to attend the specific lessons being reported
-    # Instead of getting all students in the module, get only students who should attend these specific lessons
-    
     if criteria.tutorial_group_id is not None:
         # If tutorial group is specified, only get students enrolled in that specific tutorial group
         students_query = db.query(Student).join(
@@ -486,9 +476,6 @@ def generate_report(
             StudentTutorialGroup.tutorialGroupID == criteria.tutorial_group_id
         )
     else:
-        # If no tutorial group specified, we need to get students who are enrolled in tutorial groups
-        # that have lessons in our date range, OR students in the module with no tutorial group assignments
-        
         # Get tutorial group IDs that have lessons in our date range
         lesson_tutorial_groups = db.query(Lesson.tutorialGroupID).join(
             LecMod, Lesson.lecModID == LecMod.lecModID
@@ -502,7 +489,6 @@ def generate_report(
         lesson_tutorial_group_ids = [tg[0] for tg in lesson_tutorial_groups if tg[0] is not None]
         
         if lesson_tutorial_group_ids:
-            # Get students enrolled in any of the tutorial groups that have lessons
             students_query = db.query(Student).join(
                 StudentModules, Student.studentID == StudentModules.studentID
             ).join(
@@ -512,8 +498,6 @@ def generate_report(
                 StudentTutorialGroup.tutorialGroupID.in_(lesson_tutorial_group_ids)
             )
         else:
-            # No tutorial groups in lessons, get all students enrolled in the module
-            # This handles cases where lessons don't have specific tutorial groups assigned
             students_query = db.query(Student).join(
                 StudentModules, Student.studentID == StudentModules.studentID
             ).filter(
@@ -522,7 +506,6 @@ def generate_report(
     
     students = students_query.distinct().all()
     
-    # Enhanced validation with more specific error messages
     if not students:
         if criteria.tutorial_group_id is not None:
             # Check if tutorial group exists for this module
@@ -555,8 +538,8 @@ def generate_report(
     df = None
     
     if is_monthly:
-        # Monthly Report: Show all students enrolled in the module (filtered by tutorial group if specified)
-        # Each student row shows their attendance status for each lesson date
+        # Monthly Report: Show all students enrolled in the module 
+        # (filtered by tutorial group if specified)
         data = []
         for stu in students:
             row = {"Student ID": stu.studentNum, "Name": stu.name}
@@ -568,7 +551,7 @@ def generate_report(
                 col_date = lesson.startDateTime.strftime("%d-%b") # "12-Jan"
                 
                 # Check Attendance for this specific student and lesson
-                # Note: We only include students who are enrolled in the module
+                # only include students who are enrolled in the module
                 # If tutorial group is specified, only students in that tutorial group are included
                 att = db.query(AttdCheck).filter_by(studentID=stu.studentID, lessonID=lesson.lessonID).first()
                 ent = db.query(EntLeave).filter_by(studentID=stu.studentID, lessonID=lesson.lessonID).first()
@@ -598,14 +581,13 @@ def generate_report(
         # Filter cols that actually exist in data
         df = df[[c for c in cols if c in df.columns]]
 
-    # --- LOGIC: DAILY (List) ---
     else:
         # Daily Report: Show detailed attendance for a specific day
-        # Only includes students enrolled in the module (filtered by tutorial group if specified)
+        # Only includes students enrolled in the module
         data = []
-        target_lesson, target_tutorial_group_id = lessons[0] # Only 1 day
+        target_lesson, target_tutorial_group_id = lessons[0] 
         
-        # Get tutorial group name
+        
         tutorial_group_name = "N/A"
         if target_tutorial_group_id:
             tutorial_group = db.query(TutorialsGroup).filter(TutorialsGroup.tutorialGroupsID == target_tutorial_group_id).first()
@@ -625,9 +607,6 @@ def generate_report(
                     t_in = ent.detectionTime.strftime("%H:%M")
                     if ent.detectionTime > target_lesson.startDateTime + timedelta(minutes=5):
                         status = "Late"
-                # Note: EntLeave only tracks detection time, not separate exit time
-                # if ent.leave:
-                #     t_out = ent.leave.strftime("%H:%M")
                 t_out = "N/A"  # Exit time not tracked in current schema
 
             # Filter Check
@@ -647,14 +626,14 @@ def generate_report(
             
         df = pd.DataFrame(data)
 
-    # 5. Save CSV to Disk
+    # Save CSV to Disk
     filename = f"{criteria.module_code}_{criteria.report_type}_{criteria.date_from}_{uuid.uuid4().hex[:6]}.csv"
     filepath = os.path.join(UPLOAD_DIR, filename)
     
     # Write CSV
     df.to_csv(filepath, index=False)
 
-    # 6. Save to DB
+    # Save to DB
     new_report = GeneratedReport(
         lecturerID=uuid.UUID(user_id),
         moduleCode=criteria.module_code,
@@ -668,7 +647,7 @@ def generate_report(
     db.commit()
     db.refresh(new_report)
 
-    # 7. Return JSON with ID
+    # Return JSON with ID
     return {
         "status": "success",
         "message": "Report generated successfully",
@@ -689,7 +668,7 @@ def download_generated_report(
     if not report or not os.path.exists(report.filePath):
         raise HTTPException(status_code=404, detail="File not found")
 
-    # CHANGE 3: Media Type for CSV
+    # Media Type for CSV
     return FileResponse(
         path=report.filePath, 
         filename=report.fileName,
@@ -831,12 +810,12 @@ def get_overall_class_attendance_details(
             status=status
         ))
 
-    # 4. Final Calculations
+    # Final Calculations
     total_enrolled = len(all_students)
     calc_attended = calc_present + calc_late
     attendance_rate = (calc_attended / total_enrolled * 100.0) if total_enrolled > 0 else 0.0
 
-    # 5. Build Response
+    # Build Response
     group_suffix = f" (Group {lesson.tutorialGroupID})" if lesson.tutorialGroupID else ""
     
     return OverallClassAttendanceDetails(
@@ -868,42 +847,5 @@ def get_lecturer_modules(
     ).all()
     
     return modules  
-
-
-# @router.get("/lecturer/reports/history", response_model=List[ReportHistoryEntry])
-# def get_lecturer_report_history(
-#     user_id: str = Depends(get_current_user_id),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Fetches all reports generated by the current lecturer, 
-#     sorted by the most recent first.
-#     """
-    
-#     # 1. Query the database
-#     reports = db.query(GeneratedReport)\
-#         .filter(GeneratedReport.lecturerID == user_id)\
-#         .order_by(GeneratedReport.generatedAt.desc())\
-#         .all()
-        
-#     # 2. Format the data for the frontend
-#     results = []
-#     for r in reports:
-#         # Format the datetime object to a string (e.g., "08 Jan 2026")
-#         formatted_date = r.generatedAt.strftime("%d %b %Y")
-        
-#         # Combine Report Type and Filter Status into tags
-#         # Example: ["Daily", "Present"] or ["Monthly", "All"]
-#         display_tags = [r.reportType, r.filterStatus]
-
-#         results.append(ReportHistoryEntry(
-#             id=r.reportID,
-#             title=r.title if r.title else f"{r.moduleCode} Report",
-#             date=formatted_date,
-#             tags=display_tags,
-#             fileName=r.fileName
-#         ))
-
-#     return results
 
 router.include_router(studentDashboardRouter.router, tags=["Student"])

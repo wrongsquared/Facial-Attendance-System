@@ -79,7 +79,7 @@ export default function App() {
     </Router>
   );
 }
-// Custom goals API functions
+
 const updateStudentAttendanceMinimum = async (token: string, userId: string, attendanceMinimum: number) => {
   const response = await fetch(`http://localhost:8000/admin/users/${userId}/attendance-minimum`, {
     method: 'PUT',
@@ -307,16 +307,16 @@ function AppContent() {
     try {
       if (!token) return;
 
-      // 1. Call the API (ensure deleteStudentAttendanceMinimum is imported)
+      // Call the API
       await deleteStudentAttendanceMinimum(token, userId);
 
-      // 2. Clear the local state
+      // Clear the local state
       setUserGoals(prev => ({
         ...prev,
         [userId]: null
       }));
 
-      // 3. Remove metadata
+      // Remove metadata
       setGoalMetadata(prev => {
         const updated = { ...prev };
         delete updated[userId];

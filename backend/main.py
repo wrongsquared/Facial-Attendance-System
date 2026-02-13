@@ -7,7 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, joinedload
 from database.db_config import get_db #Gets the Initialized db session
-from database.db import (InstitutionRegistration, UserProfile, #This was really long so I had to bracket it
+from database.db import (InstitutionRegistration, 
+                         UserProfile, #This was really long so I had to bracket it
                          User, 
                          Lecturer, 
                          Student,
@@ -17,8 +18,7 @@ from database.db import (InstitutionRegistration, UserProfile, #This was really 
                          )
 from dependencies.deps import get_signed_url, check_single_student_risk
 from uuid import UUID
-from schemas import (UserSignUp, #This was really long so I had to bracket it
-                     UserLogin, 
+from schemas import (UserLogin, 
                      TokenResponse)
 
 from dependencies.deps import get_current_user_id
@@ -122,13 +122,12 @@ def delete_user(user_id: UUID, db: Session = Depends(get_db)):
     
 
     # Check if user exists in Public DB
-    # We query the Base 'User' table because it covers Students, Lecturers, etc.
     user_to_delete = db.query(User).filter(User.userID == user_id).first()
     
     if not user_to_delete:
         raise HTTPException(status_code=404, detail="User not found in database")
 
-    # Delete from Public Database (SQLAlchemy)
+    # Delete from Public Database
     try:
         db.delete(user_to_delete)
         db.commit()
@@ -137,20 +136,14 @@ def delete_user(user_id: UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Failed to delete profile: {str(e)}")
 
 
-    # Delete from Supabase Auth (Cloud)
+    # Delete from Supabase Auth
 
     try:
-        # returns an object with 'data' and 'error' (in older versions) 
-        # or simply returns None/Data (in newer versions)
+        # returns an object with 'data' and 'error'or None/Data 
         response = supabase_adm.auth.admin.delete_user(str(user_id))
         
-        # Note: If the user didn't exist in Auth (ghost user), this might throw an error 
-        # or just work silently. We generally assume success if no exception raised.
-        
     except Exception as e:
-        # If Auth deletion fails, we have a problem: 
-        # The profile is gone from DB, but the login remains.
-        # Ideally, you should log this error heavily.
+        
         print(f"CRITICAL: Profile deleted but Auth User {user_id} remains! Error: {e}")
         raise HTTPException(status_code=500, detail="Profile deleted, but Auth account cleanup failed.")
 
@@ -176,7 +169,6 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
             role_name = db_user.profileType.profileTypeName.lower()
 
         if "Student" in role_name:
-            # We wrap in try/except so login doesn't fail if calculation fails
             try:
                 check_single_student_risk(db, user.id)
             except Exception as e:
@@ -188,8 +180,6 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
         # Supabase throws an exception if password is wrong or email not confirmed
         raise HTTPException(status_code=401, detail=str(e))
 
-
-
     # Query the 'users' table to get the profileTypeID
     result = (
         db.query(User, UserProfile)
@@ -199,8 +189,6 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
     )
 
     if not result:
-        # This handles cases where the user exists in Auth but not DB, 
-        # OR if the data integrity is broken (e.g. User exists but has no linked Campus)
         raise HTTPException(status_code=404, detail="User profile or campus data incomplete.")
 
     # Unpack the results
@@ -221,9 +209,7 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
         # Query the Admin table
         admin_row = db.query(Admin).filter(Admin.adminID == user_uuid).first()
         if admin_row:
-            # Get the specific 'role' column (e.g., "System Administrator")
             admin_role = admin_row.role 
-    # Return the Bundle
 
     return {
         "access_token": session.access_token,
@@ -233,9 +219,6 @@ def login(credentials:UserLogin, db:Session = Depends(get_db)):
         "role_id": db_profile.profileTypeID,
         "role_name": db_profile.profileTypeName,
         "name": db_user.name,
-        # "campus_id": db_campus.campusID,
-        # "campus_name": db_campus.campusName,
-        # "university_name": db_uni.universityName,
         "photo": signed_photo,
         "studentNum": studentNums,
         "specialistIn": specialistIns,
@@ -306,21 +289,19 @@ def delete_user(user_id: str, current_user: str = Depends(get_current_user_id), 
         raise HTTPException(status_code=404, detail="User not found")
 
     try:
-        # delete the User (This will cascade to the 'students' table automatically)
+        # delete the User (This will cascade to the 'students' table)
         db.delete(user_to_delete)
         db.commit()
 
     except Exception as e:
         db.rollback()
-        print(f"DB Delete Failed: {e}") # Check your VS Code Terminal for the real error!
+        print(f"DB Delete Failed: {e}") 
         raise HTTPException(status_code=500, detail="Database constraint violation. See logs.")
     #  Delete from Supabase Auth (Cloud) LAST
     try:
         supabase_adm.auth.admin.delete_user(user_id)
     except Exception as e:
         print(f"Warning: Failed to delete auth user {user_id}: {e}")
-        # We don't raise an error here because the DB part succeeded, 
-        # so the user is effectively gone from the app.
     return None
 
 

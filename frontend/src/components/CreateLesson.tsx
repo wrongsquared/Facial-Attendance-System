@@ -94,7 +94,6 @@ export function CreateLesson({
     fetchData();
   }, [token]);
 
-  // Fetch tutorial groups when module is selected
   useEffect(() => {
     const fetchTutorialGroups = async () => {
       if (formData.moduleCode && token) {

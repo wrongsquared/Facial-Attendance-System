@@ -328,7 +328,6 @@ export function LecturerTimetable({
                   {loading ? (
                     <div className="text-center py-8 text-gray-500">Loading timetable...</div>
                   ) : dailyLessons.length === 0 ? (
-                    /* --- THIS IS THE NEW NO CLASS MESSAGE --- */
                     <div className="flex flex-col items-center justify-center p-8 border rounded-lg bg-gray-50 text-center">
                       <Calendar className="h-10 w-10 text-gray-300 mb-2" />
                       <p className="text-gray-600 font-medium">No classes scheduled for today.</p>
@@ -384,11 +383,8 @@ export function LecturerTimetable({
                   {getWeekDates().map((date) => {
                     //Get Day Name strings
                     const dayAbbreviation = date.toLocaleDateString('en-US', { weekday: 'short' });
-
-                    // FILTER: Find lessons specific to THIS date in the loop
                     // We compare YYYY-MM-DD strings to avoid Timezone issues
                     const dayLessons = weeklyLessons.filter((l) => {
-                      // API string: "2025-12-30T09:00:00" -> "2025-12-30"
                       const currentDayNum = date.getDate();
                       const apiDayNum = parseInt(l.date_of_day, 10);
                       return currentDayNum === apiDayNum;
@@ -507,7 +503,6 @@ export function LecturerTimetable({
                       const { date, isCurrentMonth } = cell;
 
                       // Format the Cell Date to "YYYY-MM-DD"
-                      // We construct this manually to match the API string exactly
                       const year = date.getFullYear();
                       const month = String(date.getMonth() + 1).padStart(2, '0');
                       const day = String(date.getDate()).padStart(2, '0');
@@ -520,9 +515,7 @@ export function LecturerTimetable({
                       return (
                         <div
                           key={cellDateStr}
-                          // 1. Add the click handler here
                           onClick={() => handleJumpToDaily(date)}
-                          // 2. Add cursor-pointer and hover effects
                           className="flex flex-col items-center gap-1 min-h-[60px] cursor-pointer hover:bg-gray-100 rounded-lg transition-colors p-1"
                         >
                           <span

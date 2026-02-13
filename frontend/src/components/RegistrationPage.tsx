@@ -230,7 +230,7 @@ export function RegistrationPage() {
 
           <form
             onSubmit={handleRegister}
-            className="flex flex-col gap-12" // Added gap-12 to space out the major sections
+            className="flex flex-col gap-12"
             autoComplete="on"
             style={{
               backgroundColor: 'black',
@@ -240,11 +240,6 @@ export function RegistrationPage() {
               borderRadius: '8px'
             }}
           >
-            {/* 
-               Since Institution Details is commented out, I removed the 
-               grid-cols-2 here so Administrator Details takes full width. 
-               If you uncomment Institution Details later, add 'md:grid-cols-2' back.
-            */}
             <div className="grid grid-cols-1 gap-12">
 
               {/* Administrator Details */}
@@ -310,10 +305,9 @@ export function RegistrationPage() {
                 Account Security
               </h2>
 
-              {/* GRID FIX: This container now holds two separate divs side-by-side */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12">
 
-                {/* Column 1: Password */}
+                {/* Password */}
                 <div>
                   <Label htmlFor="password" className="text-white mb-2 block">
                     Password
@@ -338,8 +332,7 @@ export function RegistrationPage() {
                   </div>
                 </div>
 
-                {/* Column 2: Confirm Password */}
-                {/* Moved OUT of the previous div so it sits in the second column */}
+                {/* Confirm Password */}
                 <div>
                   <Label htmlFor="confirmPassword" className="text-white mb-2 block">
                     Confirm Password
@@ -348,7 +341,6 @@ export function RegistrationPage() {
                     <Input
                       id="confirmPassword"
                       name="confirmPassword"
-                      // SYNTAX FIX: Changed from literal "password" to conditional type
                       type={showConfirmPassword ? "text" : "password"}
                       value={formData.confirmPassword}
                       onChange={handleChange}
@@ -436,7 +428,6 @@ export function RegistrationPage() {
                 Your payment information is encrypted and secure. We use industry-standard security measures to protect your data.
               </p>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                {/* ... */}
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                 {/* Card Details */}

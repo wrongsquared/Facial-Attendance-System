@@ -87,7 +87,7 @@ export function LecturerAttendanceRecords({
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-      setCurrentPage(1); // Important: Reset to Page 1 when searching
+      setCurrentPage(1); // Reset to Page 1 when searching
     }, 500);
 
     return () => clearTimeout(timer);
@@ -114,7 +114,6 @@ export function LecturerAttendanceRecords({
         let dateStr = "";
         if (selectedDate) {
           // Ensure local date string matches API expectation
-          // Trick: use the 'en-CA' locale to get YYYY-MM-DD
           dateStr = selectedDate.toLocaleDateString("en-CA");
         }
 
@@ -278,8 +277,8 @@ export function LecturerAttendanceRecords({
                             onClick={() => {
                               const detailedRecord = {
                                 ...record,
-                                cameraLocation: record.location, // Mock or from API
-                                timestamp: record.timestamp,              // Mock
+                                cameraLocation: record.location, 
+                                timestamp: record.timestamp, 
                               };
                               setSelectedRecord(detailedRecord);
                               setIsDialogOpen(true);

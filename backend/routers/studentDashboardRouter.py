@@ -4,12 +4,11 @@ from sqlalchemy import and_, func, case, desc, or_, distinct
 from datetime import datetime, timedelta
 from database.db_config import get_db
 from dependencies.deps import get_current_user_id
-from schemas import( StudentLessons, 
-                            TodaysLessons, 
-                            OverallLessonsResponse,
-                            AttendancePerModule, 
-                            PreviousAttendances, 
-                            WeeklyLesson)
+from schemas import(TodaysLessons, 
+                    OverallLessonsResponse,
+                    AttendancePerModule, 
+                    PreviousAttendances, 
+                    WeeklyLesson)
 from database.db import  Lesson, Module,  StudentModules, LecMod, AttdCheck, StudentTutorialGroup
 
 
@@ -263,7 +262,7 @@ def get_weekly_timetable(
             "start_time": lesson.startDateTime,
             "end_time": lesson.endDateTime,
             "location": loc_string,
-            "is_attended": attd_id is not None # Added for UI utility
+            "is_attended": attd_id is not None 
         })
 
     return output

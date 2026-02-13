@@ -98,7 +98,6 @@ export function StudentProfile({
   const [enrolError, setEnrolError] = useState<string | null>(null);
   const timerRef = useRef<number | null>(null);
 
-  // Mock face images - in a real app, these would be fetched from the backend
   const faceImages = [
     { id: 1, label: "Front View" },
     { id: 2, label: "Left Profile" },
@@ -132,8 +131,6 @@ export function StudentProfile({
     return `${safeName}_${id}`;
   }, [formData.name, formData.studentNum]);
 
-  // Validation function
-  // Function to fetch biometric enrollment status
   const fetchBiometricStatus = async (studentNum: string) => {
     if (!studentNum) return;
 
@@ -947,7 +944,7 @@ export function StudentProfile({
           <DialogHeader>
             <DialogTitle className="text-2xl">Update Biometric Profile</DialogTitle>
             <DialogDescription asChild>
-              <div> {/* This is the SINGLE child React is looking for */}
+              <div>
                 Capture 200 guided frames and upload them to the backend.
                 <div className="mt-2 text-xs text-gray-500">
                   Enrolment label: <code>{studentLabel}</code>
@@ -1120,7 +1117,6 @@ export function StudentProfile({
                       throw new Error('Failed to delete biometric profile');
                     }
                   } else {
-                    // Fallback for mock delete
                     setIsBiometricEnrolled(false);
                     setBiometricImageUrl(null);
                     setBiometricPreviewImage(null);
@@ -1217,7 +1213,7 @@ export function StudentProfile({
           <DialogHeader>
             <DialogTitle className="text-2xl">Enroll Biometric Profile</DialogTitle>
             <DialogDescription asChild>
-              <div> {/* This is the SINGLE child React is looking for */}
+              <div> 
                 Capture 200 guided frames and upload them to the backend.
                 <div className="mt-2 text-xs text-gray-500">
                   Enrolment label: <code>{studentLabel}</code>
@@ -1339,7 +1335,6 @@ export function StudentProfile({
               <Button
                 className="bg-blue-600 text-white hover:bg-blue-700"
                 onClick={async () => {
-                  // After successful enrollment, refresh status from backend
                   if (formData.studentNum) {
                     await fetchBiometricStatus(formData.studentNum);
                   }

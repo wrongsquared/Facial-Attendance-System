@@ -30,28 +30,6 @@ interface AttendanceReportsProps {
   onBack: () => void;
   onNavigateToProfile: () => void;
 }
-const days = Array.from({ length: 31 }, (_, i) =>
-  (i + 1).toString(),
-);
-
-const months = [
-  { value: "01", label: "January" },
-  { value: "02", label: "February" },
-  { value: "03", label: "March" },
-  { value: "04", label: "April" },
-  { value: "05", label: "May" },
-  { value: "06", label: "June" },
-  { value: "07", label: "July" },
-  { value: "08", label: "August" },
-  { value: "09", label: "September" },
-  { value: "10", label: "October" },
-  { value: "11", label: "November" },
-  { value: "12", label: "December" },
-];
-
-const years = Array.from({ length: 6 }, (_, i) =>
-  (2024 + i).toString(),
-);
 
 interface Module {
   moduleID: string;
@@ -77,7 +55,6 @@ const buildDateString = (
   return `${year}-${month}-${paddedDay}`;
 };
 
-// NEW: format for display as dd/mm/yyyy
 const formatDisplayDate = (dateString: string) => {
   if (!dateString) return "";
   const [year, month, day] = dateString.split("-");
@@ -94,7 +71,7 @@ export function AttendanceReports({
     "Daily" | "Monthly"
   >("Daily");
 
-  // Use date strings for calendar inputs
+
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -219,12 +196,10 @@ export function AttendanceReports({
     }
   }
 
-  // Add this inside your component, before the return statement
   const handleDownloadFromList = async (reportID: number, fileName: string) => {
     if (!token) return;
 
     try {
-      // 1. Fetch the file blob from the API
       const res = await fetch(`${API_URL}/lecturer/reports/download/${reportID}`, {
         method: "GET",
         headers: {
@@ -234,18 +209,18 @@ export function AttendanceReports({
 
       if (!res.ok) throw new Error("Download failed");
 
-      // 2. Convert to Blob
+      // Convert to Blob
       const blob = await res.blob();
 
-      // 3. Create a temporary invisible link to trigger the browser download
+      // Create a temporary invisible link to trigger the browser download
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = fileName; // Uses the filename saved in the database
+      a.download = fileName; 
       document.body.appendChild(a);
       a.click();
 
-      // 4. Cleanup
+      // Cleanup
       a.remove();
       window.URL.revokeObjectURL(url);
 
@@ -255,8 +230,6 @@ export function AttendanceReports({
     }
   };
 
-  const dailyActive = reportType === "Daily";
-  const monthlyActive = reportType === "Monthly";
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -379,15 +352,6 @@ export function AttendanceReports({
                             {mod.moduleCode} - {mod.moduleName}
                           </SelectItem>
                         ))}
-                        {/* <SelectItem value="csci334">
-                          CSCI334 - Database Systems
-                        </SelectItem>
-                        <SelectItem value="csci203">
-                          CSCI203 - Algorithms
-                        </SelectItem>
-                        <SelectItem value="all">
-                          All Modules
-                        </SelectItem> */}
                       </SelectContent>
                     </Select>
                   </div>
@@ -528,13 +492,11 @@ export function AttendanceReports({
                     <Button
                       variant="ghost"
                       size="sm"
-                      // Call the function with the specific Report ID and Filename
                       onClick={() => handleDownloadFromList(report.id, report.fileName)}
                     >
                       <Download className="h-4 w-4 mr-2" />
                       Download
                     </Button>
-                    {/* -------------------------- */}
 
                   </div>
                 ))

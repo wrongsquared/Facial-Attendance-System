@@ -98,7 +98,6 @@ export function ManageUserAccounts({
     fetchData();
   }, [token, debouncedSearch, roleFilter, statusFilter]);
 
-  // Filter users based on search and filters (client-side filtering for pagination)
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       user.uuid.toLowerCase().includes(debouncedSearch.toLowerCase()) ||

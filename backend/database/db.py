@@ -46,8 +46,6 @@ class University(Base):
     subscriptionDate: Mapped[datetime.datetime] = mapped_column( 
         server_default=func.now() # Automatically set the date on creation
     )
-
-    # --- ADD THIS NEW STATUS FIELD ---
     isActive: Mapped[bool] = mapped_column(server_default=text("true")) # Active (true) or Inactive (false )
 
     #Has Campuses
@@ -178,7 +176,7 @@ class EntLeave(Base): # Camera marks time student is detected
 
     detectionTime: Mapped[datetime.datetime]
 
-class AttdCheck(Base): # Backend checks an AttdCheck variable based on an EntLeave variable, to mark student presence
+class AttdCheck(Base):
     __tablename__ = "attdcheck"
     AttdCheckID: Mapped[int]= mapped_column(primary_key=True)
     lessonID: Mapped[int] = mapped_column(ForeignKey("lessons.lessonID"))
@@ -186,7 +184,7 @@ class AttdCheck(Base): # Backend checks an AttdCheck variable based on an EntLea
     studentID: Mapped[uuid.UUID] = mapped_column(ForeignKey("students.studentID"))
     student: Mapped[Student] = relationship(back_populates="attdcheck")
     remarks: Mapped[str|None]
-    # Values: 'Present', 'Late', 'Excused', 'Absent'
+
     status: Mapped[str] = mapped_column(String(20), default='Present')
     firstDetection: Mapped[datetime.datetime | None] # First Time detected
     lastDetection: Mapped[datetime.datetime | None]  # Last Time detected

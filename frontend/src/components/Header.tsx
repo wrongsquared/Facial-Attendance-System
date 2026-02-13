@@ -1,6 +1,5 @@
 import { Button } from './ui/button';
 import logoImage from "../assets/Logo.png";
-import { MouseEvent } from 'react';
 import { Link, useNavigate } from "react-router-dom";
 
 export function Header() {

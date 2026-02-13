@@ -219,7 +219,7 @@ export function UpdateAdminProfile({
               </CardContent>
             </Card>
 
-            {/* Action Buttons - Cancel and Save Changes in the middle */}
+            {/* Action Buttons */}
             <div className="flex justify-center items-center gap-4 pt-4">
               <Button variant="outline" onClick={onBack} size="lg">
                 Cancel

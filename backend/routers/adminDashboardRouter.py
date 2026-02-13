@@ -59,8 +59,7 @@ def get_admin_dashboard_stats(
         .scalar()
     ) or 0
 
-    # 4. Overall Attendance Rate (Numerator: Actual sessions)
-    # We count attendance checks for the same criteria as above
+    # Overall Attendance Rate (Numerator: Actual sessions)
     total_records = (
         db.query(func.count(AttdCheck.AttdCheckID))
         .join(Student, AttdCheck.studentID == Student.studentID)
@@ -76,8 +75,7 @@ def get_admin_dashboard_stats(
     if total_possible_slots > 0:
         attendance_rate = round((min(total_records, total_possible_slots) / total_possible_slots) * 100, 1)
 
-    # 5. Monthly Trend Calculation (Optional but recommended for Admins)
-    # Total expected this month
+    # Monthly Trend Calculation 
     possible_this_month = (
         db.query(func.count(Lesson.lessonID))
         .join(LecMod, Lesson.lecModID == LecMod.lecModID)
@@ -118,26 +116,22 @@ def get_admin_dashboard_stats(
     return {
         "overall_attendance_rate": attendance_rate,
         "total_active_users": total_users,
-        "monthly_attendance_rate": monthly_rate # Now actually returning the monthly trend
+        "monthly_attendance_rate": monthly_rate
     }
 @router.get("/admin/courses/attention", response_model=list[CourseAttentionItem])
 def get_courses_requiring_attention(
     current_user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    # 1. Verify Admin and Get Campus
+    # Verify Admin and Get Campus
     current_admin = db.query(Admin).filter(Admin.adminID == current_user_id).first()
     if not current_admin:
         raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
     my_campus_id = current_admin.campusID
-    
     now = datetime.now()
-
-    # --- FIX: Create an Alias for the User table to avoid duplicate alias error ---
     LecUser = aliased(User)
 
-    # 2. Get all Modules at this Campus with their Lecturer Names
-    # Modified to get the lecturer with the most lessons for each module to avoid random selection
+    # Get all Modules at this Campus with their Lecturer Names
     modules_query = (
         db.query(
             Module.moduleID,
@@ -184,9 +178,6 @@ def get_courses_requiring_attention(
             modules_dict[module_id] = (module_obj, lecturer_name)
     
     for mod, lecturer_name in modules_dict.values():
-        
-        # 3. CALCULATE TRUE CAPACITY (The precise Denominator)
-        # We only count classes for the student's assigned group
         total_expected = (
             db.query(func.count(Lesson.lessonID))
             .join(LecMod, Lesson.lecModID == LecMod.lecModID)
@@ -206,7 +197,6 @@ def get_courses_requiring_attention(
         if total_expected == 0:
             continue
 
-        # 4. CALCULATE ACTUAL ATTENDANCE (The precise Numerator)
         actual_attended = (
             db.query(func.count(AttdCheck.AttdCheckID))
             .join(Lesson, AttdCheck.lessonID == Lesson.lessonID)
@@ -218,11 +208,9 @@ def get_courses_requiring_attention(
             .scalar()
         ) or 0
 
-        # 5. Calculate Final Rate
         rate = round((min(actual_attended, total_expected) / total_expected) * 100)
 
-        # 6. Get lesson types and tutorial groups for this module
-        # Get the most common lesson type for this module with low attendance
+        # Get lesson types and tutorial groups for this module
         lesson_with_attendance_result = (
             db.query(
                 Lesson.lessontype,
@@ -262,12 +250,12 @@ def get_courses_requiring_attention(
                 .scalar() or 0
             )
         else:
-            # For lessons without tutorial groups (e.g., lectures), count all students in the module
+            # For lectures count all students in the module
             student_count = db.query(func.count(StudentModules.studentModulesID)).filter(
                 StudentModules.modulesID == mod.moduleID
             ).scalar() or 0
 
-        # 7. Filter for modules below 80% - ensure each module-lecturer combination appears only once
+        # Filter for modules below 80%
         if rate < 80:
             # Check if module-lecturer combination already exists in results
             existing_entry = next((item for item in results if item["module_code"] == mod.moduleCode and item["lecturer_name"] == lecturer_name), None)
@@ -831,19 +819,11 @@ def get_report_history(
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
-    """
-    Fetches reports generated ONLY by the current logged-in user (Admin/Manager).
-    Matches Frontend expectation: [{id, title, date, tags, fileName}]
-    """
-    
-    # Cast current_user_id to UUID if your DB stores it as UUID type
-    # (SQLAlchemy usually handles string-to-uuid conversion automatically, 
-    # but strictly speaking, it should match the column type).
+
     user_uuid = uuid.UUID(current_user_id)
 
     reports = (
         db.query(GeneratedReport)
-        # Filter: strictly match the creator ID to the logged-in user
         .filter(GeneratedReport.lecturerID == user_uuid) 
         .order_by(GeneratedReport.generatedAt.desc())
         .limit(10)
@@ -872,15 +852,12 @@ def generate_report(
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
-    # 1. Setup
     user_uuid = uuid.UUID(current_user_id)
     
-    # SECURITY: Get admin's campus to filter reports to their campus only
     current_admin = db.query(Admin).filter(Admin.userID == user_uuid).first()
     if not current_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    # Calculate Sequential Number
     existing_count = db.query(func.count(GeneratedReport.reportID))\
         .filter(GeneratedReport.lecturerID == user_uuid)\
         .filter(GeneratedReport.reportType == req.report_type)\
@@ -888,22 +865,18 @@ def generate_report(
     next_number = existing_count + 1
     new_report_title = f"{req.report_type} - Report {next_number}"
 
-    # Prepare Path (Using the global REPORT_DIR)
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     safe_mod = req.course_id.replace(" ", "_")
     safe_type = req.report_type.replace(" ", "_")
     filename = f"Report_{safe_type}_{safe_mod}_{timestamp}.csv"
     
-    # !!! IMPORTANT: Use the global variable defined at the top
     filepath = os.path.join(REPORT_DIR, filename)
 
     csv_data = []
 
-    # 2. Logic: Module Performance
     if req.report_type == "Module Performance":
         csv_data.append(["Date", "Module Code", "Lecturer", "Lesson Type", "Total Students", "Present", "Attendance Rate (%)"])
         
-        # SECURITY: Filter lessons to only include those from lecturers in the admin's campus
         query = db.query(Lesson)\
             .join(LecMod)\
             .join(Lecturer, LecMod.lecturerID == Lecturer.userID)\
@@ -928,11 +901,9 @@ def generate_report(
                 total_students, present_count, f"{rate}%"
             ])
 
-    # 3. Logic: Low Attendance
     elif req.report_type == "Low Attendance Rate":
         csv_data.append(["Student ID", "Student Name", "Module Code", "Total Lessons", "Attended", "Attendance Rate (%)", "Status"])
 
-        # SECURITY: Filter enrollments to only include students from the admin's campus
         enrollment_query = db.query(Student, Module)\
             .join(StudentModules, Student.studentID == StudentModules.studentID)\
             .join(Module, StudentModules.modulesID == Module.moduleID)\
@@ -944,7 +915,7 @@ def generate_report(
         enrollments = enrollment_query.all()
 
         for student, module in enrollments:
-            # SECURITY: Count lessons only from lecturers in the same campus
+            # Count total lessons only from lecturers in the same campus
             total_lessons = db.query(func.count(Lesson.lessonID))\
                 .join(LecMod)\
                 .join(Lecturer, LecMod.lecturerID == Lecturer.userID)\
@@ -956,7 +927,7 @@ def generate_report(
             
             if total_lessons == 0: continue
 
-            # SECURITY: Count attended lessons only from lecturers in the same campus
+            # Count attended lessons only from lecturers in the same campus
             attended_count = db.query(func.count(AttdCheck.AttdCheckID))\
                 .join(Lesson)\
                 .join(LecMod)\
@@ -971,17 +942,13 @@ def generate_report(
 
             rate = (attended_count / total_lessons) * 100
             
-            # Only include students with low attendance (75% and below)
+            # Only include students with low attendance 
             if rate <= 75:
                 status = "Critical" if rate < 50 else "Warning"
                 csv_data.append([
                     student.studentNum, student.name, module.moduleCode,
                     total_lessons, attended_count, f"{round(rate, 1)}%", status
                 ])
-
-    # ---------------------------------------------------------
-    # 4. WRITE FILE TO DISK (This was missing!)
-    # ---------------------------------------------------------
     try:
         with open(filepath, mode='w', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
@@ -992,7 +959,7 @@ def generate_report(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to write file to disk: {str(e)}")
 
-    # 5. Save Record
+    # Save Record
     new_report = GeneratedReport(
         lecturerID=user_uuid,
         title=new_report_title,
@@ -1016,13 +983,13 @@ def download_report(
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
-    # SECURITY: Verify admin access and get admin's campus
+    # Verify admin access and get admin's campus
     user_uuid = uuid.UUID(current_user_id)
     current_admin = db.query(Admin).filter(Admin.userID == user_uuid).first()
     if not current_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    # SECURITY: Only allow downloading reports created by current admin
+    # Only allow downloading reports created by current admin
     report = db.query(GeneratedReport).filter(
         GeneratedReport.reportID == reportID,
         GeneratedReport.lecturerID == user_uuid  # Ensure report belongs to this admin
@@ -1224,7 +1191,7 @@ def get_all_lessons_for_admin(
                 .all()
             )
             
-            # Step 2: Add Module join
+            # Module join
             lessons_with_module = (
                 db.query(Lesson, LecMod, Module)
                 .join(LecMod, Lesson.lecModID == LecMod.lecModID)
@@ -1233,7 +1200,7 @@ def get_all_lessons_for_admin(
                 .all()
             )
             
-            # Step 3: Add Lecturer join
+            # Lecturer join
             lessons_with_lecturer = (
                 db.query(Lesson, LecMod, Module, Lecturer)
                 .join(LecMod, Lesson.lecModID == LecMod.lecModID)
@@ -1244,8 +1211,6 @@ def get_all_lessons_for_admin(
             )
             
             try:
-                # Since Lecturer inherits from User, we can directly access User fields from Lecturer
-                # Build query with campus filter
                 query = (
                     db.query(Lesson, LecMod, Module, Lecturer)
                     .join(LecMod, Lesson.lecModID == LecMod.lecModID)
@@ -1292,7 +1257,7 @@ def get_all_lessons_for_admin(
                         "endDateTime": lesson.endDateTime.isoformat() if lesson.endDateTime else None,
                         "building": lesson.building or "",
                         "room": lesson.room or "",
-                        "lecturerName": lecturer.name or "Unknown"  # Direct access since Lecturer inherits from User
+                        "lecturerName": lecturer.name or "Unknown"  
                     })
                 return result
             else:
@@ -1323,22 +1288,18 @@ def create_lesson(
     import uuid
     
     try:
-        # Convert user_id string to UUID for comparison
         user_uuid = uuid.UUID(user_id)
         
-        # Get current admin's campus
         current_admin = db.query(Admin).filter(Admin.adminID == user_uuid).first()
         if not current_admin:
             raise HTTPException(status_code=403, detail="Access restricted to Campus Admins")
         
         admin_campus_id = current_admin.campusID
         
-        # Find the module and verify it exists
         module = db.query(Module).filter(Module.moduleCode == lesson_data["moduleCode"]).first()
         if not module:
             raise HTTPException(status_code=404, detail="Module not found")
         
-        # Find the lecturer and verify they belong to admin's campus
         lecturer_uuid = uuid.UUID(lesson_data["lecturerID"])
         lecturer = (
             db.query(Lecturer)
@@ -1351,8 +1312,6 @@ def create_lesson(
         
         if not lecturer:
             raise HTTPException(status_code=404, detail="Lecturer not found or access denied for your campus")
-        
-        # Find or create LecMod entry for this lecturer-module combination
         lecmod = (
             db.query(LecMod)
             .filter(
@@ -1372,32 +1331,24 @@ def create_lesson(
             db.commit()
             db.refresh(lecmod)
         
-        # Validate required fields
         if not lesson_data.get("startDateTime") or not lesson_data.get("endDateTime"):
             raise HTTPException(status_code=400, detail="Start date/time and end date/time are required")
         
-        # Create the lesson
         tutorial_group_id = None
         if lesson_data.get("tutorialGroupID"):
             try:
                 tutorial_group_id = int(lesson_data["tutorialGroupID"])
                 
-                # Debug: Check what tutorial groups exist for this module
-                print(f"Looking for tutorial group {tutorial_group_id}")
-                print(f"Current lecModID: {lecmod.lecModID}")
-                
-                # Check all tutorial groups for this module
+
                 all_module_groups = (
                     db.query(TutorialsGroup)
                     .join(LecMod, TutorialsGroup.lecModID == LecMod.lecModID)
                     .filter(LecMod.moduleID == module.moduleID)
                     .all()
                 )
-                print(f"All tutorial groups for module {module.moduleCode}:")
                 for group in all_module_groups:
                     print(f"  Group ID: {group.tutorialGroupsID}, Name: {group.groupName}, LecModID: {group.lecModID}")
                 
-                # Find tutorial group for this module (any lecmod for this module)
                 tutorial_group = (
                     db.query(TutorialsGroup)
                     .join(LecMod, TutorialsGroup.lecModID == LecMod.lecModID)

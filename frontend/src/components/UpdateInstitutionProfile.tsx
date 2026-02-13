@@ -103,7 +103,7 @@ export function UpdateInstitutionProfile({
     return !newErrors.campusName && !newErrors.campusAddress;
   };
 
-  // 1. Fetch current data to populate the form
+  // Fetch current data to populate the form
   useEffect(() => {
     if (!token || !institutionData.institutionId) return;
     const fetchCurrentDetails = async () => {
@@ -139,7 +139,7 @@ export function UpdateInstitutionProfile({
     fetchCurrentDetails();
   }, [token, institutionData.institutionId]);
 
-  // 2. Handle Update Submission
+  // Handle Update Submission
   const handleUpdateSubmit = async () => {
     // Validate form before submission
     if (!validateForm()) {
@@ -215,7 +215,6 @@ export function UpdateInstitutionProfile({
                     value={editForm.campusName}
                     onChange={(e) => {
                       setEditForm({ ...editForm, campusName: e.target.value });
-                      // Clear error when user starts typing
                       if (errors.campusName) {
                         setErrors({ ...errors, campusName: "" });
                       }
@@ -245,7 +244,6 @@ export function UpdateInstitutionProfile({
                   value={editForm.campusAddress}
                   onChange={(e) => {
                     setEditForm({ ...editForm, campusAddress: e.target.value });
-                    // Clear error when user starts typing
                     if (errors.campusAddress) {
                       setErrors({ ...errors, campusAddress: "" });
                     }

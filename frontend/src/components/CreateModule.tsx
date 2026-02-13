@@ -69,7 +69,6 @@ export function CreateModule({
     tutorialGroupsCount: 1,
     lecturerIDs: [] as string[],
     courseIDs: [] as number[],
-    // tutorialGroupsCount: 3
   });
 
   const [lecturers, setLecturers] = useState<LecturerData[]>([]);

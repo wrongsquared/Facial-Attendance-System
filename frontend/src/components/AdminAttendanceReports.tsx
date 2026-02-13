@@ -232,7 +232,7 @@ export function AdminAttendanceReports({
               </CardHeader>
               <CardContent className="space-y-6">
 
-                {/* 1. Report Type Buttons (Large Toggle Style) */}
+                {/* Report Type Buttons (Large Toggle Style) */}
                 <div className="space-y-3">
                   <Label>Report Type</Label>
                   <div className="flex gap-3">
@@ -264,7 +264,7 @@ export function AdminAttendanceReports({
                   </div>
                 </div>
 
-                {/* 2. Date Range */}
+                {/* Date Range */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="fromDate">From:</Label>
@@ -276,7 +276,7 @@ export function AdminAttendanceReports({
                   </div>
                 </div>
 
-                {/* 3. Scope / Module */}
+                {/* Scope / Module */}
                 <div className="space-y-2">
                   <Label htmlFor="moduleScope">Scope</Label>
                   <Select value={selectedModule} onValueChange={setSelectedModule}>
@@ -294,7 +294,7 @@ export function AdminAttendanceReports({
                   </Select>
                 </div>
 
-                {/* 4. Generate Button */}
+                {/* Generate Button */}
                 <Button
                   className="w-full h-12 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 disabled:text-gray-100"
                   onClick={handleGenerateReport}

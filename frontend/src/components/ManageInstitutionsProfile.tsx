@@ -69,7 +69,6 @@ export function ManageInstitutionsProfile({
 }: ManageInstitutionsProfileProps) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  // CHANGED: Initialized to empty string to allow placeholder to show
   const [sortOption, setSortOption] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [institutions, setInstitutions] = useState<InstitutionData[]>([]);
@@ -100,7 +99,6 @@ export function ManageInstitutionsProfile({
     fetchAllInstitutions();
   }, [token]);
 
-  // Reset to first page when search or filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, sortOption]);
@@ -123,7 +121,6 @@ export function ManageInstitutionsProfile({
       return matchesSearch;
     })
     .sort((a, b) => {
-      // If no sort option is selected, sort by ID (default)
       if (!sortOption) {
         return a.campusID - b.campusID;
       }

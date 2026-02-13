@@ -26,7 +26,6 @@ import { NotificationAlerts } from "./NotificationAlerts";
 import { useEffect, useState } from "react";
 
 interface NavbarProps {
-  // Optional: If you want to override the title manually
   title: string;
   onNavigateToProfile?: () => void;
   onOpenNotifications?: () => void;
@@ -37,13 +36,13 @@ export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: Navb
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
 
-  // Debug user photo
+
   useEffect(() => {
     if (user) {
     }
   }, [user?.photo]);
   const getPortalTitle = () => {
-    if (title) return title; // Use override if provided
+    if (title) return title; 
     if (!user) return "Portal";
 
     const role = user.role_name.charAt(0).toUpperCase() + user.role_name.slice(1);

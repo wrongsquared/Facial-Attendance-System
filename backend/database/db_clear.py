@@ -27,7 +27,6 @@ def clear_db(db: Session, spbse: Client):
                 if files:
                     file_names = [f['name'] for f in files if f['name'] != '.emptyFolderPlaceholder']
                     if file_names:
-                        # FIXED: Use the same bucket_name variable to avoid singular/plural typos
                         spbse.storage.from_(bucket_name).remove(file_names)
                         print(f"Deleted {len(file_names)} top-level items from '{bucket_name}'.")
                 else:
@@ -50,7 +49,6 @@ def clear_db(db: Session, spbse: Client):
         print(f"CRITICAL ERROR: {e}")
         db.rollback()
     finally:
-        # re-enable foreign key constraints
         db.execute(text("SET session_replication_role = 'origin';"))
         print("\n--- Database Reset Complete ---")
 
