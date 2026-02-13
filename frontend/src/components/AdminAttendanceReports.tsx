@@ -162,8 +162,6 @@ export function AdminAttendanceReports({
 
   // 4. Generate Logic
   const handleGenerateReport = async () => {
-
-
     try {
       const payload = {
         report_type: reportType,
@@ -172,9 +170,7 @@ export function AdminAttendanceReports({
         course_id: selectedModule
       };
 
-
-
-      const res = await fetch("http://localhost:8000/admin/reports/generate", {
+      const res = await fetch(`${API_URL}/admin/reports/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
