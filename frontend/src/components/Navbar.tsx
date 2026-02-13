@@ -71,8 +71,8 @@ export function Navbar({ title, onNavigateToProfile, onOpenNotifications }: Navb
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
   const getInitials = () => {
-    if (!user?.role_name) return "U";
-    return user.role_name.substring(0, 2).toUpperCase();
+    if (!user?.name) return "U";
+    return user.name.substring(0, 2).toUpperCase();
   };
   const getUserSubtitle = () => {
     if (!user) return "Guest";
