@@ -71,7 +71,7 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
 
   return <>{children}</>;
 };
-
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export default function App() {
   return (
     <Router>
@@ -81,7 +81,7 @@ export default function App() {
 }
 
 const updateStudentAttendanceMinimum = async (token: string, userId: string, attendanceMinimum: number) => {
-  const response = await fetch(`http://localhost:8000/admin/users/${userId}/attendance-minimum`, {
+  const response = await fetch(`${API_URL}/admin/users/${userId}/attendance-minimum`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -96,7 +96,7 @@ const updateStudentAttendanceMinimum = async (token: string, userId: string, att
 };
 
 const deleteStudentAttendanceMinimum = async (token: string, userId: string) => {
-  const response = await fetch(`http://localhost:8000/admin/users/${userId}/attendance-minimum`, {
+  const response = await fetch(`${API_URL}/admin/users/${userId}/attendance-minimum`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`
