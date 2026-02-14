@@ -4,7 +4,7 @@ import { LoginCredentials, AuthResponse, ProfileUpdateData } from "../types/auth
 import { AttendanceLogFilters, AttendanceLogResponse } from "../types/lecturerinnards";
 
 
-const API_URL = import.meta.env.VITE_API_URL; // The FASTAPI URL
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 // The Login Function
 export const loginUser = async (creds: LoginCredentials): Promise<AuthResponse> => {
@@ -281,7 +281,7 @@ export const testAdminAccess = async (token: string) => {
 };
 
 export const deleteLesson = async (lessonId: string, token: string) => {
-  const response = await fetch(`http://localhost:8000/admin/lessons/${lessonId}`, {
+  const response = await fetch(`${API_URL}/admin/lessons/${lessonId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,

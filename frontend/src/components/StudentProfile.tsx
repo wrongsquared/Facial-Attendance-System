@@ -32,7 +32,7 @@ import { getStudentFullProfile, updateStudentProfile } from "../services/api";
 import { ProfileUpdateData } from "../types/auth";
 import { Textarea } from "./ui/textarea";
 
-const API_URL = "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 type PhaseInfo = {
   idx: number;
