@@ -182,7 +182,7 @@ export function LecturerDashboard({
             <CardContent>
               <div className="text-6xl font-bold">{avgattM}%</div>
               <p className="text-xs text-gray-600 mt-1">
-                Across all courses
+                Across all modules
               </p>
             </CardContent>
             </>)}
@@ -366,9 +366,9 @@ export function LecturerDashboard({
               /> ) : (
               <>
             <CardHeader>
-              <CardTitle>My Courses</CardTitle>
+              <CardTitle>My Modules</CardTitle>
               <CardDescription>
-                Overview of your courses
+                Overview of your modules
               </CardDescription>
             </CardHeader>
             <CardContent>
