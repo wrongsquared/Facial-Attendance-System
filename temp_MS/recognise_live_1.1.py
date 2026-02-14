@@ -46,6 +46,14 @@ JITTERS = 0
 # Performance: detect every N frames
 DETECT_EVERY_N_FRAMES = 1
 
+# ==============================
+# LOCATION (SET PER ROOM PC)
+# ==============================
+# Put the actual classroom label here that matches lessons.building / lessons.room
+# If you don't want to enforce building, you can set it to "" or None
+LOCATION_BUILDING = "A"   # example
+LOCATION_ROOM = "101"       # example
+
 
 # ==============================
 # LOAD MODELS
@@ -141,10 +149,12 @@ def post_snapshot_auto(captured_at: datetime, snapshot_best: dict):
     POST to /attendance/auto:
     {
       "captured_at": "...",
-      "detections": [...]
+      "detections": [...],
+      "location": {"building": "...", "room": "..."}
     }
 
-    Backend resolves the correct lesson per student (based on time + enrolment/group).
+    Backend resolves the correct lesson per student (based on time + enrolment/group),
+    AND can enforce that the lesson is happening in this room.
     """
     if not snapshot_best:
         print("[BACKEND] Snapshot skipped (0 students)")
@@ -152,7 +162,11 @@ def post_snapshot_auto(captured_at: datetime, snapshot_best: dict):
 
     payload = {
         "captured_at": captured_at.isoformat(),
-        "detections": list(snapshot_best.values())
+        "detections": list(snapshot_best.values()),
+        "location": {
+            "building": (LOCATION_BUILDING or None),
+            "room": (LOCATION_ROOM or None),
+        }
     }
 
     try:
@@ -232,6 +246,10 @@ def main():
             else:
                 cv2.putText(frame, "Schedule says: no lessons today",
                             (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
+
+        # show configured location
+        cv2.putText(frame, f"Location: {LOCATION_BUILDING}/{LOCATION_ROOM}",
+                    (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
 
         # Debug overlay from backend resolution
         if last_backend_lesson is not None:

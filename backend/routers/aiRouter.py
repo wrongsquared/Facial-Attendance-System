@@ -1,4 +1,3 @@
-# aiRouter.py
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, text
@@ -25,6 +24,9 @@ from supabase import create_client, Client
 SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("SPBASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SPBASE_SKEY")
 SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "student-faces")
+
+LATE_MINUTES = int(os.getenv("LATE_MINUTES", "5"))
+
 
 supabase: Optional[Client] = None
 if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
@@ -158,7 +160,7 @@ def post_attendance(payload: AttendanceSnapshot, db: Session = Depends(get_db)):
     except Exception as e:
         print("[AI attendance] lesson start lookup failed:", repr(e))
 
-    late_threshold = (lesson_start + timedelta(minutes=30)) if lesson_start else None
+    late_threshold = (lesson_start + timedelta(minutes=LATE_MINUTES)) if lesson_start else None
 
     created_logs = 0
     marked_present = 0
@@ -244,46 +246,75 @@ def post_attendance(payload: AttendanceSnapshot, db: Session = Depends(get_db)):
         "unknown_students": unknown_students,
     }
 
+# ============================
+# LOCATION MODELS (NEW)
+# ============================
+class LocationInfo(BaseModel):
+    building: Optional[str] = None
+    room: Optional[str] = None
+
 class AutoAttendanceSnapshot(BaseModel):
     captured_at: datetime
     detections: List[Detection]
+    location: Optional[LocationInfo] = None
 
-def _find_student_active_lesson_id(db: Session, *, student_uuid: str, at_time: datetime) -> Optional[int]:
+
+def _find_student_active_lesson_id(
+    db: Session,
+    *,
+    student_uuid: str,
+    at_time: datetime,
+    building: Optional[str] = None,
+    room: Optional[str] = None,
+) -> Optional[int]:
     """
     Returns lessonID of the lesson the student belongs to at at_time.
     - Active time window: start <= t <= end
     - Lecture (tutorialGroupID NULL): student must be enrolled in module
     - Practical (tutorialGroupID NOT NULL): student must be in that tutorial group
+    - (NEW) If building/room provided, lesson must match those too
     """
     try:
-        row = db.execute(
-            text(
-                """
-                SELECT l."lessonID"
-                FROM public.lessons l
-                LEFT JOIN public.lecmods lm
-                  ON lm."lecModID" = l."lecModID"
-                LEFT JOIN public.studentmodules sm
-                  ON sm."modulesID" = lm."moduleID"
-                 AND sm."studentID" = :student_uuid
-                LEFT JOIN public.studenttutorialgroups stg
-                  ON stg."studentModulesID" = sm."studentModulesID"
-                WHERE l."startDateTime" <= :t
-                  AND l."endDateTime" >= :t
-                  AND (
-                        (l."tutorialGroupID" IS NULL AND sm."studentModulesID" IS NOT NULL)
-                     OR (l."tutorialGroupID" IS NOT NULL AND stg."tutorialGroupID" = l."tutorialGroupID")
-                  )
-                ORDER BY l."startDateTime" DESC
-                LIMIT 1
-                """
-            ),
-            {"student_uuid": student_uuid, "t": at_time},
-        ).fetchone()
+        base_sql = """
+            SELECT l."lessonID"
+            FROM public.lessons l
+            LEFT JOIN public.lecmods lm
+              ON lm."lecModID" = l."lecModID"
+            LEFT JOIN public.studentmodules sm
+              ON sm."modulesID" = lm."moduleID"
+             AND sm."studentID" = :student_uuid
+            LEFT JOIN public.studenttutorialgroups stg
+              ON stg."studentModulesID" = sm."studentModulesID"
+            WHERE l."startDateTime" <= :t
+              AND l."endDateTime" >= :t
+        """
+
+        params = {"student_uuid": student_uuid, "t": at_time}
+
+        # only enforce if provided
+        if building:
+            base_sql += ' AND l."building" = :b'
+            params["b"] = building
+
+        if room:
+            base_sql += ' AND l."room" = :r'
+            params["r"] = room
+
+        base_sql += """
+              AND (
+                    (l."tutorialGroupID" IS NULL AND sm."studentModulesID" IS NOT NULL)
+                 OR (l."tutorialGroupID" IS NOT NULL AND stg."tutorialGroupID" = l."tutorialGroupID")
+              )
+            ORDER BY l."startDateTime" DESC
+            LIMIT 1
+        """
+
+        row = db.execute(text(base_sql), params).fetchone()
         return int(row[0]) if row and row[0] is not None else None
     except Exception as e:
         print("[AI auto] active lesson lookup failed:", repr(e))
         return None
+
 
 @router.get("/attendance/today-lessons")
 def attendance_today_lessons(
@@ -323,6 +354,7 @@ def attendance_today_lessons(
         print("[AI today-lessons] ERROR:", repr(e))
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/attendance/auto")
 def post_attendance_auto(payload: AutoAttendanceSnapshot, db: Session = Depends(get_db)):
     if Student is None or EntLeave is None or AttdCheck is None:
@@ -338,6 +370,17 @@ def post_attendance_auto(payload: AutoAttendanceSnapshot, db: Session = Depends(
     not_in_lesson: List[str] = []
     resolved_lesson_id: Optional[int] = None
 
+    # NEW: read location filters if provided
+    building = None
+    room = None
+    try:
+        if payload.location:
+            building = (payload.location.building or "").strip() or None
+            room = (payload.location.room or "").strip() or None
+    except Exception:
+        building = None
+        room = None
+
     try:
         for det in payload.detections:
             sn = _normalize_student_num(det.student_num)
@@ -347,7 +390,11 @@ def post_attendance_auto(payload: AutoAttendanceSnapshot, db: Session = Depends(
                 continue
 
             lesson_id = _find_student_active_lesson_id(
-                db, student_uuid=str(student.studentID), at_time=payload.captured_at
+                db,
+                student_uuid=str(student.studentID),
+                at_time=payload.captured_at,
+                building=building,
+                room=room,
             )
             if not lesson_id:
                 not_in_lesson.append(sn)
@@ -366,7 +413,7 @@ def post_attendance_auto(payload: AutoAttendanceSnapshot, db: Session = Depends(
             except Exception as e:
                 print("[AI auto] lesson start lookup failed:", repr(e))
 
-            late_threshold = (lesson_start + timedelta(minutes=30)) if lesson_start else None
+            late_threshold = (lesson_start + timedelta(minutes=LATE_MINUTES)) if lesson_start else None
 
             last_scan = (
                 db.query(EntLeave)
@@ -434,6 +481,8 @@ def post_attendance_auto(payload: AutoAttendanceSnapshot, db: Session = Depends(
         "updated_present_count": updated_present,
         "unknown_students": unknown_students,
         "not_in_lesson": not_in_lesson,
+        # optional debug:
+        "location_used": {"building": building, "room": room},
     }
 
 
@@ -453,13 +502,11 @@ CAPTURE_GUIDE: List[Tuple[str, int]] = [
     ("DOWN", 40),
 ]
 
-
 def _phase_payload(sess: Dict[str, Any]) -> Dict[str, Any]:
     idx = int(sess.get("phase_idx", 0))
     idx = min(max(idx, 0), len(CAPTURE_GUIDE) - 1)
     instruction, need = CAPTURE_GUIDE[idx]
     return {"idx": idx, "instruction": instruction, "need": need, "done": int(sess.get("phase_done", 0))}
-
 
 def _current_angle_label(instruction: str) -> str:
     up = (instruction or "").upper()
@@ -469,11 +516,10 @@ def _current_angle_label(instruction: str) -> str:
     if "DOWN" in up: return "DOWN"
     return "FRONT"
 
-
 @router.post("/enrolment/start")
 def enrolment_start(data: dict):
     enrolment_id = str(uuid.uuid4())
-    
+
     ENROL_SESSIONS[enrolment_id] = {
         "student_uuid": data.get("student_id"),
         "student_folder": data.get("student_label"),
@@ -485,7 +531,6 @@ def enrolment_start(data: dict):
     }
     print(f"DEBUG: Starting session {enrolment_id}")
     return {"enrolment_id": enrolment_id, "capture_count": 200}
-
 
 @router.post("/enrolment/frame")
 async def enrolment_frame(
@@ -608,7 +653,6 @@ async def enrolment_finish(enrolment_id: str, db: Session = Depends(get_db)):
             student.photo = first_image
             db.commit()
 
-    # Generate signed URL for the profile image
     profile_image_url = None
     if first_image:
         try:
@@ -645,7 +689,6 @@ def storage_signed_url(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @router.get("/users/profile-photo")
 def get_user_profile_photo(user_id: str, db: Session = Depends(get_db)):
     sb = _require_supabase()
@@ -654,7 +697,6 @@ def get_user_profile_photo(user_id: str, db: Session = Depends(get_db)):
         text('SELECT photo FROM public.users WHERE "userID" = :uid'),
         {"uid": user_id},
     ).fetchone()
-    
 
     if not row or not row[0]:
         raise HTTPException(status_code=404, detail="No profile photo")
@@ -704,7 +746,7 @@ async def get_biometric_images(student_num: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Student not found")
 
     records = db.query(studentAngles).filter(studentAngles.studentID == student.studentID).all()
-    
+
     if not records:
         return {"images": []}
 
@@ -713,16 +755,12 @@ async def get_biometric_images(student_num: str, db: Session = Depends(get_db)):
 
     for rec in records:
         try:
-            # Use the same bucket as defined at the top of the file
             res = sb.storage.from_(SUPABASE_BUCKET).create_signed_url(rec.imagepath, 3600)
-            
-            # Handle different possible response formats
             url = res.get("signedURL") or res.get("signedUrl") or res.get("signed_url")
             if not url:
                 print(f"No signed URL returned for {rec.photoangle}: {res}")
                 continue
-                
-            # Ensure full URL if relative
+
             if url.startswith("/") and SUPABASE_URL:
                 url = SUPABASE_URL.rstrip("/") + url
 
@@ -733,7 +771,6 @@ async def get_biometric_images(student_num: str, db: Session = Depends(get_db)):
 
     return {"images": images_response}
 
-
 @router.delete("/biometric/{student_num}")
 def delete_biometric_profile(student_num: str, db: Session = Depends(get_db)):
     try:
@@ -741,7 +778,6 @@ def delete_biometric_profile(student_num: str, db: Session = Depends(get_db)):
         if not student_uuid:
             raise HTTPException(status_code=404, detail="Student not found")
 
-        # Check if student has existing biometric records using proper quoted column names
         existing_records = db.execute(
             text('SELECT COUNT(*) FROM public.studentangles WHERE "studentID" = :student_id'),
             {"student_id": student_uuid},
@@ -750,7 +786,6 @@ def delete_biometric_profile(student_num: str, db: Session = Depends(get_db)):
         if not existing_records or existing_records[0] == 0:
             raise HTTPException(status_code=404, detail="No biometric profile found")
 
-        # Get all the image paths before deleting from database
         image_records = db.execute(
             text('SELECT imagepath FROM public.studentangles WHERE "studentID" = :student_id'),
             {"student_id": student_uuid},

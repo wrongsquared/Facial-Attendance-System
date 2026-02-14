@@ -158,7 +158,7 @@ Add logging in the recognition success block to store (timestamp, guess_name, di
 
 7. Adding anti-spoof (CNN)
 
-To be added...
+Antispoof CNN is already trained and called in recognise_live. Trained using Kaggle and real world dataset of students.
 
 8. Troubleshooting & common errors
 A. Camera not detected / black frame
