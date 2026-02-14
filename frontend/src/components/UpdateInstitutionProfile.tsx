@@ -93,7 +93,7 @@ export function UpdateInstitutionProfile({
     }
     return "";
   };
-
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
   const validateForm = () => {
     const newErrors = {
       campusName: validateCampusName(editForm.campusName),
@@ -110,7 +110,7 @@ export function UpdateInstitutionProfile({
       try {
         setLoading(true);
         const response = await fetch(
-          `http://localhost:8000/platform-manager/institution/${institutionData.institutionId}`,
+          `${API_URL}/platform-manager/institution/${institutionData.institutionId}`,
           {
             method: "GET",
             headers: {
@@ -149,7 +149,7 @@ export function UpdateInstitutionProfile({
     try {
       setIsSaving(true);
       const response = await fetch(
-        `http://localhost:8000/platform-manager/institution/${institutionData.institutionId}`,
+        `${API_URL}/platform-manager/institution/${institutionData.institutionId}`,
         {
           method: "PUT",
           headers: {

@@ -20,7 +20,7 @@ interface CreateInstitutionProfileProps {
   onBack: () => void;
   onCreate: (data: any) => void;
 }
-
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export function CreateInstitutionProfile({
   onLogout,
   onBack,
@@ -42,7 +42,7 @@ export function CreateInstitutionProfile({
     try {
       setLoading(true);
 
-      const response = await fetch("http://localhost:8000/platform-manager/campus", {
+      const response = await fetch(`${API_URL}/platform-manager/campus`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

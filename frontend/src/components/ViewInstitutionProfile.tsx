@@ -90,7 +90,7 @@ export function ViewInstitutionProfile({
   const [newAdmin, setNewAdmin] = useState({ name: "", email: "", contactNumber: "", password: "" });
 
   const { token } = useAuth();
-
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
   // 1. Fetch Data
   const fetchInstitutionProfile = async () => {
 
@@ -98,7 +98,7 @@ export function ViewInstitutionProfile({
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:8000/platform-manager/institution/${institutionData.institutionId}`,
+        `${API_URL}/platform-manager/institution/${institutionData.institutionId}`,
         {
           headers: {
             "Content-Type": "application/json",
@@ -128,7 +128,7 @@ export function ViewInstitutionProfile({
     e.preventDefault();
 
     try {
-      const response = await fetch(`http://localhost:8000/platform-manager/campus/${institutionData.institutionId}/add-admin`, {
+      const response = await fetch(`${API_URL}/platform-manager/campus/${institutionData.institutionId}/add-admin`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -183,7 +183,7 @@ export function ViewInstitutionProfile({
     });
 
     try {
-      const response = await fetch(`http://localhost:8000/platform-manager/admin/${userId}/status`, {
+      const response = await fetch(`${API_URL}/platform-manager/admin/${userId}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
