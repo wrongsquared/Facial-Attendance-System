@@ -32,7 +32,7 @@ export function RegistrationPage() {
       country: ''
     }
   });
- const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
   const [selectedPlan, setSelectedPlan] = useState('subscription');
 
   const plans = {
@@ -162,15 +162,15 @@ export function RegistrationPage() {
     }
 
     try {
-      // // Process payment first (simulate)
-      // const paymentResponse = await processPayment();
+      // Process payment first (simulate)
+      const paymentResponse = await processPayment();
 
-      // if (!paymentResponse.success) {
-      //   alert(`Payment failed: ${paymentResponse.error}`);
-      //   return;
-      // }
+      if (!paymentResponse.success) {
+        alert(`Payment failed: ${paymentResponse.error}`);
+        return;
+      }
 
-      const response = await fetch(`${API_URL}/register-institution`, {
+      const response = await fetch('http://127.0.0.1:8000/register-institution', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
