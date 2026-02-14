@@ -1,7 +1,7 @@
 # aiRouter.py
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, text, func
+from sqlalchemy import and_, text
 from database.db_config import get_db
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any, Tuple
@@ -13,6 +13,7 @@ import io
 from PIL import Image
 import cv2
 import asyncio
+import re
 from database.db import studentAngles
 from sqlalchemy.dialects.postgresql import insert
 
@@ -23,13 +24,11 @@ from supabase import create_client, Client
 # =========================================================
 SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("SPBASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SPBASE_SKEY")
-
 SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "student-faces")
 
 supabase: Optional[Client] = None
 if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-
 
 def _require_supabase() -> Client:
     if supabase is None:
@@ -38,13 +37,22 @@ def _require_supabase() -> Client:
         )
     return supabase
 
-
 def _safe_label(s: str) -> str:
     s = (s or "").strip().lower()
     s = "".join(ch if ch.isalnum() else "_" for ch in s)
     s = "_".join([p for p in s.split("_") if p])
     return s[:60] or "unknown_user"
 
+def _normalize_student_num(s: str) -> str:
+    """
+    Accepts:
+      "190036" -> "190036"
+      "allison_lang_190036" -> "190036"
+    If no digits found, returns original trimmed.
+    """
+    s = (s or "").strip()
+    m = re.search(r"(\d{4,})", s)
+    return m.group(1) if m else s
 
 def _resolve_student_uuid(db: Session, *, student_id: str = "", student_num: str = "") -> Optional[str]:
     """
@@ -59,7 +67,7 @@ def _resolve_student_uuid(db: Session, *, student_id: str = "", student_num: str
         except Exception:
             pass
 
-    sn = (student_num or "").strip()
+    sn = _normalize_student_num(student_num)
     if not sn:
         return None
 
@@ -74,7 +82,6 @@ def _resolve_student_uuid(db: Session, *, student_id: str = "", student_num: str
         print("[AI] student UUID lookup failed:", repr(e))
 
     return None
-
 
 def upload_jpeg_to_supabase(storage_path: str, jpeg_bytes: bytes) -> None:
     sb = _require_supabase()
@@ -117,50 +124,58 @@ except Exception:
     EntLeave = None
     AttdCheck = None
 
-
 router = APIRouter()
-
 
 class Detection(BaseModel):
     student_num: str
     accuracy: float = Field(..., ge=0.0, le=1.0)
     cnn: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
-
 class AttendanceSnapshot(BaseModel):
     lesson_id: int
     captured_at: datetime
     detections: List[Detection]
-
 
 @router.post("/attendance")
 def post_attendance(payload: AttendanceSnapshot, db: Session = Depends(get_db)):
     if Student is None or EntLeave is None or AttdCheck is None:
         raise HTTPException(
             status_code=500,
-            detail="Model import failed (Student/EntLeave/AttdCheck). Fix database.db imports."
+            detail="Model import failed (Student/EntLeave/AttdCheck). Fix database.db imports.",
         )
 
     if payload.lesson_id <= 0:
         raise HTTPException(status_code=400, detail="lesson_id must be > 0")
 
+    lesson_start = None
+    try:
+        row = db.execute(
+            text('SELECT "startDateTime" FROM public.lessons WHERE "lessonID" = :lid LIMIT 1'),
+            {"lid": payload.lesson_id},
+        ).fetchone()
+        if row and row[0]:
+            lesson_start = row[0]
+    except Exception as e:
+        print("[AI attendance] lesson start lookup failed:", repr(e))
+
+    late_threshold = (lesson_start + timedelta(minutes=30)) if lesson_start else None
+
     created_logs = 0
     marked_present = 0
     updated_present = 0
-    unknown_students = []
+    unknown_students: List[str] = []
 
     try:
         for det in payload.detections:
-            student = db.query(Student).filter(Student.studentNum == det.student_num).first()
+            sn = _normalize_student_num(det.student_num)
+            student = db.query(Student).filter(Student.studentNum == sn).first()
             if not student:
                 unknown_students.append(det.student_num)
                 continue
 
-            # --- 1) entleave: log scans (cooldown 1 min) ---
             last_scan = (
                 db.query(EntLeave)
-                .filter(and_(EntLeave.lessonID == payload.lesson_id,
-                             EntLeave.studentID == student.studentID))
+                .filter(and_(EntLeave.lessonID == payload.lesson_id, EntLeave.studentID == student.studentID))
                 .order_by(EntLeave.detectionTime.desc())
                 .first()
             )
@@ -170,40 +185,46 @@ def post_attendance(payload: AttendanceSnapshot, db: Session = Depends(get_db)):
                 should_log = False
 
             if should_log:
-                db.add(EntLeave(
-                    lessonID=payload.lesson_id,
-                    studentID=student.studentID,
-                    detectionTime=payload.captured_at
-                ))
+                db.add(
+                    EntLeave(
+                        lessonID=payload.lesson_id,
+                        studentID=student.studentID,
+                        detectionTime=payload.captured_at,
+                    )
+                )
                 created_logs += 1
 
-            # --- 2) attdcheck: insert/update seeded columns ---
             attendance_record = (
                 db.query(AttdCheck)
-                .filter(and_(AttdCheck.lessonID == payload.lesson_id,
-                             AttdCheck.studentID == student.studentID))
+                .filter(and_(AttdCheck.lessonID == payload.lesson_id, AttdCheck.studentID == student.studentID))
                 .first()
             )
 
             if not attendance_record:
-                # Create new record: firstDetection + lastDetection
-                db.add(AttdCheck(
-                    lessonID=payload.lesson_id,
-                    studentID=student.studentID,
-                    status="Present",
-                    remarks="Camera Capture",
-                    firstDetection=payload.captured_at,
-                    lastDetection=payload.captured_at
-                ))
+                status = "Late" if (late_threshold and payload.captured_at > late_threshold) else "Present"
+                db.add(
+                    AttdCheck(
+                        lessonID=payload.lesson_id,
+                        studentID=student.studentID,
+                        status=status,
+                        remarks="Camera Capture",
+                        firstDetection=payload.captured_at,
+                        lastDetection=payload.captured_at,
+                    )
+                )
                 marked_present += 1
             else:
-                # Update lastDetection every time we see them
-                attendance_record.status = "Present"
-                attendance_record.remarks = attendance_record.remarks or "Camera Capture"
                 attendance_record.lastDetection = payload.captured_at
-                # Keep firstDetection if already exists; if it's null, set it once
+                if not getattr(attendance_record, "remarks", None):
+                    attendance_record.remarks = "Camera Capture"
                 if getattr(attendance_record, "firstDetection", None) is None:
                     attendance_record.firstDetection = payload.captured_at
+                    attendance_record.status = (
+                        "Late" if (late_threshold and payload.captured_at > late_threshold) else "Present"
+                    )
+                else:
+                    if not getattr(attendance_record, "status", None):
+                        attendance_record.status = "Present"
                 updated_present += 1
 
         db.commit()
@@ -223,10 +244,201 @@ def post_attendance(payload: AttendanceSnapshot, db: Session = Depends(get_db)):
         "unknown_students": unknown_students,
     }
 
+class AutoAttendanceSnapshot(BaseModel):
+    captured_at: datetime
+    detections: List[Detection]
+
+def _find_student_active_lesson_id(db: Session, *, student_uuid: str, at_time: datetime) -> Optional[int]:
+    """
+    Returns lessonID of the lesson the student belongs to at at_time.
+    - Active time window: start <= t <= end
+    - Lecture (tutorialGroupID NULL): student must be enrolled in module
+    - Practical (tutorialGroupID NOT NULL): student must be in that tutorial group
+    """
+    try:
+        row = db.execute(
+            text(
+                """
+                SELECT l."lessonID"
+                FROM public.lessons l
+                LEFT JOIN public.lecmods lm
+                  ON lm."lecModID" = l."lecModID"
+                LEFT JOIN public.studentmodules sm
+                  ON sm."modulesID" = lm."moduleID"
+                 AND sm."studentID" = :student_uuid
+                LEFT JOIN public.studenttutorialgroups stg
+                  ON stg."studentModulesID" = sm."studentModulesID"
+                WHERE l."startDateTime" <= :t
+                  AND l."endDateTime" >= :t
+                  AND (
+                        (l."tutorialGroupID" IS NULL AND sm."studentModulesID" IS NOT NULL)
+                     OR (l."tutorialGroupID" IS NOT NULL AND stg."tutorialGroupID" = l."tutorialGroupID")
+                  )
+                ORDER BY l."startDateTime" DESC
+                LIMIT 1
+                """
+            ),
+            {"student_uuid": student_uuid, "t": at_time},
+        ).fetchone()
+        return int(row[0]) if row and row[0] is not None else None
+    except Exception as e:
+        print("[AI auto] active lesson lookup failed:", repr(e))
+        return None
+
+@router.get("/attendance/today-lessons")
+def attendance_today_lessons(
+    db: Session = Depends(get_db),
+    max_lesson_hours: int = Query(6, description="Ignore lessons longer than this (prevents bad test data hijacking active lesson)")
+):
+    now = datetime.now()
+    day_start = datetime(now.year, now.month, now.day)
+    day_end = day_start + timedelta(days=1)
+
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT "lessonID", "startDateTime", "endDateTime"
+                FROM public.lessons
+                WHERE "startDateTime" >= :ds
+                  AND "startDateTime" < :de
+                  AND ("endDateTime" - "startDateTime") <= (:max_hours || ' hours')::interval
+                ORDER BY "startDateTime" ASC
+                """
+            ),
+            {"ds": day_start, "de": day_end, "max_hours": int(max_lesson_hours)},
+        ).fetchall()
+
+        lessons = []
+        for r in rows:
+            lessons.append(
+                {
+                    "lesson_id": int(r[0]),
+                    "start": r[1].isoformat() if r[1] else None,
+                    "end": r[2].isoformat() if r[2] else None,
+                }
+            )
+        return {"ok": True, "lessons": lessons, "max_lesson_hours": int(max_lesson_hours)}
+    except Exception as e:
+        print("[AI today-lessons] ERROR:", repr(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/attendance/auto")
+def post_attendance_auto(payload: AutoAttendanceSnapshot, db: Session = Depends(get_db)):
+    if Student is None or EntLeave is None or AttdCheck is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Model import failed (Student/EntLeave/AttdCheck). Fix database.db imports.",
+        )
+
+    created_logs = 0
+    marked_present = 0
+    updated_present = 0
+    unknown_students: List[str] = []
+    not_in_lesson: List[str] = []
+    resolved_lesson_id: Optional[int] = None
+
+    try:
+        for det in payload.detections:
+            sn = _normalize_student_num(det.student_num)
+            student = db.query(Student).filter(Student.studentNum == sn).first()
+            if not student:
+                unknown_students.append(det.student_num)
+                continue
+
+            lesson_id = _find_student_active_lesson_id(
+                db, student_uuid=str(student.studentID), at_time=payload.captured_at
+            )
+            if not lesson_id:
+                not_in_lesson.append(sn)
+                continue
+
+            resolved_lesson_id = resolved_lesson_id or lesson_id
+
+            lesson_start = None
+            try:
+                row = db.execute(
+                    text('SELECT "startDateTime" FROM public.lessons WHERE "lessonID" = :lid LIMIT 1'),
+                    {"lid": lesson_id},
+                ).fetchone()
+                if row and row[0]:
+                    lesson_start = row[0]
+            except Exception as e:
+                print("[AI auto] lesson start lookup failed:", repr(e))
+
+            late_threshold = (lesson_start + timedelta(minutes=30)) if lesson_start else None
+
+            last_scan = (
+                db.query(EntLeave)
+                .filter(and_(EntLeave.lessonID == lesson_id, EntLeave.studentID == student.studentID))
+                .order_by(EntLeave.detectionTime.desc())
+                .first()
+            )
+
+            should_log = True
+            if last_scan and (payload.captured_at - last_scan.detectionTime) < timedelta(minutes=1):
+                should_log = False
+
+            if should_log:
+                db.add(EntLeave(lessonID=lesson_id, studentID=student.studentID, detectionTime=payload.captured_at))
+                created_logs += 1
+
+            attendance_record = (
+                db.query(AttdCheck)
+                .filter(and_(AttdCheck.lessonID == lesson_id, AttdCheck.studentID == student.studentID))
+                .first()
+            )
+
+            if not attendance_record:
+                status = "Late" if (late_threshold and payload.captured_at > late_threshold) else "Present"
+                db.add(
+                    AttdCheck(
+                        lessonID=lesson_id,
+                        studentID=student.studentID,
+                        status=status,
+                        remarks="Camera Capture",
+                        firstDetection=payload.captured_at,
+                        lastDetection=payload.captured_at,
+                    )
+                )
+                marked_present += 1
+            else:
+                attendance_record.lastDetection = payload.captured_at
+                if not getattr(attendance_record, "remarks", None):
+                    attendance_record.remarks = "Camera Capture"
+
+                if getattr(attendance_record, "firstDetection", None) is None:
+                    attendance_record.firstDetection = payload.captured_at
+                    attendance_record.status = (
+                        "Late" if (late_threshold and payload.captured_at > late_threshold) else "Present"
+                    )
+                else:
+                    if not getattr(attendance_record, "status", None):
+                        attendance_record.status = "Present"
+
+                updated_present += 1
+
+        db.commit()
+
+    except Exception as e:
+        db.rollback()
+        print("[AI attendance/auto] ERROR:", repr(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {
+        "ok": True,
+        "lesson_id": resolved_lesson_id,
+        "captured_at": payload.captured_at.isoformat(),
+        "logs_created": created_logs,
+        "marked_present_count": marked_present,
+        "updated_present_count": updated_present,
+        "unknown_students": unknown_students,
+        "not_in_lesson": not_in_lesson,
+    }
 
 
 # =========================================================
-# 2) ENROLMENT FLOW (POST /ai/enrolment/*)
+# 2) ENROLMENT FLOW (UNCHANGED)
 # =========================================================
 ENROL_SESSIONS: Dict[str, Dict[str, Any]] = {}
 
@@ -251,14 +463,10 @@ def _phase_payload(sess: Dict[str, Any]) -> Dict[str, Any]:
 
 def _current_angle_label(instruction: str) -> str:
     up = (instruction or "").upper()
-    if "LEFT" in up:
-        return "LEFT"
-    if "RIGHT" in up:
-        return "RIGHT"
-    if "UP" in up:
-        return "UP"
-    if "DOWN" in up:
-        return "DOWN"
+    if "LEFT" in up: return "LEFT"
+    if "RIGHT" in up: return "RIGHT"
+    if "UP" in up: return "UP"
+    if "DOWN" in up: return "DOWN"
     return "FRONT"
 
 
@@ -267,7 +475,7 @@ def enrolment_start(data: dict):
     enrolment_id = str(uuid.uuid4())
     
     ENROL_SESSIONS[enrolment_id] = {
-        "student_uuid": data.get("student_id"), # Make sure this matches frontend key
+        "student_uuid": data.get("student_id"),
         "student_folder": data.get("student_label"),
         "count": 0,
         "phase_idx": 0,
@@ -363,7 +571,7 @@ async def enrolment_frame(
 
         inserted = False
         student_uuid = (sess.get("student_uuid") or "").strip()
-        if sess["phase_done"] == 1: 
+        if sess["phase_done"] == 1:
             _studentangles_create_record(db, student_uuid=student_uuid, angle=angle_label, image_path=storage_path)
 
         if sess["phase_done"] >= need:
@@ -384,11 +592,10 @@ async def enrolment_frame(
             "studentangles_upserted": inserted,
         }
 
-
-@router.post("/enrolment/finish")  
+@router.post("/enrolment/finish")
 async def enrolment_finish(enrolment_id: str, db: Session = Depends(get_db)):
     print(f"DEBUG: Finishing session {enrolment_id}. Current active sessions: {list(ENROL_SESSIONS.keys())}")
-    sess = ENROL_SESSIONS.pop(enrolment_id, None) 
+    sess = ENROL_SESSIONS.pop(enrolment_id, None)
     if not sess:
         raise HTTPException(status_code=404, detail="Enrolment session not found")
 
@@ -418,7 +625,7 @@ async def enrolment_finish(enrolment_id: str, db: Session = Depends(get_db)):
     return {
         "status": "success",
         "last_updated": datetime.utcnow().isoformat(),
-        "profile_image_url": profile_image_url
+        "profile_image_url": first_image
     }
 
 @router.get("/storage/signed-url")
@@ -450,36 +657,25 @@ def get_user_profile_photo(user_id: str, db: Session = Depends(get_db)):
     
 
     if not row or not row[0]:
-        return {"url": None}
+        raise HTTPException(status_code=404, detail="No profile photo")
 
     path = row[0]
+    res = sb.storage.from_(SUPABASE_BUCKET).create_signed_url(path, 3600)
+    url = res.get("signedURL") or res.get("signedUrl") or res.get("signed_url")
 
-    try:
-        res = sb.storage.from_(SUPABASE_BUCKET).create_signed_url(path, 3600)
-        
-        url = res.get("signedURL") or res.get("signedUrl") or res.get("signed_url")
+    if not url:
+        raise HTTPException(status_code=500, detail="Failed to sign URL")
 
-        if not url:
-            print(f"Failed to generate signed URL for path: {path}")
-            raise HTTPException(status_code=500, detail="Failed to sign URL")
+    if url.startswith("/"):
+        url = SUPABASE_URL.rstrip("/") + url
 
-        if url.startswith("/"):
-            url = SUPABASE_URL.rstrip("/") + url
-
-        return {"url": url}
-    except Exception as e:
-        print(f"Error generating profile image URL: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate signed URL")
-
-
+    return {"url": url}
 
 @router.get("/profile/status")
 async def get_biometric_status(student_num: str, db: Session = Depends(get_db)):
-    """
-    Checks if a student has any biometric data enrolled.
-    """
+    student_num = _normalize_student_num(student_num)
     student = db.query(Student).filter(Student.studentNum == student_num).first()
-    
+
     if not student:
         return {"enrolled": False, "last_updated": None, "profile_image_url": None}
 
@@ -489,33 +685,20 @@ async def get_biometric_status(student_num: str, db: Session = Depends(get_db)):
 
     if not first_angle:
         return {
-            "enrolled": False, 
-            "last_updated": None, 
-            "profile_image_url": None
+            "enrolled": False,
+            "last_updated": None,
+            "profile_image_url": student.photo
         }
-
-    # Generate signed URL for the profile image
-    profile_image_url = None
-    if first_angle.imagepath:
-        try:
-            sb = _require_supabase()
-            res = sb.storage.from_(SUPABASE_BUCKET).create_signed_url(first_angle.imagepath, 3600)
-            url = res.get("signedURL") or res.get("signedUrl") or res.get("signed_url")
-            if url and url.startswith("/") and SUPABASE_URL:
-                url = SUPABASE_URL.rstrip("/") + url
-            profile_image_url = url
-        except Exception as e:
-            print(f"Error generating profile image URL: {e}")
-            profile_image_url = None
 
     return {
         "enrolled": True,
         "last_updated": first_angle.updatedat,
-        "profile_image_url": profile_image_url
+        "profile_image_url": first_angle.imagepath
     }
 
 @router.get("/biometric/{student_num}/images")
 async def get_biometric_images(student_num: str, db: Session = Depends(get_db)):
+    student_num = _normalize_student_num(student_num)
     student = db.query(Student).filter(Student.studentNum == student_num).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
@@ -527,7 +710,7 @@ async def get_biometric_images(student_num: str, db: Session = Depends(get_db)):
 
     images_response = []
     sb = _require_supabase()
-    
+
     for rec in records:
         try:
             # Use the same bucket as defined at the top of the file
@@ -542,11 +725,8 @@ async def get_biometric_images(student_num: str, db: Session = Depends(get_db)):
             # Ensure full URL if relative
             if url.startswith("/") and SUPABASE_URL:
                 url = SUPABASE_URL.rstrip("/") + url
-            
-            images_response.append({
-                "angle": rec.photoangle,
-                "url": url
-            })
+
+            images_response.append({"angle": rec.photoangle, "url": url})
         except Exception as e:
             print(f"Error generating URL for {rec.photoangle}: {e}")
             continue
@@ -555,11 +735,7 @@ async def get_biometric_images(student_num: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/biometric/{student_num}")
-def delete_biometric_profile(
-    student_num: str, 
-    db: Session = Depends(get_db)
-):
-    """Delete biometric profile for a student"""
+def delete_biometric_profile(student_num: str, db: Session = Depends(get_db)):
     try:
         student_uuid = _resolve_student_uuid(db, student_num=student_num)
         if not student_uuid:
@@ -579,70 +755,26 @@ def delete_biometric_profile(
             text('SELECT imagepath FROM public.studentangles WHERE "studentID" = :student_id'),
             {"student_id": student_uuid},
         ).fetchall()
-        
-        # Delete the actual image files from Supabase storage
+
         sb = _require_supabase()
         files_deleted = 0
         deletion_errors = []
-        
-        print(f"[AI] Found {len(image_records)} files to delete from bucket '{SUPABASE_BUCKET}'")
-        
+
         for record in image_records:
             image_path = record[0]
             if image_path:
                 try:
-                    print(f"[AI] Attempting to delete: {image_path}")
-                    result = sb.storage.from_(SUPABASE_BUCKET).remove([image_path])
-                    print(f"[AI] Delete result: {result}")
-                    files_deleted += 1
-                    print(f"[AI] Successfully deleted storage file: {image_path}")
+                    _ = sb.storage.from_(SUPABASE_BUCKET).remove([image_path])
                 except Exception as e:
-                    error_msg = f"Could not delete storage file {image_path}: {str(e)}"
-                    print(f"[AI] Error: {error_msg}")
-                    deletion_errors.append(error_msg)
-                    # Continue with other files even if one fails
-            else:
-                print(f"[AI] Warning: Empty image path found in record")
-        
-        if deletion_errors:
-            print(f"[AI] Total deletion errors: {len(deletion_errors)}")
-            for error in deletion_errors:
-                print(f"[AI] Deletion error: {error}")
+                    deletion_errors.append(f"Could not delete storage file {image_path}: {str(e)}")
 
-        # Delete all biometric records for this student using proper quoted column names
-        deleted_count = db.execute(
+        db.execute(
             text('DELETE FROM public.studentangles WHERE "studentID" = :student_id'),
             {"student_id": student_uuid},
-        ).rowcount
-        
-        # Also clear the profile photo from the student record (if it exists)
-        try:
-            # Try to update the students table - if the column doesn't exist, this will be skipped
-            if Student:  # Check if Student model is available
-                student = db.query(Student).filter(Student.studentID == student_uuid).first()
-                if student:
-                    student.photo = None
-        except Exception as e:
-            print(f"[AI] Warning: Could not clear student photo: {e}")
-            # Continue anyway, the main deletion was successful
-        
+        )
         db.commit()
-        
-        print(f"[AI] Successfully deleted {deleted_count} biometric records and {files_deleted} storage files for student {student_num}")
-        
-        # Return additional information about deletion process
-        response_data = {
-            "message": "Biometric profile deleted successfully", 
-            "records_deleted": deleted_count,
-            "files_deleted": files_deleted,
-            "bucket": SUPABASE_BUCKET
-        }
-        
-        if deletion_errors:
-            response_data["deletion_errors"] = deletion_errors
-            response_data["message"] = f"Biometric profile deleted with {len(deletion_errors)} file deletion errors"
-            
-        return response_data
+
+        return {"message": "Biometric profile deleted successfully", "deletion_errors": deletion_errors}
 
     except HTTPException:
         raise

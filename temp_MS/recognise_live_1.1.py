@@ -6,7 +6,6 @@ import time
 import os
 from datetime import datetime
 import requests
-import re
 
 # Optional: antispoof (won't crash if missing)
 try:
@@ -19,17 +18,21 @@ except Exception:
 # ==============================
 # CONFIG
 # ==============================
-BACKEND_URL = "http://localhost:8000/attendance"
+# IMPORTANT:
+# If your backend is mounted under /ai (e.g., include_router(..., prefix="/ai")),
+# set BASE_API = "http://localhost:8000/ai"
+BASE_API = "http://localhost:8000"  # change to "http://localhost:8000/ai" if needed
 
-# For now you can hardcode (testing). Later: fetch from /student/todayslesson or lecturer endpoint.
-LESSON_ID = 1
+TODAY_LESSONS_URL = f"{BASE_API}/attendance/today-lessons"
+ATTENDANCE_AUTO_URL = f"{BASE_API}/attendance/auto"
 
 ACCEPT_PROBA = 0.70            # 70% threshold (face recognition confidence)
-SNAPSHOT_SECONDS = 60          # set to 10*60 or 15*60 later
+SNAPSHOT_SECONDS = 60          # snapshot window length
+SCHEDULE_REFRESH_SECONDS = 300 # refresh today's lessons every 5 mins
 
 # Face size gating (relative to frame width)
-MIN_FACE_RATIO = 0.10          # too far
-MAX_FACE_RATIO = 0.60          # too close (optional)
+MIN_FACE_RATIO = 0.10
+MAX_FACE_RATIO = 0.60
 
 # Antispoof gating
 USE_ANTISPOOF_GATE = True
@@ -38,10 +41,10 @@ ANTISPOOF_THRESH = 0.50
 # Dlib chip settings (speed vs accuracy)
 CHIP_SIZE = 120
 CHIP_PADDING = 0.25
-JITTERS = 0                    # 0 is faster, 1-2 improves stability but slower
+JITTERS = 0
 
-# Performance: detect every N frames (optional)
-DETECT_EVERY_N_FRAMES = 1      # set 2 or 3 to speed up on weak laptops
+# Performance: detect every N frames
+DETECT_EVERY_N_FRAMES = 1
 
 
 # ==============================
@@ -60,7 +63,6 @@ if not os.path.exists("labels.pkl"):
 
 label_encoder = pickle.load(open("labels.pkl", "rb"))
 print("Loaded LabelEncoder from labels.pkl")
-
 print("System ready.\n")
 
 
@@ -75,31 +77,11 @@ def clamp_box(x1, y1, x2, y2, w, h):
     return x1, y1, x2, y2
 
 def extract_student_num(label: str) -> str:
-    """
-    Extracts a student number from a label.
-    Works for:
-      - "8220967_Din" -> "8220967"
-      - "allison_lang_190036" -> "190036"
-      - "190036" -> "190036"
-    If no digits found, returns the original label.
-    """
-    s = (label or "").strip()
-
-    # Prefer the last numeric chunk (most common in names like xxx_190036)
-    parts = s.split("_")
-    for part in reversed(parts):
-        if part.isdigit():
-            return part
-
-    # Fallback: any digit sequence in the string
-    m = re.search(r"(\d+)", s)
-    return m.group(1) if m else s
+    # label like "8220967_Din" OR "allison_lang_190036"
+    first = label.split("_")[0].strip()
+    return first if first.isdigit() else label
 
 def face_chip_embedding(frame_bgr, rect):
-    """
-    Aligned embedding:
-    full-frame landmarks -> face chip -> landmarks on chip -> descriptor
-    """
     rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
 
     shape = shape_predictor(rgb, rect)
@@ -120,54 +102,97 @@ def draw_box(frame, x1, y1, x2, y2, color, text=None):
 def now_str():
     return datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
-def post_snapshot(lesson_id: int, captured_at: datetime, snapshot_best: dict):
-    """
-    POSTS payload matching your FastAPI docs:
+def fetch_today_lessons():
+    try:
+        r = requests.get(TODAY_LESSONS_URL, timeout=3)
+        if not r.ok:
+            print("[SCHEDULE] status:", r.status_code, "body:", r.text[:200])
+            return []
+        data = r.json()
+        lessons = data.get("lessons", [])
+        parsed = []
+        for L in lessons:
+            try:
+                parsed.append({
+                    "lesson_id": int(L["lesson_id"]),
+                    "start": datetime.fromisoformat(L["start"]),
+                    "end": datetime.fromisoformat(L["end"]),
+                })
+            except Exception:
+                continue
+        return parsed
+    except Exception as e:
+        print("[SCHEDULE] Error fetching today's lessons:", e)
+        return []
 
+def get_active_lesson(now_dt: datetime, lessons: list):
+    for L in lessons:
+        if L["start"] <= now_dt <= L["end"]:
+            return L
+    return None
+
+def get_next_lesson(now_dt: datetime, lessons: list):
+    future = [L for L in lessons if L["start"] > now_dt]
+    future.sort(key=lambda x: x["start"])
+    return future[0] if future else None
+
+def post_snapshot_auto(captured_at: datetime, snapshot_best: dict):
+    """
+    POST to /attendance/auto:
     {
-      "lesson_id": 1,
-      "captured_at": "2026-01-29T21:17:00.410Z",
-      "detections": [
-        { "student_num": "8220967", "accuracy": 0.874, "cnn": 0.72 }
-      ]
+      "captured_at": "...",
+      "detections": [...]
     }
+
+    Backend resolves the correct lesson per student (based on time + enrolment/group).
     """
     if not snapshot_best:
         print("[BACKEND] Snapshot skipped (0 students)")
-        return
+        return {"ok": True, "logs_created": 0}
 
     payload = {
-        "lesson_id": int(lesson_id),
         "captured_at": captured_at.isoformat(),
         "detections": list(snapshot_best.values())
     }
 
     try:
-        r = requests.post(BACKEND_URL, json=payload, timeout=3)
+        r = requests.post(ATTENDANCE_AUTO_URL, json=payload, timeout=8)
         print("[BACKEND] status:", r.status_code)
-        print("[BACKEND] body:", r.text[:500])
+        print("[BACKEND] body:", r.text[:800])
+        if r.ok:
+            return r.json()
+        return {"ok": False}
     except Exception as e:
         print(f"[BACKEND] Error posting snapshot: {e}")
+        return {"ok": False}
 
 
 # ==============================
 # MAIN
 # ==============================
 def main():
+    # ---------------------------------------------------------
+    # Lesson schedule state (for UI only)
+    # ---------------------------------------------------------
+    today_lessons = fetch_today_lessons()
+    last_schedule_refresh_ts = time.time()
+
     # --- snapshot window state ---
     snapshot_start_ts = time.time()
     snapshot_captured_at = datetime.now()
 
-    # student_num -> best detection dict for this window
-    # best = { "student_num": "8220967", "accuracy": 0.874, "cnn": 0.72 }
+    # best detection per student in current snapshot window
     snapshot_best = {}
+
+    # display last backend resolution (debug overlay)
+    last_backend_lesson = None
+    last_backend_resolved = {}
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print("Could not open webcam")
         return
 
-    # Force camera (may not apply on all webcams; we read back actual)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
@@ -183,13 +208,45 @@ def main():
         if not ret:
             break
 
+        now_dt = datetime.now()
         H, W = frame.shape[:2]
         frame_idx += 1
+
+        # refresh lesson schedule (UI only)
+        if time.time() - last_schedule_refresh_ts >= SCHEDULE_REFRESH_SECONDS:
+            today_lessons = fetch_today_lessons()
+            last_schedule_refresh_ts = time.time()
+
+        # determine active lesson (UI only)
+        active = get_active_lesson(now_dt, today_lessons)
+
+        if active:
+            cv2.putText(frame, f"Schedule says active lesson: {active['lesson_id']}",
+                        (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
+        else:
+            nxt = get_next_lesson(now_dt, today_lessons)
+            if nxt:
+                mins = int((nxt["start"] - now_dt).total_seconds() // 60)
+                cv2.putText(frame, f"Schedule says: none active. Next in ~{mins} min (Lesson {nxt['lesson_id']})",
+                            (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
+            else:
+                cv2.putText(frame, "Schedule says: no lessons today",
+                            (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
+
+        # Debug overlay from backend resolution
+        if last_backend_lesson is not None:
+            cv2.putText(frame, f"Backend resolved lesson: {last_backend_lesson}",
+                        (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
 
         # ---------- SNAPSHOT TIMER ----------
         now_ts = time.time()
         if now_ts - snapshot_start_ts >= SNAPSHOT_SECONDS:
-            post_snapshot(LESSON_ID, snapshot_captured_at, snapshot_best)
+            resp = post_snapshot_auto(snapshot_captured_at, snapshot_best)
+
+            # store debug info for overlay
+            if isinstance(resp, dict) and resp.get("ok"):
+                last_backend_lesson = resp.get("lesson_id")
+                last_backend_resolved = resp.get("resolved", {}) or {}
 
             snapshot_best.clear()
             snapshot_start_ts = now_ts
@@ -199,7 +256,19 @@ def main():
         cv2.putText(frame, f"Next snapshot in: {seconds_left}s",
                     (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
 
-        # ---------- DETECT (optionally skip frames for speed) ----------
+        # show small resolved map (top 3) on screen
+        if last_backend_resolved:
+            y = 120
+            shown = 0
+            for k, v in last_backend_resolved.items():
+                cv2.putText(frame, f"{k} -> lesson {v}",
+                            (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                y += 25
+                shown += 1
+                if shown >= 3:
+                    break
+
+        # ---------- DETECT ----------
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         if frame_idx % DETECT_EVERY_N_FRAMES == 0:
@@ -214,7 +283,6 @@ def main():
             face_w = max(1, x2 - x1)
             face_ratio = face_w / float(W)
 
-            # too small / too close gates
             if face_ratio < MIN_FACE_RATIO:
                 draw_box(frame, x1, y1, x2, y2, (0, 255, 255), "Too small - come closer")
                 continue
@@ -222,7 +290,6 @@ def main():
                 draw_box(frame, x1, y1, x2, y2, (0, 165, 255), "Too close - move back")
                 continue
 
-            # antispoof
             cnn_score = None
             if HAS_ANTISPOOF:
                 crop = frame[y1:y2, x1:x2]
@@ -231,38 +298,32 @@ def main():
                     draw_box(frame, x1, y1, x2, y2, (0, 0, 255), f"SPOOF (cnn={cnn_score:.2f})")
                     continue
 
-            # embedding
             try:
                 emb = face_chip_embedding(frame, d)
             except Exception:
                 draw_box(frame, x1, y1, x2, y2, (0, 0, 255), "Chip/landmark failed")
                 continue
 
-            # classify
             probs = clf.predict_proba([emb])[0]
             idx = int(np.argmax(probs))
-            conf = float(probs[idx])  # 0..1
+            conf = float(probs[idx])
 
-            # threshold
             if conf < ACCEPT_PROBA:
                 draw_box(frame, x1, y1, x2, y2, (0, 255, 255), f"Low confidence ({conf*100:.1f}%)")
                 continue
 
-            # label -> student_num
-            name = label_encoder.inverse_transform([idx])[0]  # "8220967_Din"
+            name = label_encoder.inverse_transform([idx])[0]
             student_num = extract_student_num(name)
 
-            # Keep BEST per student inside snapshot window
             prev = snapshot_best.get(student_num)
             if (prev is None) or (conf > prev["accuracy"]):
                 snapshot_best[student_num] = {
-                    "student_num": student_num,           # ✅ string
-                    "accuracy": round(conf, 4),           # ✅ 0..1
+                    "student_num": student_num,
+                    "accuracy": round(conf, 4),
                     "cnn": round(cnn_score, 3) if (cnn_score is not None) else None
                 }
                 print(f"{now_str()} - {name} detected ({conf*100:.1f}%)")
 
-            # draw
             label = f"{name} ({conf*100:.1f}%)"
             if cnn_score is not None:
                 label += f" cnn={cnn_score:.2f}"
@@ -272,8 +333,9 @@ def main():
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
-    # send final snapshot (optional)
-    post_snapshot(LESSON_ID, snapshot_captured_at, snapshot_best)
+    # final snapshot on exit (if any detections in window)
+    if snapshot_best:
+        post_snapshot_auto(snapshot_captured_at, snapshot_best)
 
     cap.release()
     cv2.destroyAllWindows()
