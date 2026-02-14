@@ -38,7 +38,7 @@ interface OverallClassAttendanceDetails {
   absentees: number;
   attendance_log: AttendanceDetailRow[];
 }
-
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 interface ClassAttendanceDetailsProps {
   session: {
     lessonID: number;
@@ -74,7 +74,7 @@ export function ClassAttendanceDetails({
         setError(null);
         try {
           const response = await fetch(
-            `http://localhost:8000/lecturer/class/details?lesson_id=${session.lessonID}`,
+            `${API_URL}/lecturer/class/details?lesson_id=${session.lessonID}`,
             {
               method: "GET",
               headers: {
