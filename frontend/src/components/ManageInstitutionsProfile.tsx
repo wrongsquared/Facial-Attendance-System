@@ -67,6 +67,7 @@ export function ManageInstitutionsProfile({
   onCreateProfile,
   onViewProfile,
 }: ManageInstitutionsProfileProps) {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<string>("");
@@ -81,7 +82,7 @@ export function ManageInstitutionsProfile({
     const fetchAllInstitutions = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://localhost:8000/platform-manager/institutions", {
+        const response = await fetch(`${API_URL}/platform-manager/institutions`, {
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`,
@@ -92,7 +93,7 @@ export function ManageInstitutionsProfile({
       } catch (err) {
         console.error("Error while fetching:", err);
         toast.error("Failed to load institutions");
-      } finally{
+      } finally {
         setLoading(false);
       }
     };
@@ -149,7 +150,7 @@ export function ManageInstitutionsProfile({
 
   const handleDeleteInstitution = async (id: number) => {
     try {
-      const response = await fetch(`http://localhost:8000/platform-manager/campus/${id}`, {
+      const response = await fetch(`${API_URL}/platform-manager/campus/${id}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -248,7 +249,7 @@ export function ManageInstitutionsProfile({
                         </div>
                       </TableCell>
                     </TableRow>
-                  ) :currentInstitutions.length > 0 ? (
+                  ) : currentInstitutions.length > 0 ? (
                     currentInstitutions.map((institution) => (
                       <TableRow key={institution.campusID}>
                         <TableCell className="text-gray-600 font-medium">
